@@ -1,0 +1,253 @@
+.welcome-container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+}
+
+// Toolbar styles
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  .toolbar-content {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 500;
+
+    mat-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// User menu styles
+.user-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background-color: #f5f5f5;
+
+  mat-icon {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    color: #666;
+  }
+
+  .user-info {
+    display: flex;
+    flex-direction: column;
+
+    .username {
+      font-weight: 500;
+      font-size: 16px;
+      color: #333;
+    }
+
+    .email {
+      font-size: 14px;
+      color: #666;
+    }
+  }
+}
+
+// Content area
+.content {
+  flex: 1;
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+// Welcome section
+.welcome-section {
+  margin-bottom: 32px;
+  text-align: center;
+
+  .greeting {
+    font-size: 32px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+  }
+
+  .welcome-message {
+    font-size: 18px;
+    color: #666;
+    margin: 0;
+  }
+}
+
+// Dashboard grid
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.dashboard-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  mat-card-header {
+    margin-bottom: 16px;
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+
+      &.primary {
+        background-color: #3f51b5;
+        color: white;
+      }
+
+      &.accent {
+        background-color: #ff4081;
+        color: white;
+      }
+
+      &.warn {
+        background-color: #ff9800;
+        color: white;
+      }
+
+      &.success {
+        background-color: #4caf50;
+        color: white;
+      }
+    }
+
+    mat-card-title {
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    mat-card-subtitle {
+      font-size: 14px;
+    }
+  }
+
+  mat-card-content {
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #e0e0e0;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .label {
+        font-weight: 500;
+        color: #666;
+      }
+
+      .value {
+        color: #333;
+      }
+    }
+
+    .placeholder-text {
+      font-size: 16px;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .placeholder-description {
+      font-size: 14px;
+      color: #bbb;
+      margin: 0;
+    }
+  }
+
+  mat-card-actions {
+    padding: 16px;
+    display: flex;
+    justify-content: flex-start;
+
+    button {
+      mat-icon {
+        margin-right: 8px;
+      }
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 960px) {
+  .content {
+    padding: 24px 16px;
+  }
+
+  .welcome-section {
+    .greeting {
+      font-size: 28px;
+    }
+
+    .welcome-message {
+      font-size: 16px;
+    }
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .toolbar {
+    .brand {
+      .brand-name {
+        display: none;
+      }
+    }
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .welcome-section {
+    .greeting {
+      font-size: 24px;
+    }
+
+    .welcome-message {
+      font-size: 14px;
+    }
+  }
+}

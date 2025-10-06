@@ -1,0 +1,52 @@
+spring:
+  # Test Database Configuration (H2 in-memory)
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+    
+    # HikariCP Configuration for Tests
+    hikari:
+      connection-timeout: 10000
+      minimum-idle: 1
+      maximum-pool-size: 5
+      idle-timeout: 300000
+      max-lifetime: 600000
+      auto-commit: true
+      pool-name: FrcEfactHikariCP-Test
+
+  # JPA Configuration for Tests
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+
+  # Flyway Configuration for Tests
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    clean-disabled: false
+    locations: classpath:db/migration
+    schemas: public
+
+# Test Server Configuration
+server:
+  port: 0  # Random port for tests
+
+# Test Logging
+logging:
+  level:
+    com.frcefact: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.flywaydb: DEBUG
+
+# JWT Configuration for Tests
+jwt:
+  secret: testSecretKey
+  expiration: 3600000  # 1 hour for tests

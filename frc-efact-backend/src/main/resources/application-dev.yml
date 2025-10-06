@@ -1,0 +1,57 @@
+spring:
+  # Development Database Configuration
+  datasource:
+    # Puerto 5551 para desarrollo local
+    # Nota: La base de datos debe existir previamente. PostgreSQL no la crea automáticamente.
+    # Para crearla, ejecuta: psql -h localhost -p 5551 -U postgres -c "CREATE DATABASE frc_efact_dev;"
+    url: jdbc:postgresql://localhost:5551/frc_efact_dev
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    
+    # HikariCP Configuration for Development
+    hikari:
+      connection-timeout: 20000
+      minimum-idle: 5
+      maximum-pool-size: 10
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: true
+      pool-name: FrcEfactHikariCP-Dev
+
+  # JPA Configuration for Development
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Flyway Configuration for Development
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    clean-disabled: false
+    locations: classpath:db/migration
+    schemas: public
+
+# Development Server Configuration
+server:
+  port: 8080
+
+# Development Logging
+logging:
+  level:
+    com.frcefact: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.flywaydb: DEBUG
+
+# CORS Configuration for Development
+cors:
+  allowed-origins:
+    - http://localhost:4200
+    - https://localhost:4200

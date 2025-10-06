@@ -1,0 +1,73 @@
+spring:
+  # Production Database Configuration
+  datasource:
+    url: ${DATABASE_URL}
+    driver-class-name: org.postgresql.Driver
+    
+    # HikariCP Configuration for Production
+    hikari:
+      connection-timeout: 30000
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      auto-commit: true
+      pool-name: FrcEfactHikariCP-Prod
+      leak-detection-threshold: 60000
+
+  # JPA Configuration for Production
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  # Flyway Configuration for Production
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    clean-disabled: true
+    locations: classpath:db/migration
+    schemas: public
+
+# Production Server Configuration
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  servlet:
+    context-path: /api
+
+# Production Security Configuration
+security:
+  require-ssl: true
+  headers:
+    frame-options: DENY
+    content-type-options: nosniff
+    xss-protection: 1; mode=block
+    strict-transport-security: max-age=31536000; includeSubDomains
+
+# Production Logging
+logging:
+  level:
+    com.frcefact: INFO
+    org.springframework.security: WARN
+    org.hibernate: WARN
+    org.flywaydb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# CORS Configuration for Production
+cors:
+  allowed-origins:
+    - https://frc-efact-frontend.onrender.com
+
+# JWT Configuration for Production
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000  # 24 hours
