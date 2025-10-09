@@ -41,6 +41,12 @@ public class DatabaseConfig {
             String password = dbUri.getUserInfo().split(":")[1];
             String host = dbUri.getHost();
             int port = dbUri.getPort();
+            
+            // Use default PostgreSQL port if not specified
+            if (port == -1) {
+                port = 5432;
+            }
+            
             String database = dbUri.getPath().substring(1); // Remove leading '/'
             
             // Build JDBC URL
@@ -49,6 +55,8 @@ public class DatabaseConfig {
             // Log connection info (without password)
             System.out.println("Connecting to database: " + jdbcUrl);
             System.out.println("Database user: " + username);
+            System.out.println("Database host: " + host);
+            System.out.println("Database port: " + port);
             
             return DataSourceBuilder
                     .create()
@@ -60,6 +68,8 @@ public class DatabaseConfig {
                     
         } catch (URISyntaxException e) {
             throw new IllegalStateException("Invalid DATABASE_URL format: " + databaseUrl, e);
+        } catch (Exception e) {
+            throw new IllegalStateException("Error parsing DATABASE_URL: " + e.getMessage(), e);
         }
     }
 }
