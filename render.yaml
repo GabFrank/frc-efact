@@ -1,4 +1,5 @@
 services:
+  # Backend - Spring Boot API
   - type: web
     name: frc-efact-backend
     runtime: docker
@@ -20,8 +21,30 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: CORS_ALLOWED_ORIGINS
-        value: https://frc-efact-frontend.onrender.com
+        fromService:
+          type: web
+          name: frc-efact-frontend
+          property: host
     healthCheckPath: /actuator/health
+
+  # Frontend - Angular SPA
+  - type: web
+    name: frc-efact-frontend
+    runtime: static
+    buildCommand: cd frc-efact-frontend && npm install && npm run build
+    staticPublishPath: ./frc-efact-frontend/dist/frc-efact-frontend/browser
+    plan: free
+    region: oregon
+    envVars:
+      - key: API_URL
+        fromService:
+          type: web
+          name: frc-efact-backend
+          property: host
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
 databases:
   - name: frc-efact-db

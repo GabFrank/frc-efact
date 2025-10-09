@@ -19,40 +19,78 @@ El proyecto ya está configurado con:
 
 ### 2. Crear Servicios en Render
 
-**Opción A: Usando Blueprint (Recomendado)**
+**Opción A: Usando Blueprint (Recomendado) ⭐**
 
 1. Ve a [Render Dashboard](https://dashboard.render.com/)
 2. Click en "New" → "Blueprint"
 3. Conecta tu repositorio de GitHub/GitLab
 4. Render detectará automáticamente el `render.yaml`
-5. Click en "Apply" - Esto creará:
-   - Base de datos PostgreSQL
-   - Backend (Web Service con Docker)
-   - Frontend (Static Site)
+5. Revisa el preview - verás que se crearán **3 servicios**:
+   - 🗄️ **Base de datos PostgreSQL**: `frc-efact-db`
+   - 🚀 **Backend (Docker)**: `frc-efact-backend`
+   - 🎨 **Frontend (Static Site)**: `frc-efact-frontend`
+6. Click en "Apply"
+
+**¡Importante!** El Blueprint crea TODO automáticamente:
+- ✅ Base de datos (NO necesitas crearla antes)
+- ✅ Backend con Docker
+- ✅ Frontend con build de Angular
+- ✅ Variables de entorno conectadas entre servicios
+- ✅ CORS configurado automáticamente
 
 **Opción B: Manual**
 
 Si prefieres crear los servicios manualmente, sigue la guía en `MANUAL_SETUP.md`
 
-### 3. Configurar Variables de Entorno
+### 3. Variables de Entorno (Automáticas)
 
-Render configurará automáticamente la mayoría de las variables. Solo necesitas verificar:
+**¡No necesitas configurar nada manualmente!** El Blueprint configura todo:
 
 **Backend:**
-- `DATABASE_URL` - Se configura automáticamente desde la base de datos
-- `JWT_SECRET` - Genera uno seguro (mínimo 32 caracteres)
-- `FRONTEND_URL` - URL de tu frontend en Render
+- ✅ `DATABASE_URL` - Conectado automáticamente a la base de datos
+- ✅ `JWT_SECRET` - Generado automáticamente (seguro)
+- ✅ `CORS_ALLOWED_ORIGINS` - Apunta automáticamente al frontend
+- ✅ `SPRING_PROFILES_ACTIVE` - Configurado como `prod`
 
 **Frontend:**
-- `API_URL` - URL de tu backend en Render
+- ✅ `API_URL` - Apunta automáticamente al backend
 
-### 4. Verificar el Deployment
+**Base de Datos:**
+- ✅ Creada automáticamente con nombre, usuario y contraseña
 
-Una vez que los servicios estén desplegados:
+### 4. Monitorear el Deployment
 
-1. Verifica que el backend esté corriendo: `https://tu-backend.onrender.com/actuator/health`
-2. Verifica que el frontend cargue: `https://tu-frontend.onrender.com`
-3. Prueba el login con el usuario admin (ver credenciales en la documentación)
+**Tiempos esperados:**
+- 🗄️ Base de datos: 1-2 minutos
+- 🚀 Backend (primera vez): 10-15 minutos
+- 🎨 Frontend: 3-5 minutos
+
+**Cómo monitorear:**
+1. En Render Dashboard verás los 3 servicios
+2. Click en cada uno para ver los logs en tiempo real
+3. Espera a que todos muestren "Live" (verde)
+
+### 5. Verificar que Todo Funciona
+
+**Una vez que todos los servicios estén "Live":**
+
+**1. Verifica el Backend:**
+```
+https://frc-efact-backend.onrender.com/actuator/health
+```
+Deberías ver: `{"status":"UP"}`
+
+**2. Verifica el Frontend:**
+```
+https://frc-efact-frontend.onrender.com
+```
+Deberías ver la página de login
+
+**3. Prueba el Login:**
+- Usuario: `admin`
+- Password: `admin123`
+
+Si el login funciona, ¡todo está correcto! ✅
 
 ## 🔧 Solución de Problemas Comunes
 
