@@ -29,8 +29,6 @@ services:
     runtime: static
     buildCommand: cd frc-efact-frontend && npm install && npm run build -- --configuration production
     staticPublishPath: ./frc-efact-frontend/dist/frc-efact-frontend/browser
-    plan: free
-    region: oregon
     routes:
       - type: rewrite
         source: /*
