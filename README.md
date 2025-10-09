@@ -1,135 +1,112 @@
 # FRC eFact - Sistema de Facturación Electrónica
 
-Monorepo completo del sistema FRC eFact, incluyendo backend (Spring Boot) y frontend (Angular).
-
-## 📁 Estructura del Proyecto
-
-```
-frc-efact/
-├── frc-efact-backend/      # Backend API (Spring Boot + PostgreSQL)
-├── frc-efact-frontend/     # Frontend SPA (Angular + Material Design)
-├── .kiro/                  # Especificaciones y configuración de desarrollo
-└── README.md               # Este archivo
-```
+Sistema web para gestión de facturación electrónica con backend en Spring Boot y frontend en Angular.
 
 ## 🚀 Inicio Rápido
 
-### Backend
-```bash
-cd frc-efact-backend
-./mvnw spring-boot:run
-```
-El backend estará disponible en `http://localhost:8080`
+### Desarrollo Local
 
-### Frontend
 ```bash
-cd frc-efact-frontend
-npm install
-npm start
+# 1. Configurar base de datos
+cd frc-efact-backend
+./setup-local-db.sh
+
+# 2. Iniciar backend (en una terminal)
+./dev.sh
+
+# 3. Iniciar frontend (en otra terminal)
+cd ../frc-efact-frontend
+./dev.sh
 ```
-El frontend estará disponible en `http://localhost:4200`
+
+Accede a `http://localhost:4200` y usa:
+- Usuario: `admin`
+- Password: `admin123`
+
+### Deployment en Render
+
+Ver la guía completa en: **[docs/deployment/render/README.md](docs/deployment/render/README.md)**
 
 ## 📚 Documentación
 
-- **Backend**: Ver [frc-efact-backend/README.md](./frc-efact-backend/README.md)
-- **Frontend**: Ver [frc-efact-frontend/README.md](./frc-efact-frontend/README.md)
-- **Estándares de BD**: Ver [frc-efact-backend/DATABASE_STANDARDS.md](./frc-efact-backend/DATABASE_STANDARDS.md)
-- **Testing**: Ver [POSTMAN_TEST_GUIDE.md](./POSTMAN_TEST_GUIDE.md)
+### Para Empezar
+- **[Guía de Desarrollo Local](docs/guides/DEVELOPMENT.md)** - Setup y desarrollo en tu máquina
+- **[Guía de Testing](docs/guides/TESTING.md)** - Cómo probar la aplicación
+- **[Guía de Postman](docs/guides/POSTMAN.md)** - Testing de API
 
-## 🛠️ Tecnologías
+### Deployment
+- **[Deployment en Render](docs/deployment/render/README.md)** - ⭐ Guía principal para deployment
+- **[Setup Manual en Render](docs/deployment/render/MANUAL_SETUP.md)** - Si prefieres crear servicios manualmente
+- **[Scripts de Deployment](docs/deployment/scripts/README.md)** - Scripts útiles
 
-### Backend
-- Java 17+
-- Spring Boot 3.2+
-- Spring Security 6+ (JWT)
-- PostgreSQL 15+
-- Flyway (migraciones)
-- Maven
+### Solución de Problemas
+- **[Problemas en Render](docs/troubleshooting/RENDER_ISSUES.md)** - Errores específicos de Render
+- **[Errores Comunes](docs/troubleshooting/COMMON_ERRORS.md)** - Problemas generales
 
-### Frontend
-- Angular 17+
-- Angular Material
+## 🏗️ Arquitectura
+
+```
+frc-efact/
+├── frc-efact-backend/     # Spring Boot API
+│   ├── src/
+│   ├── Dockerfile
+│   └── API_DOCUMENTATION.md
+├── frc-efact-frontend/    # Angular SPA
+│   ├── src/
+│   └── README.md
+├── docs/                  # 📚 Documentación organizada
+│   ├── deployment/        # Guías de deployment
+│   ├── guides/            # Guías de uso
+│   └── troubleshooting/   # Solución de problemas
+└── render.yaml            # Blueprint para Render
+```
+
+## 🔧 Tecnologías
+
+**Backend:**
+- Java 17
+- Spring Boot 3.x
+- PostgreSQL
+- JWT Authentication
+- Flyway Migrations
+
+**Frontend:**
+- Angular 17
 - TypeScript
+- Tailwind CSS
 - RxJS
-- Standalone Components
 
-## 🔧 Requisitos Previos
+## 🔐 Seguridad
 
-- **Java**: 17 o superior
-- **Node.js**: 18 o superior
-- **PostgreSQL**: 15 o superior
-- **Maven**: 3.9+ (o usar el wrapper incluido)
-- **npm**: 9+ (incluido con Node.js)
+- Autenticación JWT
+- CORS configurado
+- Passwords hasheados con BCrypt
+- HTTPS en producción
 
-## 🗄️ Base de Datos
+Ver más en:
+- [Backend Security](frc-efact-backend/SECURITY.md)
+- [Frontend Security](frc-efact-frontend/SECURITY.md)
 
-### Configuración Local
+## 📝 API Documentation
 
-1. Crear la base de datos:
-```bash
-psql -h localhost -p 5432 -U postgres -c "CREATE DATABASE frc_efact_dev;"
-```
+Ver documentación completa de endpoints en: [frc-efact-backend/API_DOCUMENTATION.md](frc-efact-backend/API_DOCUMENTATION.md)
 
-2. Las migraciones se ejecutan automáticamente al iniciar el backend
+## 🤝 Contribuir
 
-### Credenciales de Prueba
-
-Después de ejecutar las migraciones, puedes usar:
-- **Usuario**: `admin`
-- **Contraseña**: `admin123`
-
-## 🚢 Deployment
-
-Este proyecto está configurado para deployment en Render usando un monorepo:
-
-- **Backend**: Web Service (Java)
-- **Frontend**: Static Site (Node)
-- **Base de datos**: PostgreSQL
-
-Ver documentación específica en cada subcarpeta para detalles de deployment.
-
-## 📝 Desarrollo
-
-### Convenciones de Commits
-
-Usamos prefijos para identificar qué parte del proyecto se modifica:
-
-```
-feat(backend): Agregar endpoint de usuarios
-fix(frontend): Corregir validación de login
-docs: Actualizar README principal
-chore(backend): Actualizar dependencias
-```
-
-### Branches
-
-- `main`: Rama principal (producción)
-- `develop`: Rama de desarrollo
-- `feature/*`: Nuevas funcionalidades
-- `fix/*`: Correcciones de bugs
-
-## 🧪 Testing
-
-### Backend
-```bash
-cd frc-efact-backend
-./mvnw test
-```
-
-### Frontend
-```bash
-cd frc-efact-frontend
-npm test
-```
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
 
 ## 📄 Licencia
 
-Proyecto privado - FRC eFact
+Este proyecto es privado y confidencial.
 
-## 👥 Equipo
+## 🆘 Soporte
 
-Desarrollado por el equipo de FRC eFact
-
----
-
-Para más información sobre cada componente, consulta los README específicos en cada directorio.
+¿Problemas? Revisa:
+1. [Errores Comunes](docs/troubleshooting/COMMON_ERRORS.md)
+2. [Problemas en Render](docs/troubleshooting/RENDER_ISSUES.md)
+3. Logs de la aplicación
+4. Issues en el repositorio

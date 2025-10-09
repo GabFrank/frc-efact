@@ -112,36 +112,36 @@
     - Crear componente de layout principal
     - _Requirements: 4.4, 5.4_
 
-- [ ] 7. Configurar deployment para Render
-  - [ ] 7.1 Configurar backend para deployment en Render
+- [x] 7. Configurar deployment para Render
+  - [x] 7.1 Configurar backend para deployment en Render
     - Crear application-prod.yml con configuración de producción
     - Configurar variables de entorno necesarias (DATABASE_URL, JWT_SECRET)
     - Implementar Spring Actuator para health checks (/actuator/health)
     - Crear Dockerfile o configuración de build para Render
     - _Requirements: 6.1, 6.3, 6.5_
 
-  - [ ] 7.2 Configurar frontend para deployment en Render
+  - [x] 7.2 Configurar frontend para deployment en Render
     - Configurar environment.prod.ts con URLs de producción
     - Optimizar build de Angular para producción (AOT, tree-shaking)
     - Configurar routing para SPA en servidor estático
     - Crear scripts de build optimizados
     - _Requirements: 6.1, 6.4, 6.5_
 
-  - [ ] 7.3 Implementar configuración de seguridad CORS y HTTPS
+  - [x] 7.3 Implementar configuración de seguridad CORS y HTTPS
     - Configurar CORS en Spring Boot para permitir frontend de Render
     - Implementar headers de seguridad SSL/HTTPS (HSTS, CSP)
     - Configurar JWT cookies como secure y httpOnly
     - Implementar redirección automática HTTP a HTTPS
     - _Requirements: 6.5, 6.6_
 
-- [ ] 8. Crear documentación y scripts de desarrollo
-  - [ ] 8.1 Crear documentación completa del proyecto
+- [x] 8. Crear documentación y scripts de desarrollo
+  - [x] 8.1 Crear documentación completa del proyecto en espanhol
     - Escribir README detallado para backend con instrucciones de setup
     - Escribir README detallado para frontend con instrucciones de desarrollo
     - Documentar APIs y endpoints disponibles
     - _Requirements: 7.1, 7.3, 7.5_
 
-  - [ ] 8.2 Configurar scripts de desarrollo y build
+  - [x] 8.2 Configurar scripts de desarrollo y build
     - Crear scripts Maven para desarrollo y testing del backend
     - Configurar scripts npm para desarrollo y build del frontend
     - Implementar scripts de setup para base de datos local
@@ -153,22 +153,22 @@
     - Configurar GitHub Actions para CI/CD con testing automático
     - _Requirements: 7.4_
 
-- [ ] 9. Integración y deployment final
-  - [ ] 9.1 Verificar integración completa en desarrollo
+- [x] 9. Integración y deployment final
+  - [x] 9.1 Verificar integración completa en desarrollo
     - Probar flujo completo de autenticación entre backend y frontend
     - Verificar manejo de errores y validaciones
     - Confirmar navegación y protección de rutas
     - Validar responsive design en diferentes dispositivos
     - _Requirements: 4.1, 4.2, 4.3, 5.1, 3.3_
 
-  - [ ] 9.2 Ejecutar deployment inicial en Render
+  - [x] 9.2 Ejecutar deployment inicial en Render
     - Crear y configurar servicios web en Render (backend y frontend)
     - Configurar base de datos PostgreSQL managed en Render
     - Ejecutar migraciones de Flyway en producción
     - Verificar conectividad y funcionamiento HTTPS
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.6_
 
-  - [ ] 9.3 Validar deployment y crear documentación final
+  - [x] 9.3 Validar deployment y crear documentación final
     - Probar aplicación completa en producción (login, welcome, logout)
     - Verificar performance y tiempos de respuesta
     - Actualizar documentación con URLs de producción

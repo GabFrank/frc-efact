@@ -4,9 +4,21 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:open": "ng serve --open",
+    "start:prod": "ng serve --configuration production",
     "build": "ng build",
+    "build:dev": "ng build --configuration development",
+    "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadless",
+    "test:coverage": "ng test --watch=false --code-coverage --browsers=ChromeHeadless",
+    "lint": "ng lint",
+    "lint:fix": "ng lint --fix",
+    "analyze": "ng build --configuration production --stats-json && webpack-bundle-analyzer dist/frc-efact-frontend/stats.json",
+    "clean": "rm -rf dist node_modules/.cache .angular/cache",
+    "clean:install": "npm run clean && npm install",
+    "serve:dist": "npx http-server dist/frc-efact-frontend/browser -p 4200 -c-1"
   },
   "private": true,
   "dependencies": {

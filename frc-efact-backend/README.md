@@ -96,6 +96,8 @@ jwt:
 
 - `GET /api/users/profile` - Obtener perfil del usuario autenticado
 
+Para documentación completa de la API, ver [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+
 ## Testing
 
 ```bash
@@ -115,23 +117,60 @@ jwt:
 # El JAR se genera en target/frc-efact-backend-*.jar
 ```
 
-## Deployment en Render
+## Deployment
 
-El proyecto está configurado para deployment automático en Render:
+### Deployment en Render (Recomendado: Docker)
 
-- **Build Command**: `./mvnw clean package -Dmaven.test.skip=true`
-- **Start Command**: `java -Dserver.port=$PORT -jar target/frc-efact-backend-*.jar`
+El proyecto incluye un `Dockerfile` optimizado para deployment en Render:
+
+**Configuración en Render:**
+- **Runtime**: Docker
+- **Dockerfile Path**: `frc-efact-backend/Dockerfile`
+- **Docker Context**: `frc-efact-backend`
 - **Health Check**: `/actuator/health`
 
-### Variables de Entorno en Render
-
+**Variables de Entorno en Render:**
 ```
 DATABASE_URL=postgresql://...
 JWT_SECRET=generated-secure-key
 JWT_EXPIRATION=86400000
-SPRING_PROFILES_ACTIVE=production
+SPRING_PROFILES_ACTIVE=prod
 CORS_ALLOWED_ORIGINS=https://frc-efact-frontend.onrender.com
+LOG_LEVEL=INFO
 ```
+
+### Test Docker Localmente
+
+Antes de desplegar, puedes probar el Dockerfile localmente:
+
+```bash
+# Probar build y ejecución de Docker
+./test-docker.sh
+
+# O manualmente:
+docker build -t frc-efact-backend .
+docker run -p 8080:8080 \
+  -e DATABASE_URL="jdbc:postgresql://host.docker.internal:5432/frc_efact_db?user=postgres&password=postgres" \
+  -e JWT_SECRET="test-secret" \
+  frc-efact-backend
+```
+
+### Deployment Alternativo (Java Buildpack)
+
+Si prefieres no usar Docker:
+
+1. Crear `system.properties`:
+   ```properties
+   java.runtime.version=17
+   maven.version=3.9.6
+   ```
+
+2. Configurar en Render:
+   - **Runtime**: Java
+   - **Build Command**: `./mvnw clean package -DskipTests`
+   - **Start Command**: `java -Dserver.port=$PORT -Dspring.profiles.active=prod -jar target/frc-efact-backend-*.jar`
+
+**Nota:** Docker es más confiable y recomendado.
 
 ## Estándares de Base de Datos
 
