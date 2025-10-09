@@ -94,6 +94,25 @@ GET https://tu-frontend.onrender.com/main-XXX.js net::ERR_ABORTED 404
 
 ---
 
+## ❌ Error: "Timed Out" en Health Check
+
+**Síntoma**: Backend inicia correctamente pero Render marca "Timed Out":
+```
+Timed Out after waiting for internal health check
+```
+
+**Causa**: El `healthCheckPath` en render.yaml no incluye el `context-path`.
+
+**Solución**: ✅ Ya está solucionado - El health check usa `/api/actuator/health`
+
+**Verificar**:
+- En Render Dashboard, ve al backend
+- Click en "Settings"
+- Verifica que "Health Check Path" sea: `/api/actuator/health`
+- Si está mal, corrígelo y redeploy
+
+---
+
 ## ❌ Error 503: Service Unavailable
 
 **Síntoma**: Al acceder al backend obtienes error 503.
@@ -106,7 +125,7 @@ GET https://tu-frontend.onrender.com/main-XXX.js net::ERR_ABORTED 404
 **Solución**:
 1. Espera 30-60 segundos (si estaba dormido)
 2. Revisa los logs en Render Dashboard
-3. Verifica el health check: `/actuator/health`
+3. Verifica el health check: `/api/actuator/health`
 4. Si persiste, revisa las variables de entorno
 
 ---
