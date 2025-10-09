@@ -2,6 +2,8 @@
 
 Toda la documentación del proyecto organizada por categorías.
 
+> 💡 **¿Primera vez aquí?** Lee [ESTRUCTURA.md](ESTRUCTURA.md) para entender cómo está organizada la documentación.
+
 ## 📖 Índice
 
 ### 🚀 Para Empezar
