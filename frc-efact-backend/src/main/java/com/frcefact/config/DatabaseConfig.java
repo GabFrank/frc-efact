@@ -1,33 +1,65 @@
 package com.frcefact.config;
 
+import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
+import javax.sql.DataSource;
+import java.net.URI;
+import java.net.URISyntaxException;
+
 /**
- * Database configuration for the FRC eFact application.
- * Spring Boot auto-configures HikariCP DataSource from application.yml properties.
- * This class is kept for future custom database configurations if needed.
+ * Database configuration for production environment.
+ * Handles Render's DATABASE_URL format conversion to JDBC format.
  */
 @Configuration
+@Profile("prod")
 public class DatabaseConfig {
 
     /**
-     * Development profile specific configuration.
-     * Additional development-specific database settings can be added here.
+     * Creates a DataSource from Render's DATABASE_URL environment variable.
+     * Converts from: postgresql://user:password@host:port/database
+     * To JDBC format: jdbc:postgresql://host:port/database
+     * 
+     * @return Configured DataSource
      */
-    @Configuration
-    @Profile("dev")
-    static class DevelopmentDatabaseConfig {
-        // Development-specific database configuration if needed
-    }
+    @Bean
+    @Primary
+    public DataSource dataSource() {
+        String databaseUrl = System.getenv("DATABASE_URL");
+        
+        if (databaseUrl == null || databaseUrl.isEmpty()) {
+            throw new IllegalStateException("DATABASE_URL environment variable is not set");
+        }
 
-    /**
-     * Production profile specific configuration.
-     * Additional production-specific database settings can be added here.
-     */
-    @Configuration
-    @Profile("prod")
-    static class ProductionDatabaseConfig {
-        // Production-specific database configuration if needed
+        try {
+            URI dbUri = new URI(databaseUrl);
+            
+            String username = dbUri.getUserInfo().split(":")[0];
+            String password = dbUri.getUserInfo().split(":")[1];
+            String host = dbUri.getHost();
+            int port = dbUri.getPort();
+            String database = dbUri.getPath().substring(1); // Remove leading '/'
+            
+            // Build JDBC URL
+            String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, database);
+            
+            // Log connection info (without password)
+            System.out.println("Connecting to database: " + jdbcUrl);
+            System.out.println("Database user: " + username);
+            
+            return DataSourceBuilder
+                    .create()
+                    .url(jdbcUrl)
+                    .username(username)
+                    .password(password)
+                    .driverClassName("org.postgresql.Driver")
+                    .build();
+                    
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException("Invalid DATABASE_URL format: " + databaseUrl, e);
+        }
     }
 }

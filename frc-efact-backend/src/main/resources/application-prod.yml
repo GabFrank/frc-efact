@@ -1,9 +1,8 @@
 spring:
   # Production Database Configuration
+  # Note: DataSource is configured programmatically in DatabaseConfig.java
+  # to handle Render's DATABASE_URL format conversion
   datasource:
-    url: ${DATABASE_URL}
-    driver-class-name: org.postgresql.Driver
-    
     # HikariCP Configuration for Production
     hikari:
       connection-timeout: 30000
@@ -42,6 +41,32 @@ server:
   forward-headers-strategy: framework
   servlet:
     context-path: /api
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+
+# Management/Actuator Configuration for Production
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    export:
+      simple:
+        enabled: true
 
 # Production Security Configuration
 security:
@@ -61,6 +86,10 @@ logging:
     org.flywaydb: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/frc-efact-backend.log
+    max-size: 10MB
+    max-history: 30
 
 # CORS Configuration for Production
 cors:
@@ -70,4 +99,5 @@ cors:
 # JWT Configuration for Production
 jwt:
   secret: ${JWT_SECRET}
-  expiration: 86400000  # 24 hours
+  expiration-ms: 86400000  # 24 hours
+  refresh-expiration-ms: 604800000  # 7 days
