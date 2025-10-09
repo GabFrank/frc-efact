@@ -4,6 +4,8 @@ services:
     runtime: docker
     dockerfilePath: ./frc-efact-backend/Dockerfile
     dockerContext: ./frc-efact-backend
+    plan: free
+    region: oregon
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
@@ -14,12 +16,16 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRATION
-        value: 86400000
+        value: "86400000"
       - key: LOG_LEVEL
         value: INFO
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://frc-efact-frontend.onrender.com
     healthCheckPath: /actuator/health
-    
+
 databases:
   - name: frc-efact-db
     databaseName: frc_efact_db
     user: frc_efact_user
+    plan: free
+    region: oregon
