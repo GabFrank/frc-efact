@@ -16,17 +16,21 @@ Problemas comunes y sus soluciones al hacer deployment en Render.
 
 ---
 
-## ❌ Error: "Invalid DATABASE_URL format"
+## ❌ Error: "Invalid DATABASE_URL format" o "port -1"
 
-**Síntoma**: El backend falla al iniciar con error de formato de URL de base de datos.
+**Síntoma**: El backend falla al iniciar con error:
+```
+Driver org.postgresql.Driver claims to not accept jdbcUrl, jdbc:postgresql://host:-1/database
+```
 
-**Causa**: Render proporciona `DATABASE_URL` en formato `postgresql://...` pero Spring Boot necesita `jdbc:postgresql://...`
+**Causa**: Render proporciona `DATABASE_URL` sin puerto explícito en URLs internas.
 
-**Solución**: ✅ Ya está solucionado - La clase `DatabaseConfig.java` convierte automáticamente el formato.
+**Solución**: ✅ Ya está solucionado - La clase `DatabaseConfig.java` usa puerto 5432 por defecto.
 
 **Verificar**:
 - Existe `frc-efact-backend/src/main/java/com/frcefact/config/DatabaseConfig.java`
 - La variable `DATABASE_URL` está configurada en Render
+- Los logs muestran "Database port: 5432"
 
 ---
 
@@ -59,15 +63,34 @@ Problemas comunes y sus soluciones al hacer deployment en Render.
 
 ---
 
+## ❌ Frontend Pantalla en Blanco o 404 en archivos JS
+
+**Síntoma**: Frontend carga pero pantalla en blanco. DevTools muestra:
+```
+GET https://tu-frontend.onrender.com/main-XXX.js net::ERR_ABORTED 404
+```
+
+**Causa**: El `staticPublishPath` en render.yaml está mal configurado.
+
+**Solución**: ✅ Ya está solucionado - El path correcto es `frc-efact-frontend/dist/frc-efact-frontend/browser`
+
+**Verificar**:
+- En Render Dashboard, ve al servicio frontend
+- Click en "Settings"
+- Verifica que "Publish Directory" sea: `frc-efact-frontend/dist/frc-efact-frontend/browser`
+- Si está mal, corrígelo y redeploy
+
+---
+
 ## ❌ Frontend no se conecta al Backend
 
 **Síntoma**: Frontend carga pero no puede hacer login o fetch data.
 
 **Solución**:
-1. Verifica que `API_URL` en el frontend apunte al backend correcto
+1. Verifica que `environment.prod.ts` apunte al backend correcto
 2. Abre DevTools (F12) y revisa la consola para errores CORS
-3. Verifica que `FRONTEND_URL` en el backend incluya la URL del frontend
-4. Verifica que ambos servicios usen HTTPS (no mezclar HTTP/HTTPS)
+3. Verifica que ambos servicios usen HTTPS (no mezclar HTTP/HTTPS)
+4. Verifica que el backend esté corriendo (health check)
 
 ---
 
