@@ -20,27 +20,17 @@ services:
         value: "86400000"
       - key: LOG_LEVEL
         value: INFO
-      - key: CORS_ALLOWED_ORIGINS
-        fromService:
-          type: web
-          name: frc-efact-frontend
-          property: host
+
     healthCheckPath: /actuator/health
 
   # Frontend - Angular SPA
   - type: web
     name: frc-efact-frontend
     runtime: static
-    buildCommand: cd frc-efact-frontend && npm install && npm run build
+    buildCommand: cd frc-efact-frontend && npm install && npm run build -- --configuration production
     staticPublishPath: ./frc-efact-frontend/dist/frc-efact-frontend/browser
     plan: free
     region: oregon
-    envVars:
-      - key: API_URL
-        fromService:
-          type: web
-          name: frc-efact-backend
-          property: host
     routes:
       - type: rewrite
         source: /*
