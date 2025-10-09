@@ -8,10 +8,11 @@ Visualización de cómo está organizada toda la documentación del proyecto.
 frc-efact/
 │
 ├── START_HERE.md                    # 👈 EMPIEZA AQUÍ - Guía rápida
-├── README.md                        # Descripción general del proyecto
+├── README.md                        # 📖 Índice principal del proyecto
 │
 ├── docs/                            # 📚 Toda la documentación
-│   ├── README.md                    # Índice completo de documentación
+│   ├── ESTRUCTURA.md                # Guía de navegación
+│   ├── RESUMEN_CAMBIOS.md           # Resumen de reorganización
 │   │
 │   ├── deployment/                  # 🚀 Todo sobre deployment
 │   │   ├── render/                  # Específico de Render
@@ -136,7 +137,7 @@ En los documentos verás estos emojis:
 1. **Siempre empieza en `START_HERE.md`** - Te dirije al documento correcto
 2. **Para Render, solo necesitas un documento** - `docs/deployment/render/README.md`
 3. **Los documentos están enlazados** - Sigue los links internos
-4. **Usa el índice** - `docs/README.md` tiene todo organizado
+4. **Usa el README principal** - `README.md` en la raíz tiene todo organizado
 5. **Busca por emoji** - Los emojis te ayudan a identificar el tipo de documento
 
 ## 🔍 Búsqueda Rápida

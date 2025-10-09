@@ -51,7 +51,9 @@ Pasos:
 
 ### 📚 Ver Toda la Documentación
 
-→ Lee: [docs/README.md](docs/README.md)
+→ Lee: [README.md](README.md) (raíz del proyecto)
+
+→ O explora: [docs/ESTRUCTURA.md](docs/ESTRUCTURA.md) (estructura detallada)
 
 ---
 

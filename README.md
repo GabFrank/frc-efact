@@ -29,19 +29,27 @@ Ver la guía completa en: **[docs/deployment/render/README.md](docs/deployment/r
 
 ## 📚 Documentación
 
-### Para Empezar
+> 💡 **¿Primera vez?** Lee [START_HERE.md](START_HERE.md) para una guía rápida de inicio.
+> 
+> 📖 **Documentación completa**: Toda la documentación está organizada en la carpeta [docs/](docs/)
+
+### 🚀 Para Empezar
 - **[Guía de Desarrollo Local](docs/guides/DEVELOPMENT.md)** - Setup y desarrollo en tu máquina
 - **[Guía de Testing](docs/guides/TESTING.md)** - Cómo probar la aplicación
-- **[Guía de Postman](docs/guides/POSTMAN.md)** - Testing de API
+- **[Guía de Postman](docs/guides/POSTMAN_GUIDE.md)** - Testing de API
 
-### Deployment
+### 🌐 Deployment
 - **[Deployment en Render](docs/deployment/render/README.md)** - ⭐ Guía principal para deployment
 - **[Setup Manual en Render](docs/deployment/render/MANUAL_SETUP.md)** - Si prefieres crear servicios manualmente
 - **[Scripts de Deployment](docs/deployment/scripts/README.md)** - Scripts útiles
 
-### Solución de Problemas
+### 🔧 Solución de Problemas
 - **[Problemas en Render](docs/troubleshooting/RENDER_ISSUES.md)** - Errores específicos de Render
 - **[Errores Comunes](docs/troubleshooting/COMMON_ERRORS.md)** - Problemas generales
+
+### 📖 Más Documentación
+- **[Estructura de Documentación](docs/ESTRUCTURA.md)** - Cómo está organizada toda la documentación
+- **[Resumen de Cambios](docs/RESUMEN_CAMBIOS.md)** - Qué cambió en la reorganización
 
 ## 🏗️ Arquitectura
 
@@ -106,7 +114,25 @@ Este proyecto es privado y confidencial.
 ## 🆘 Soporte
 
 ¿Problemas? Revisa:
-1. [Errores Comunes](docs/troubleshooting/COMMON_ERRORS.md)
-2. [Problemas en Render](docs/troubleshooting/RENDER_ISSUES.md)
-3. Logs de la aplicación
-4. Issues en el repositorio
+1. **[START_HERE.md](START_HERE.md)** - Guía rápida de inicio
+2. **[Errores Comunes](docs/troubleshooting/COMMON_ERRORS.md)** - Problemas generales
+3. **[Problemas en Render](docs/troubleshooting/RENDER_ISSUES.md)** - Errores específicos de Render
+4. Logs de la aplicación
+5. Issues en el repositorio
+
+## 📁 Estructura del Proyecto
+
+```
+frc-efact/
+├── START_HERE.md              # 👈 Empieza aquí
+├── README.md                  # Este archivo
+├── docs/                      # 📚 Toda la documentación
+│   ├── ESTRUCTURA.md          # Guía de navegación
+│   ├── deployment/            # Guías de deployment
+│   ├── guides/                # Guías de uso
+│   └── troubleshooting/       # Solución de problemas
+├── frc-efact-backend/         # Backend Spring Boot
+└── frc-efact-frontend/        # Frontend Angular
+```
+
+Ver estructura completa: [docs/ESTRUCTURA.md](docs/ESTRUCTURA.md)

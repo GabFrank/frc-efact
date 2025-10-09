@@ -191,7 +191,7 @@ fi
 # 7. Verificar documentación
 print_section "7. Verificación de Documentación"
 
-DOCS=("README.md" "docs/README.md" "docs/deployment/render/README.md" "frc-efact-backend/README.md" "frc-efact-frontend/README.md")
+DOCS=("README.md" "START_HERE.md" "docs/deployment/render/README.md" "frc-efact-backend/README.md" "frc-efact-frontend/README.md")
 
 for doc in "${DOCS[@]}"; do
     if [ -f "$doc" ]; then
