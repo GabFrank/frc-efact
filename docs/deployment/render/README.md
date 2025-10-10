@@ -80,6 +80,11 @@ https://frc-efact-backend.onrender.com/actuator/health
 ```
 Deberías ver: `{"status":"UP"}`
 
+**Nota**: Los endpoints del backend están en la raíz (sin `/api`):
+- Health: `/actuator/health`
+- Login: `/auth/login`
+- Users: `/usuarios`
+
 **2. Verifica el Frontend:**
 ```
 https://frc-efact-frontend.onrender.com
