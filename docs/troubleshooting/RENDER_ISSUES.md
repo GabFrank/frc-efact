@@ -94,6 +94,25 @@ GET https://tu-frontend.onrender.com/main-XXX.js net::ERR_ABORTED 404
 
 ---
 
+## ❌ Servicio "In Progress" pero Logs Muestran "Started"
+
+**Síntoma**: Los logs muestran que la aplicación inició correctamente:
+```
+Started FrcEfactBackendApplication in 149 seconds
+```
+Pero Render sigue mostrando "In Progress" o "Building"
+
+**Causa**: Render está usando cache del build anterior con código viejo.
+
+**Solución**:
+1. Ve a Render Dashboard
+2. Click en el servicio backend
+3. Click en "Manual Deploy" (arriba a la derecha)
+4. Selecciona "**Clear build cache & deploy**"
+5. Espera 10-15 minutos para rebuild completo
+
+---
+
 ## ❌ Error: "Timed Out" en Health Check
 
 **Síntoma**: Backend inicia correctamente pero Render marca "Timed Out":
@@ -101,15 +120,14 @@ GET https://tu-frontend.onrender.com/main-XXX.js net::ERR_ABORTED 404
 Timed Out after waiting for internal health check
 ```
 
-**Causa**: El `healthCheckPath` en render.yaml no incluye el `context-path`.
+**Causa**: La aplicación tarda ~2.5 minutos en iniciar y Render tiene timeout agresivo.
 
-**Solución**: ✅ Ya está solucionado - El health check usa `/api/actuator/health`
+**Solución**: ✅ Ya está solucionado - Health check deshabilitado en render.yaml
 
 **Verificar**:
-- En Render Dashboard, ve al backend
-- Click en "Settings"
-- Verifica que "Health Check Path" sea: `/api/actuator/health`
-- Si está mal, corrígelo y redeploy
+- El servicio debe marcar "Live" una vez que el puerto esté abierto
+- No debe esperar por health check
+- Puedes verificar manualmente: `curl https://tu-backend.onrender.com/actuator/health`
 
 ---
 
