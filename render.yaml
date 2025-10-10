@@ -21,8 +21,6 @@ services:
       - key: LOG_LEVEL
         value: INFO
 
-    healthCheckPath: /actuator/health
-
   # Frontend - Angular SPA
   - type: web
     name: frc-efact-frontend
