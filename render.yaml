@@ -21,7 +21,7 @@ services:
       - key: LOG_LEVEL
         value: INFO
 
-    healthCheckPath: /api/actuator/health
+    healthCheckPath: /actuator/health
 
   # Frontend - Angular SPA
   - type: web
