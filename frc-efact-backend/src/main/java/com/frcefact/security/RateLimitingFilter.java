@@ -25,10 +25,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(RateLimitingFilter.class);
 
-    // Máximo de intentos permitidos
-    private static final int MAX_ATTEMPTS = 5;
+    // Máximo de intentos permitidos (configurable)
+    private static final int MAX_ATTEMPTS = 100; // Aumentado para desarrollo
     
-    // Ventana de tiempo en minutos
+    // Ventana de tiempo en minutos (configurable)
     private static final int TIME_WINDOW_MINUTES = 15;
 
     // Almacenamiento en memoria de intentos por IP
