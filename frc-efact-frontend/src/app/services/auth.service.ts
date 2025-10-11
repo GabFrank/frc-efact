@@ -66,7 +66,16 @@ export class AuthService {
   }
 
   private getUserFromStorage(): User | null {
-    const userJson = localStorage.getItem(this.USER_KEY);
-    return userJson ? JSON.parse(userJson) : null;
+    try {
+      const userJson = localStorage.getItem(this.USER_KEY);
+      if (!userJson || userJson === 'undefined' || userJson === 'null') {
+        return null;
+      }
+      return JSON.parse(userJson);
+    } catch (error) {
+      console.error('Error parsing user from storage:', error);
+      localStorage.removeItem(this.USER_KEY);
+      return null;
+    }
   }
 }
