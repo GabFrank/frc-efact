@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://frc-efact-backend.onrender.com',
+  apiUrl: 'https://frc-efact-backend-ra83.onrender.com/api',
   enableHttps: true,
   secureOnly: true,
   apiTimeout: 30000, // 30 seconds
