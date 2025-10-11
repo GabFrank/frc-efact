@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -19,17 +20,24 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Filtro de rate limiting para endpoints de autenticación.
  * Limita el número de intentos de login por IP.
+ * Configurable vía application.yml
  */
 @Component
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(RateLimitingFilter.class);
 
-    // Máximo de intentos permitidos (configurable)
-    private static final int MAX_ATTEMPTS = 100; // Aumentado para desarrollo
+    // Máximo de intentos permitidos (configurable vía application.yml)
+    @Value("${rate.limit.max-attempts:100}")
+    private int maxAttempts;
     
-    // Ventana de tiempo en minutos (configurable)
-    private static final int TIME_WINDOW_MINUTES = 15;
+    // Ventana de tiempo en minutos (configurable vía application.yml)
+    @Value("${rate.limit.time-window-minutes:15}")
+    private int timeWindowMinutes;
+    
+    // Habilitar/deshabilitar rate limiting (configurable vía application.yml)
+    @Value("${rate.limit.enabled:true}")
+    private boolean rateLimitEnabled;
 
     // Almacenamiento en memoria de intentos por IP
     private final Map<String, LoginAttempt> loginAttempts = new ConcurrentHashMap<>();
@@ -39,17 +47,20 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         
-        // Solo aplicar rate limiting a endpoints de login
-        if (request.getRequestURI().contains("/auth/login") && "POST".equals(request.getMethod())) {
+        // Solo aplicar rate limiting si está habilitado y es un endpoint de login
+        if (rateLimitEnabled && request.getRequestURI().contains("/auth/login") && "POST".equals(request.getMethod())) {
             String clientIp = getClientIp(request);
             
             if (isRateLimited(clientIp)) {
-                logger.warn("Rate limit exceeded for IP: {}", clientIp);
+                logger.warn("Rate limit exceeded for IP: {} (max: {} attempts in {} minutes)", 
+                    clientIp, maxAttempts, timeWindowMinutes);
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
                 response.setContentType("application/json");
                 response.getWriter().write(
-                    "{\"status\": 429, \"message\": \"Demasiados intentos de login. Intente más tarde.\", \"timestamp\": \"" 
-                    + LocalDateTime.now() + "\"}"
+                    "{\"status\": 429, \"message\": \"Demasiados intentos de login. Intente más tarde.\", " +
+                    "\"maxAttempts\": " + maxAttempts + ", " +
+                    "\"timeWindowMinutes\": " + timeWindowMinutes + ", " +
+                    "\"timestamp\": \"" + LocalDateTime.now() + "\"}"
                 );
                 return;
             }
@@ -72,12 +83,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
 
         // Limpiar intentos antiguos
-        if (Duration.between(attempt.getFirstAttempt(), LocalDateTime.now()).toMinutes() > TIME_WINDOW_MINUTES) {
+        if (Duration.between(attempt.getFirstAttempt(), LocalDateTime.now()).toMinutes() > timeWindowMinutes) {
             loginAttempts.remove(clientIp);
             return false;
         }
 
-        return attempt.getCount() >= MAX_ATTEMPTS;
+        return attempt.getCount() >= maxAttempts;
     }
 
     /**
@@ -89,8 +100,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                 return new LoginAttempt(LocalDateTime.now(), 1);
             }
 
-            // Si han pasado más de TIME_WINDOW_MINUTES, resetear contador
-            if (Duration.between(attempt.getFirstAttempt(), LocalDateTime.now()).toMinutes() > TIME_WINDOW_MINUTES) {
+            // Si han pasado más de timeWindowMinutes, resetear contador
+            if (Duration.between(attempt.getFirstAttempt(), LocalDateTime.now()).toMinutes() > timeWindowMinutes) {
                 return new LoginAttempt(LocalDateTime.now(), 1);
             }
 

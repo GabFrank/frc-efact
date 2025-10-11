@@ -53,3 +53,10 @@ jwt:
   secret: ${JWT_SECRET:frc-efact-secret-key-change-this-in-production-minimum-512-bits-required}
   expiration-ms: 86400000  # 24 hours in milliseconds
   refresh-expiration-ms: 604800000  # 7 days in milliseconds
+
+# Rate Limiting Configuration for Development
+rate:
+  limit:
+    enabled: false  # Deshabilitado en desarrollo para facilitar testing
+    max-attempts: 1000  # Muy permisivo en desarrollo
+    time-window-minutes: 15

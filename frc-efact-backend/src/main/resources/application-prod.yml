@@ -99,3 +99,10 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 86400000  # 24 hours
   refresh-expiration-ms: 604800000  # 7 days
+
+# Rate Limiting Configuration for Production
+rate:
+  limit:
+    enabled: true  # Habilitar/deshabilitar rate limiting
+    max-attempts: 100  # Máximo de intentos de login permitidos
+    time-window-minutes: 15  # Ventana de tiempo en minutos
