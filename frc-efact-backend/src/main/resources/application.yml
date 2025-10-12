@@ -54,6 +54,10 @@ jwt:
   expiration-ms: 86400000  # 24 hours in milliseconds
   refresh-expiration-ms: 604800000  # 7 days in milliseconds
 
+# Encryption Configuration (AES-256)
+encryption:
+  secret-key: ${ENCRYPTION_SECRET_KEY:<REDACTADO-ENCRYPTION-KEY-ROTADA>}  # MUST be exactly 32 characters (256 bits)
+
 # Rate Limiting Configuration for Development
 rate:
   limit:

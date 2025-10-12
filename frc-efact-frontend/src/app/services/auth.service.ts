@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { BehaviorSubject, Observable, tap, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthResponse } from '../models/auth-response.model';
 import { LoginRequest } from '../models/login-request.model';
@@ -35,11 +35,12 @@ export class AuthService {
       );
   }
 
-  logout(): void {
+  logout(): Observable<void> {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
     this.currentUserSubject.next(null);
+    return of(undefined);
   }
 
   isAuthenticated(): boolean {

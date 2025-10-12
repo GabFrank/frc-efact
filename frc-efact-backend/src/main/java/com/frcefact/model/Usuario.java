@@ -1,12 +1,15 @@
 package com.frcefact.model;
 
+import com.frcefact.model.base.AuditableEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Entidad Usuario que representa un usuario del sistema con información de autenticación.
@@ -19,7 +22,7 @@ import java.util.Objects;
     @Index(name = "idx_usuario_is_active", columnList = "is_active"),
     @Index(name = "idx_usuario_creado_en", columnList = "creado_en")
 })
-public class Usuario {
+public class Usuario extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,29 +55,12 @@ public class Usuario {
     @Column(name = "ultimo_login")
     private LocalDateTime ultimoLogin;
 
-    // Campos de auditoría
-    @Column(name = "creado_en", nullable = false, updatable = false)
-    private LocalDateTime creadoEn;
+    // Relaciones
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UsuarioRol> usuarioRoles = new HashSet<>();
 
-    @Column(name = "creado_por", length = 50)
-    private String creadoPor;
-
-    @Column(name = "actualizado_en", nullable = false)
-    private LocalDateTime actualizadoEn;
-
-    @Column(name = "actualizado_por", length = 50)
-    private String actualizadoPor;
-
-    @PrePersist
-    protected void onCreate() {
-        creadoEn = LocalDateTime.now();
-        actualizadoEn = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        actualizadoEn = LocalDateTime.now();
-    }
+    @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UsuarioEmpresa> usuarioEmpresas = new HashSet<>();
 
     // Constructores
     public Usuario() {
@@ -174,36 +160,20 @@ public class Usuario {
         this.ultimoLogin = ultimoLogin;
     }
 
-    public LocalDateTime getCreadoEn() {
-        return creadoEn;
+    public Set<UsuarioRol> getUsuarioRoles() {
+        return usuarioRoles;
     }
 
-    public void setCreadoEn(LocalDateTime creadoEn) {
-        this.creadoEn = creadoEn;
+    public void setUsuarioRoles(Set<UsuarioRol> usuarioRoles) {
+        this.usuarioRoles = usuarioRoles;
     }
 
-    public String getCreadoPor() {
-        return creadoPor;
+    public Set<UsuarioEmpresa> getUsuarioEmpresas() {
+        return usuarioEmpresas;
     }
 
-    public void setCreadoPor(String creadoPor) {
-        this.creadoPor = creadoPor;
-    }
-
-    public LocalDateTime getActualizadoEn() {
-        return actualizadoEn;
-    }
-
-    public void setActualizadoEn(LocalDateTime actualizadoEn) {
-        this.actualizadoEn = actualizadoEn;
-    }
-
-    public String getActualizadoPor() {
-        return actualizadoPor;
-    }
-
-    public void setActualizadoPor(String actualizadoPor) {
-        this.actualizadoPor = actualizadoPor;
+    public void setUsuarioEmpresas(Set<UsuarioEmpresa> usuarioEmpresas) {
+        this.usuarioEmpresas = usuarioEmpresas;
     }
 
     @Override

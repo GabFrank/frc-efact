@@ -27,9 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
+    private final com.frcefact.dto.mapper.UsuarioMapper usuarioMapper;
 
-    public UsuarioController(UsuarioService usuarioService) {
+    public UsuarioController(UsuarioService usuarioService,
+                            com.frcefact.dto.mapper.UsuarioMapper usuarioMapper) {
         this.usuarioService = usuarioService;
+        this.usuarioMapper = usuarioMapper;
     }
 
     /**
@@ -73,7 +76,7 @@ public class UsuarioController {
         Usuario usuario = usuarioService.buscarPorUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
 
-        UsuarioDto usuarioDto = UsuarioDto.fromEntity(usuario);
+        UsuarioDto usuarioDto = usuarioMapper.toDto(usuario);
         return ResponseEntity.ok(usuarioDto);
     }
 }
