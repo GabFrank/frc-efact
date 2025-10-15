@@ -13,9 +13,7 @@ export const EMPRESAS_ROUTES: Routes = [
       },
       {
         path: 'new',
-        loadComponent: () => import('./empresa-form.component').then(m => m.EmpresaFormComponent),
-        canActivate: [roleGuard],
-        data: { roles: ['ADMIN', 'EMPRESA_ADMIN'] }
+        loadComponent: () => import('./empresa-form.component').then(m => m.EmpresaFormComponent)
       },
       {
         path: ':id',
@@ -23,15 +21,11 @@ export const EMPRESAS_ROUTES: Routes = [
       },
       {
         path: ':id/edit',
-        loadComponent: () => import('./empresa-form.component').then(m => m.EmpresaFormComponent),
-        canActivate: [roleGuard],
-        data: { roles: ['ADMIN', 'EMPRESA_ADMIN'] }
+        loadComponent: () => import('./empresa-form.component').then(m => m.EmpresaFormComponent)
       },
       {
         path: ':id/usuarios',
-        loadComponent: () => import('./usuario-empresa.component').then(m => m.UsuarioEmpresaComponent),
-        canActivate: [roleGuard],
-        data: { roles: ['ADMIN', 'EMPRESA_ADMIN'] }
+        loadComponent: () => import('./usuario-empresa.component').then(m => m.UsuarioEmpresaComponent)
       }
     ]
   }

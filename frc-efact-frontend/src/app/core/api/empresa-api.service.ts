@@ -10,7 +10,7 @@ import { User, UsuarioEmpresa, AsignarUsuarioEmpresaRequest } from '../../models
 })
 export class EmpresaApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = `${environment.apiUrl}/empresas`;
+  private readonly baseUrl = `${environment.apiUrl}/api/empresas`;
 
   getAll(): Observable<Empresa[]> {
     return this.http.get<Empresa[]>(this.baseUrl);

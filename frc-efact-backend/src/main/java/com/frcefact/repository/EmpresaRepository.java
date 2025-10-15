@@ -64,10 +64,11 @@ public interface EmpresaRepository extends JpaRepository<Empresa, Long> {
      *
      * @return lista de empresas con certificado por vencer
      */
-    @Query("SELECT e FROM Empresa e " +
+    @Query(value = "SELECT * FROM empresa.empresa e " +
            "WHERE e.activo = true " +
-           "AND e.certificadoFechaExpiracion IS NOT NULL " +
-           "AND e.certificadoFechaExpiracion <= CURRENT_DATE + 30 " +
-           "AND e.certificadoFechaExpiracion > CURRENT_DATE")
+           "AND e.certificado_fecha_expiracion IS NOT NULL " +
+           "AND e.certificado_fecha_expiracion <= CURRENT_DATE + INTERVAL '30 days' " +
+           "AND e.certificado_fecha_expiracion > CURRENT_DATE", 
+           nativeQuery = true)
     List<Empresa> findEmpresasConCertificadoPorVencer();
 }

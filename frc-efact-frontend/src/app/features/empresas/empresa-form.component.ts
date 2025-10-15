@@ -17,6 +17,8 @@ import { Empresa } from '../../models/empresa.model';
 import { EmpresasActions } from '../../core/state/empresas/empresas.actions';
 import { selectEmpresaById, selectEmpresasLoading } from '../../core/state/empresas/empresas.selectors';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
+import { AutocompleteSelectComponent, AutocompleteOption } from '../../shared/components/autocomplete-select/autocomplete-select.component';
+import { SifenService, DepartamentoDto, DistritoDto, CiudadDto, BarrioDto } from '../../services/sifen.service';
 
 @Component({
   selector: 'app-empresa-form',
@@ -32,7 +34,8 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
     MatSelectModule,
     MatDividerModule,
     MatSnackBarModule,
-    LoadingSpinnerComponent
+    LoadingSpinnerComponent,
+    AutocompleteSelectComponent
   ],
   template: `
     <div class="empresa-form-container">
@@ -56,7 +59,8 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
               <div class="form-row">
                 <mat-form-field appearance="outline" class="full-width">
                   <mat-label>Razón Social *</mat-label>
-                  <input matInput formControlName="razonSocial" placeholder="Ingrese la razón social">
+                  <input matInput formControlName="razonSocial" placeholder="Ingrese la razón social"
+                         (input)="onUppercaseInput($event, 'razonSocial')">
                   <mat-error *ngIf="empresaForm.get('razonSocial')?.hasError('required')">
                     La razón social es requerida
                   </mat-error>
@@ -80,7 +84,8 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
 
                 <mat-form-field appearance="outline" class="half-width">
                   <mat-label>Nombre Fantasía</mat-label>
-                  <input matInput formControlName="nombreFantasia" placeholder="Nombre comercial">
+                  <input matInput formControlName="nombreFantasia" placeholder="Nombre comercial"
+                         (input)="onUppercaseInput($event, 'nombreFantasia')">
                 </mat-form-field>
               </div>
 
@@ -102,7 +107,8 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
               <div class="form-row">
                 <mat-form-field appearance="outline" class="full-width">
                   <mat-label>Dirección</mat-label>
-                  <textarea matInput formControlName="direccion" rows="2" placeholder="Dirección completa"></textarea>
+                  <textarea matInput formControlName="direccion" rows="2" placeholder="Dirección completa"
+                            (input)="onUppercaseInput($event, 'direccion')"></textarea>
                 </mat-form-field>
               </div>
 
@@ -125,21 +131,29 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
               <mat-divider></mat-divider>
 
               <div class="form-row">
-                <mat-form-field appearance="outline" class="half-width">
-                  <mat-label>Departamento *</mat-label>
-                  <input matInput formControlName="departamento" placeholder="Ej: Central">
-                  <mat-error *ngIf="domicilioFiscal.get('departamento')?.hasError('required')">
-                    El departamento es requerido
-                  </mat-error>
-                </mat-form-field>
+                <app-autocomplete-select
+                  class="half-width"
+                  label="Departamento *"
+                  placeholder="Buscar departamento..."
+                  [options]="departamentoOptions"
+                  [value]="selectedDepartamento"
+                  [hasError]="(domicilioFiscal.get('departamento')?.invalid && domicilioFiscal.get('departamento')?.touched) ?? false"
+                  errorMessage="El departamento es requerido"
+                  (valueChange)="onDepartamentoChange($event)"
+                  (optionSelected)="onDepartamentoSelected($event)">
+                </app-autocomplete-select>
 
-                <mat-form-field appearance="outline" class="half-width">
-                  <mat-label>Ciudad *</mat-label>
-                  <input matInput formControlName="ciudad" placeholder="Ej: Asunción">
-                  <mat-error *ngIf="domicilioFiscal.get('ciudad')?.hasError('required')">
-                    La ciudad es requerida
-                  </mat-error>
-                </mat-form-field>
+                <app-autocomplete-select
+                  class="half-width"
+                  label="Ciudad *"
+                  placeholder="Buscar ciudad..."
+                  [options]="ciudadOptions"
+                  [value]="selectedCiudad"
+                  [hasError]="(domicilioFiscal.get('ciudad')?.invalid && domicilioFiscal.get('ciudad')?.touched) ?? false"
+                  errorMessage="La ciudad es requerida"
+                  (valueChange)="onCiudadChange($event)"
+                  (optionSelected)="onCiudadSelected($event)">
+                </app-autocomplete-select>
               </div>
 
               <div class="form-row">
@@ -160,7 +174,8 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
               <div class="form-row">
                 <mat-form-field appearance="outline" class="half-width">
                   <mat-label>Barrio *</mat-label>
-                  <input matInput formControlName="barrio" placeholder="Nombre del barrio">
+                  <input matInput formControlName="barrio" placeholder="Nombre del barrio"
+                         (input)="onUppercaseInput($event, 'barrio', 'domicilioFiscal')">
                   <mat-error *ngIf="domicilioFiscal.get('barrio')?.hasError('required')">
                     El barrio es requerido
                   </mat-error>
@@ -168,7 +183,8 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
 
                 <mat-form-field appearance="outline" class="half-width">
                   <mat-label>Dirección Fiscal *</mat-label>
-                  <input matInput formControlName="direccion" placeholder="Calle y número">
+                  <input matInput formControlName="direccion" placeholder="Calle y número"
+                         (input)="onUppercaseInput($event, 'direccion', 'domicilioFiscal')">
                   <mat-error *ngIf="domicilioFiscal.get('direccion')?.hasError('required')">
                     La dirección fiscal es requerida
                   </mat-error>
@@ -316,6 +332,14 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
       flex: 1;
     }
 
+    app-autocomplete-select.half-width {
+      flex: 1;
+    }
+
+    app-autocomplete-select.full-width {
+      width: 100%;
+    }
+
     .certificate-upload {
       display: flex;
       align-items: center;
@@ -381,18 +405,30 @@ export class EmpresaFormComponent implements OnInit {
   selectedFile: File | null = null;
   currentCertificatePath: string | null = null;
 
+  // SIFEN data
+  departamentoOptions: AutocompleteOption[] = [];
+  ciudadOptions: AutocompleteOption[] = [];
+  distritoOptions: AutocompleteOption[] = [];
+  
+  selectedDepartamento: string = '';
+  selectedCiudad: string = '';
+  selectedDistrito: string = '';
+
   constructor(
     private fb: FormBuilder,
     private store: Store,
     private route: ActivatedRoute,
     private router: Router,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private sifenService: SifenService
   ) {
     this.loading$ = this.store.select(selectEmpresasLoading);
     this.empresaForm = this.createForm();
   }
 
   ngOnInit(): void {
+    this.loadSifenData();
+    
     const id = this.route.snapshot.paramMap.get('id');
     
     if (id && id !== 'new') {
@@ -400,6 +436,22 @@ export class EmpresaFormComponent implements OnInit {
       this.empresaId = parseInt(id, 10);
       this.loadEmpresa();
     }
+  }
+
+  private loadSifenData(): void {
+    this.sifenService.getDepartamentos().subscribe({
+      next: (departamentos) => {
+        this.departamentoOptions = departamentos.map(d => ({
+          value: d.codigo,
+          label: d.nombre,
+          codigo: d.codigo
+        }));
+      },
+      error: (error) => {
+        console.error('Error cargando departamentos:', error);
+        this.snackBar.open('Error cargando departamentos', 'Cerrar', { duration: 3000 });
+      }
+    });
   }
 
   private createForm(): FormGroup {
@@ -539,5 +591,90 @@ export class EmpresaFormComponent implements OnInit {
 
   onCancel(): void {
     this.router.navigate(['/empresas']);
+  }
+
+  // Uppercase input handler
+  onUppercaseInput(event: Event, controlName: string, groupName?: string): void {
+    const input = event.target as HTMLInputElement;
+    const uppercaseValue = input.value.toUpperCase();
+    
+    setTimeout(() => {
+      if (groupName) {
+        this.empresaForm.get(groupName)?.get(controlName)?.setValue(uppercaseValue);
+      } else {
+        this.empresaForm.get(controlName)?.setValue(uppercaseValue);
+      }
+      input.value = uppercaseValue;
+    });
+  }
+
+  // SIFEN handlers
+  onDepartamentoChange(codigo: string): void {
+    this.selectedDepartamento = codigo;
+    this.domicilioFiscal.get('departamento')?.setValue(codigo);
+    
+    // Reset ciudad when departamento changes
+    this.selectedCiudad = '';
+    this.ciudadOptions = [];
+    this.domicilioFiscal.get('ciudad')?.setValue('');
+    this.domicilioFiscal.get('codigoCiudad')?.setValue('');
+    
+    if (codigo) {
+      this.sifenService.getDistritosByDepartamento(codigo).subscribe({
+        next: (distritos) => {
+          this.ciudadOptions = distritos.map(d => ({
+            value: d.codigo,
+            label: d.nombre,
+            codigo: d.codigo
+          }));
+        },
+        error: (error) => {
+          console.error('Error cargando distritos:', error);
+          this.snackBar.open('Error cargando distritos', 'Cerrar', { duration: 3000 });
+        }
+      });
+    }
+  }
+
+  onDepartamentoSelected(option: AutocompleteOption): void {
+    this.onDepartamentoChange(option.value);
+  }
+
+  onCiudadChange(codigo: string): void {
+    this.selectedCiudad = codigo;
+    this.domicilioFiscal.get('ciudad')?.setValue(codigo);
+    this.domicilioFiscal.get('codigoCiudad')?.setValue(codigo);
+    
+    // Reset distrito when ciudad changes
+    this.selectedDistrito = '';
+    this.distritoOptions = [];
+    
+    if (codigo) {
+      this.sifenService.getCiudadesByDistrito(codigo).subscribe({
+        next: (ciudades) => {
+          this.distritoOptions = ciudades.map(c => ({
+            value: c.codigo,
+            label: c.nombre,
+            codigo: c.codigo
+          }));
+        },
+        error: (error) => {
+          console.error('Error cargando ciudades:', error);
+          this.snackBar.open('Error cargando ciudades', 'Cerrar', { duration: 3000 });
+        }
+      });
+    }
+  }
+
+  onCiudadSelected(option: AutocompleteOption): void {
+    this.onCiudadChange(option.value);
+    
+    // Find the selected distrito to get its name
+    this.sifenService.getDistritosByDepartamento(this.selectedDepartamento).subscribe(distritos => {
+      const selectedDistrito = distritos.find(d => d.codigo === option.value);
+      if (selectedDistrito) {
+        this.domicilioFiscal.get('ciudad')?.setValue(selectedDistrito.nombre);
+      }
+    });
   }
 }

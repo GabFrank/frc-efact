@@ -132,4 +132,9 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
      * Busca registros de auditoría por IP address
      */
     List<AuditLog> findByIpAddressOrderByFechaHoraDesc(String ipAddress);
+
+    /**
+     * Cuenta registros de auditoría en un rango de fechas
+     */
+    long countByFechaHoraBetween(LocalDateTime fechaInicio, LocalDateTime fechaFin);
 }

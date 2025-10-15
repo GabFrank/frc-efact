@@ -19,7 +19,7 @@ export class AuthEffects {
         this.authService.login({ username, password }).pipe(
           map((response) =>
             AuthActions.loginSuccess({
-              user: response.user,
+              user: response.usuario,
               token: response.token,
               refreshToken: response.refreshToken
             })

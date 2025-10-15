@@ -14,49 +14,51 @@ export const routes: Routes = [
     loadComponent: () => import('./components/login/login.component').then(m => m.LoginComponent)
   },
   {
-    path: 'dashboard',
+    path: '',
     canActivate: [authGuard],
-    loadChildren: () => import('./features/dashboard/dashboard.routes').then(m => m.DASHBOARD_ROUTES)
-  },
-  {
-    path: 'empresas',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/empresas/empresas.routes').then(m => m.EMPRESAS_ROUTES)
-  },
-  {
-    path: 'timbrados',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/timbrados/timbrados.routes').then(m => m.TIMBRADOS_ROUTES)
-  },
-  {
-    path: 'productos',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/productos/productos.routes').then(m => m.PRODUCTOS_ROUTES)
-  },
-  {
-    path: 'clientes',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/clientes/clientes.routes').then(m => m.CLIENTES_ROUTES)
-  },
-  {
-    path: 'facturacion',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/facturacion/facturacion.routes').then(m => m.FACTURACION_ROUTES)
-  },
-  {
-    path: 'documentos',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/documentos/documentos.routes').then(m => m.DOCUMENTOS_ROUTES)
-  },
-  {
-    path: 'reportes',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/reportes/reportes.routes').then(m => m.REPORTES_ROUTES)
-  },
-  {
-    path: 'auditoria',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/auditoria/auditoria.routes').then(m => m.AUDITORIA_ROUTES)
+    loadComponent: () => import('./layout/main-layout.component').then(m => m.MainLayoutComponent),
+    children: [
+      {
+        path: 'dashboard',
+        loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
+      },
+      {
+        path: 'empresas',
+        loadChildren: () => import('./features/empresas/empresas.routes').then(m => m.EMPRESAS_ROUTES)
+      },
+      {
+        path: 'timbrados',
+        loadComponent: () => import('./features/timbrados/timbrado-list.component').then(m => m.TimbradoListComponent)
+      },
+      {
+        path: 'productos',
+        loadComponent: () => import('./features/productos/productos-list.component').then(m => m.ProductosListComponent)
+      },
+      {
+        path: 'clientes',
+        loadComponent: () => import('./features/clientes/clientes-list.component').then(m => m.ClientesListComponent)
+      },
+      {
+        path: 'facturacion',
+        loadComponent: () => import('./features/facturacion/factura-list.component').then(m => m.FacturaListComponent)
+      },
+      {
+        path: 'documentos',
+        loadComponent: () => import('./features/documentos/documento-electronico-list.component').then(m => m.DocumentoElectronicoListComponent)
+      },
+      {
+        path: 'reportes',
+        loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
+      },
+      {
+        path: 'auditoria',
+        loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
+      },
+      {
+        path: 'test',
+        loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
+      }
+    ]
   },
   {
     path: '**',

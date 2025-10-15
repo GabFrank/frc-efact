@@ -56,9 +56,11 @@ export class LoginComponent {
     const credentials: LoginRequest = this.loginForm.value;
 
     this.authService.login(credentials).subscribe({
-      next: () => {
+      next: (response) => {
+        console.log('Login exitoso, respuesta:', response);
+        console.log('Usuario guardado:', this.authService.getCurrentUser());
         this.isLoading = false;
-        this.router.navigate(['/welcome']);
+        this.router.navigate(['/dashboard']);
       },
       error: (error) => {
         this.isLoading = false;

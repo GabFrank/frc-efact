@@ -60,10 +60,12 @@ export class AuthService {
   }
 
   private handleAuthResponse(response: AuthResponse): void {
+    console.log('Respuesta de autenticación:', response);
     localStorage.setItem(this.TOKEN_KEY, response.token);
     localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
-    this.currentUserSubject.next(response.user as User);
+    localStorage.setItem(this.USER_KEY, JSON.stringify(response.usuario));
+    this.currentUserSubject.next(response.usuario as User);
+    console.log('Usuario guardado en localStorage:', response.usuario);
   }
 
   private getUserFromStorage(): User | null {

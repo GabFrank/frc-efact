@@ -131,12 +131,12 @@ public class EmpresaController {
      * @return lista de empresas activas
      */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Listar todas las empresas", description = "Obtiene lista de todas las empresas activas (solo ADMIN)")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @Operation(summary = "Listar todas las empresas", description = "Obtiene lista de todas las empresas activas")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Lista obtenida exitosamente"),
         @ApiResponse(responseCode = "401", description = "No autenticado"),
-        @ApiResponse(responseCode = "403", description = "Sin permisos de administrador")
+        @ApiResponse(responseCode = "403", description = "Sin permisos")
     })
     public ResponseEntity<List<EmpresaDto>> obtenerTodasLasEmpresas() {
         logger.debug("GET /api/empresas - Obteniendo todas las empresas");

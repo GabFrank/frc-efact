@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { DashboardComponent } from './dashboard.component';
 import { DashboardUsuarioComponent } from './dashboard-usuario.component';
 import { DashboardEmpresaComponent } from './dashboard-empresa.component';
 import { authGuard } from '../../guards/auth.guard';
@@ -7,8 +8,9 @@ import { empresaAccessGuard } from '../../guards/empresa-access.guard';
 export const DASHBOARD_ROUTES: Routes = [
   {
     path: '',
-    redirectTo: 'usuario',
-    pathMatch: 'full'
+    component: DashboardComponent,
+    canActivate: [authGuard],
+    title: 'Dashboard'
   },
   {
     path: 'usuario',
