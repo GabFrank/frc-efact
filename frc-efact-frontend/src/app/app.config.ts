@@ -10,37 +10,42 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { authInterceptor } from './interceptors/auth.interceptor';
 import { errorInterceptor } from './interceptors/error.interceptor';
 import { httpsInterceptor } from './interceptors/https.interceptor';
+import { mockRucInterceptor } from './interceptors/mock-ruc.interceptor';
 
 // Reducers
 import { authReducer } from './core/state/auth/auth.reducer';
 import { empresasReducer } from './core/state/empresas/empresas.reducer';
 import { facturacionReducer } from './core/state/facturacion/facturacion.reducer';
 import { documentosReducer } from './core/state/documentos/documentos.reducer';
+import { usuariosReducer } from './core/state/usuarios/usuarios.reducer';
 
 // Effects
 import { AuthEffects } from './core/state/auth/auth.effects';
 import { EmpresasEffects } from './core/state/empresas/empresas.effects';
 import { FacturacionEffects } from './core/state/facturacion/facturacion.effects';
 import { DocumentosEffects } from './core/state/documentos/documentos.effects';
+import { UsuariosEffects } from './core/state/usuarios/usuarios.effects';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes),
     provideAnimationsAsync(),
     provideHttpClient(
-      withInterceptors([httpsInterceptor, authInterceptor, errorInterceptor])
+      withInterceptors([httpsInterceptor, authInterceptor, errorInterceptor, mockRucInterceptor])
     ),
     provideStore({
       auth: authReducer,
       empresas: empresasReducer,
       facturacion: facturacionReducer,
-      documentos: documentosReducer
+      documentos: documentosReducer,
+      usuarios: usuariosReducer
     }),
     provideEffects([
       AuthEffects,
       EmpresasEffects,
       FacturacionEffects,
-      DocumentosEffects
+      DocumentosEffects,
+      UsuariosEffects
     ]),
     provideStoreDevtools({
       maxAge: 25,

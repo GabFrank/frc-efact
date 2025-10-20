@@ -145,6 +145,15 @@ public class GeografiaService {
                 .orElse(null);
     }
 
+    /**
+     * Obtiene una ciudad por ID.
+     */
+    public CiudadDto obtenerCiudadPorId(Long id) {
+        return ciudadRepository.findById(id)
+                .map(this::convertirACiudadDto)
+                .orElse(null);
+    }
+
     // ========== BARRIOS ==========
 
     /**
@@ -217,6 +226,8 @@ public class GeografiaService {
                 ciudad.getNombre(),
                 ciudad.getDistrito().getCodigo(),
                 ciudad.getDistrito().getNombre(),
+                ciudad.getDistrito().getDepartamento().getCodigo(),
+                ciudad.getDistrito().getDepartamento().getNombre(),
                 ciudad.getActivo()
         );
     }

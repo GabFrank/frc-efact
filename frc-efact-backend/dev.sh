@@ -13,6 +13,13 @@ case $COMMAND in
     ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
     ;;
     
+  debug)
+    echo "🐛 Iniciando aplicación en modo debug..."
+    echo "📍 Debugger disponible en puerto 5005"
+    echo "💡 Conecta tu IDE al puerto 5005 para debugging remoto"
+    ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.jvmArguments="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"
+    ;;
+    
   test)
     echo "🧪 Ejecutando tests..."
     ./mvnw test
@@ -78,6 +85,7 @@ case $COMMAND in
     echo ""
     echo "Comandos disponibles:"
     echo "  run, start       - Iniciar aplicación en modo desarrollo (default)"
+    echo "  debug            - Iniciar aplicación con debugger habilitado (puerto 5005)"
     echo "  test             - Ejecutar tests unitarios"
     echo "  test-coverage    - Ejecutar tests con reporte de cobertura"
     echo "  build            - Compilar aplicación (sin tests)"
@@ -92,6 +100,7 @@ case $COMMAND in
     echo ""
     echo "Ejemplos:"
     echo "  ./dev.sh              # Iniciar en modo desarrollo"
+    echo "  ./dev.sh debug        # Iniciar con debugger (puerto 5005)"
     echo "  ./dev.sh test         # Ejecutar tests"
     echo "  ./dev.sh build-prod   # Compilar para producción"
     ;;

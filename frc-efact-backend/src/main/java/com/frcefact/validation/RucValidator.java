@@ -1,5 +1,6 @@
 package com.frcefact.validation;
 
+import com.frcefact.util.CalcularVerificadorRuc;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
@@ -29,7 +30,7 @@ public class RucValidator implements ConstraintValidator<ValidRuc, String> {
         if (!RUC_PATTERN.matcher(ruc).matches()) {
             if (context != null) {
                 context.disableDefaultConstraintViolation();
-                var builder = context.buildConstraintViolationWithTemplate("Formato de RUC inválido. Debe ser XXXXXXXX-X");
+                var builder = context.buildConstraintViolationWithTemplate("Formato inválido");
                 if (builder != null) {
                     builder.addConstraintViolation();
                 }
@@ -48,13 +49,13 @@ public class RucValidator implements ConstraintValidator<ValidRuc, String> {
             return false;
         }
 
-        // Calcular dígito verificador
-        int digitoCalculado = calcularDigitoVerificador(numeroBase);
+        // Calcular dígito verificador usando la nueva utilidad
+        Integer digitoCalculado = CalcularVerificadorRuc.getDigitoVerificador(numeroBase);
 
-        if (digitoCalculado != digitoVerificador) {
+        if (digitoCalculado == null || digitoCalculado != digitoVerificador) {
             if (context != null) {
                 context.disableDefaultConstraintViolation();
-                var builder = context.buildConstraintViolationWithTemplate("Dígito verificador del RUC es incorrecto");
+                var builder = context.buildConstraintViolationWithTemplate("Dígito verificador incorrecto");
                 if (builder != null) {
                     builder.addConstraintViolation();
                 }
@@ -63,34 +64,5 @@ public class RucValidator implements ConstraintValidator<ValidRuc, String> {
         }
 
         return true;
-    }
-
-    /**
-     * Calcula el dígito verificador del RUC paraguayo usando el algoritmo módulo 11.
-     *
-     * @param numeroBase los primeros 8 dígitos del RUC
-     * @return el dígito verificador calculado
-     */
-    private int calcularDigitoVerificador(String numeroBase) {
-        int[] multiplicadores = {2, 3, 4, 5, 6, 7, 2, 3};
-        int suma = 0;
-
-        for (int i = 0; i < numeroBase.length(); i++) {
-            int digito = Character.getNumericValue(numeroBase.charAt(i));
-            suma += digito * multiplicadores[i];
-        }
-
-        int resto = suma % 11;
-        int digitoVerificador = 11 - resto;
-
-        // Si el resultado es 11, el dígito verificador es 0
-        // Si el resultado es 10, el dígito verificador es 1
-        if (digitoVerificador == 11) {
-            return 0;
-        } else if (digitoVerificador == 10) {
-            return 1;
-        }
-
-        return digitoVerificador;
     }
 }

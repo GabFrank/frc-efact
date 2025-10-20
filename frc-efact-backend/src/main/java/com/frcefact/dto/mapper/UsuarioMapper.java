@@ -4,6 +4,7 @@ import com.frcefact.dto.UsuarioDto;
 import com.frcefact.model.Usuario;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -126,5 +127,37 @@ public class UsuarioMapper {
 
         // No actualizar password aquí, debe ser un endpoint separado
         // No actualizar roles ni empresas aquí, deben ser endpoints separados
+    }
+
+    /**
+     * Convierte una lista de entidades Usuario a lista de UsuarioDto.
+     *
+     * @param usuarios Lista de entidades Usuario
+     * @return Lista de UsuarioDto
+     */
+    public List<UsuarioDto> toDtoList(List<Usuario> usuarios) {
+        if (usuarios == null) {
+            return null;
+        }
+
+        return usuarios.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Convierte una lista de entidades Usuario a lista de UsuarioDto simple.
+     *
+     * @param usuarios Lista de entidades Usuario
+     * @return Lista de UsuarioDto sin relaciones
+     */
+    public List<UsuarioDto> toDtoSimpleList(List<Usuario> usuarios) {
+        if (usuarios == null) {
+            return null;
+        }
+
+        return usuarios.stream()
+                .map(this::toDtoSimple)
+                .collect(Collectors.toList());
     }
 }

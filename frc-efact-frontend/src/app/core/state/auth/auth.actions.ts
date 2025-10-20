@@ -47,3 +47,15 @@ export const loadUserFailure = createAction(
   '[Auth] Load User Failure',
   props<{ error: string }>()
 );
+
+// Initialize auth from storage
+export const initializeAuth = createAction('[Auth] Initialize Auth');
+
+export const initializeAuthSuccess = createAction(
+  '[Auth] Initialize Auth Success',
+  props<{ user: User; token: string; refreshToken: string }>()
+);
+
+export const initializeAuthFailure = createAction(
+  '[Auth] Initialize Auth Failure'
+);

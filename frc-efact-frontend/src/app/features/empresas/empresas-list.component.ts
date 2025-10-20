@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -12,6 +13,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { FormsModule } from '@angular/forms';
 
 import { Empresa } from '../../models/empresa.model';
@@ -40,6 +43,8 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     MatTooltipModule,
     MatChipsModule,
     MatDialogModule,
+    MatMenuModule,
+    MatDividerModule,
     LoadingSpinnerComponent,
     ErrorMessageComponent
   ],
@@ -127,32 +132,34 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                 <td mat-cell *matCellDef="let empresa">
                   <button 
                     mat-icon-button 
-                    color="primary"
-                    (click)="onViewEmpresa(empresa)"
-                    matTooltip="Ver detalles">
-                    <mat-icon>visibility</mat-icon>
+                    [matMenuTriggerFor]="actionsMenu"
+                    matTooltip="Acciones">
+                    <mat-icon>more_vert</mat-icon>
                   </button>
-                  <button 
-                    mat-icon-button 
-                    color="accent"
-                    (click)="onEditEmpresa(empresa)"
-                    matTooltip="Editar">
-                    <mat-icon>edit</mat-icon>
-                  </button>
-                  <button 
-                    mat-icon-button 
-                    color="primary"
-                    (click)="onManageUsers(empresa)"
-                    matTooltip="Gestionar usuarios">
-                    <mat-icon>people</mat-icon>
-                  </button>
-                  <button 
-                    mat-icon-button 
-                    [color]="empresa.activo ? 'warn' : 'primary'"
-                    (click)="onToggleActive(empresa)"
-                    [matTooltip]="empresa.activo ? 'Desactivar' : 'Activar'">
-                    <mat-icon>{{ empresa.activo ? 'block' : 'check_circle' }}</mat-icon>
-                  </button>
+                  
+                  <mat-menu #actionsMenu="matMenu">
+                    <button mat-menu-item (click)="onViewEmpresa(empresa)">
+                      <mat-icon>visibility</mat-icon>
+                      <span>Ver detalles</span>
+                    </button>
+                    <button mat-menu-item (click)="onEditEmpresa(empresa)">
+                      <mat-icon>edit</mat-icon>
+                      <span>Editar</span>
+                    </button>
+                    <button mat-menu-item (click)="onManageUsers(empresa)">
+                      <mat-icon>people</mat-icon>
+                      <span>Gestionar usuarios</span>
+                    </button>
+                    <mat-divider></mat-divider>
+                    <button 
+                      mat-menu-item 
+                      (click)="onToggleActive(empresa)"
+                      [class.deactivate-option]="empresa.activo"
+                      [class.activate-option]="!empresa.activo">
+                      <mat-icon>{{ empresa.activo ? 'block' : 'check_circle' }}</mat-icon>
+                      <span>{{ empresa.activo ? 'Desactivar' : 'Activar' }}</span>
+                    </button>
+                  </mat-menu>
                 </td>
               </ng-container>
 
@@ -276,6 +283,28 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
       margin-right: 4px;
     }
 
+    /* Menu styles */
+    .mat-mdc-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mat-mdc-menu-item mat-icon {
+      margin-right: 0;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    .deactivate-option {
+      color: #f44336;
+    }
+
+    .activate-option {
+      color: #4caf50;
+    }
+
     @media (max-width: 768px) {
       .actions-bar {
         flex-direction: column;
@@ -288,7 +317,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
     }
   `]
 })
-export class EmpresasListComponent implements OnInit {
+export class EmpresasListComponent implements OnInit, OnDestroy {
   empresas$: Observable<Empresa[]>;
   loading$: Observable<boolean>;
   error$: Observable<string | null>;
@@ -296,6 +325,9 @@ export class EmpresasListComponent implements OnInit {
   displayedColumns: string[] = ['ruc', 'razonSocial', 'nombreFantasia', 'email', 'activo', 'actions'];
   filteredEmpresas: Empresa[] = [];
   searchTerm: string = '';
+  
+  private searchSubject = new Subject<string>();
+  private destroy$ = new Subject<void>();
 
   constructor(
     private store: Store,
@@ -312,27 +344,65 @@ export class EmpresasListComponent implements OnInit {
     this.store.dispatch(EmpresasActions.loadEmpresas());
 
     // Subscribe to empresas changes
-    this.empresas$.subscribe(empresas => {
+    this.empresas$.pipe(takeUntil(this.destroy$)).subscribe(empresas => {
       this.filteredEmpresas = this.filterEmpresas(empresas);
+    });
+
+    // Setup search with debounce
+    this.searchSubject.pipe(
+      debounceTime(300), // Wait 300ms after user stops typing
+      distinctUntilChanged(), // Only emit if value changed
+      takeUntil(this.destroy$)
+    ).subscribe(searchTerm => {
+      this.performSearch(searchTerm);
     });
   }
 
-  onSearchChange(): void {
-    this.empresas$.subscribe(empresas => {
-      this.filteredEmpresas = this.filterEmpresas(empresas);
-    }).unsubscribe();
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  private filterEmpresas(empresas: Empresa[]): Empresa[] {
-    if (!this.searchTerm || this.searchTerm.trim() === '') {
+  onSearchChange(): void {
+    // Emit search term to subject for debounced processing
+    this.searchSubject.next(this.searchTerm);
+  }
+
+  private performSearch(searchTerm: string): void {
+    if (!searchTerm || searchTerm.trim().length === 0) {
+      // Si no hay término, cargar todas las empresas
+      this.store.dispatch(EmpresasActions.loadEmpresas());
+    } else if (searchTerm.trim().length >= 2) {
+      // Para búsquedas de 2+ caracteres, usar filtro backend (cuando esté implementado)
+      // TODO: Implementar searchEmpresas action
+      // this.store.dispatch(EmpresasActions.searchEmpresas({ 
+      //   searchTerm: searchTerm.trim() 
+      // }));
+      
+      // Por ahora, usar filtro frontend
+      this.empresas$.pipe(takeUntil(this.destroy$)).subscribe(empresas => {
+        this.filteredEmpresas = this.filterEmpresas(empresas, searchTerm);
+      });
+    } else {
+      // Para 1 carácter, usar filtro frontend
+      this.empresas$.pipe(takeUntil(this.destroy$)).subscribe(empresas => {
+        this.filteredEmpresas = this.filterEmpresas(empresas, searchTerm);
+      });
+    }
+  }
+
+  private filterEmpresas(empresas: Empresa[], searchTerm?: string): Empresa[] {
+    const term = searchTerm || this.searchTerm;
+    
+    if (!term || term.trim() === '') {
       return empresas;
     }
 
-    const term = this.searchTerm.toLowerCase().trim();
+    const normalizedTerm = term.toLowerCase().trim();
     return empresas.filter(empresa => 
-      empresa.razonSocial.toLowerCase().includes(term) ||
-      empresa.ruc.toLowerCase().includes(term) ||
-      (empresa.nombreFantasia && empresa.nombreFantasia.toLowerCase().includes(term))
+      empresa.razonSocial.toLowerCase().includes(normalizedTerm) ||
+      empresa.ruc.toLowerCase().includes(normalizedTerm) ||
+      (empresa.nombreFantasia && empresa.nombreFantasia.toLowerCase().includes(normalizedTerm))
     );
   }
 

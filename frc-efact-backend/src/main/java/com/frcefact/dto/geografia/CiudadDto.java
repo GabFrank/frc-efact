@@ -23,18 +23,27 @@ public class CiudadDto {
     @Schema(description = "Nombre del distrito", example = "ASUNCIÓN")
     private String distritoNombre;
 
+    @Schema(description = "Código del departamento", example = "11")
+    private String departamentoCodigo;
+
+    @Schema(description = "Nombre del departamento", example = "CENTRAL")
+    private String departamentoNombre;
+
     @Schema(description = "Estado activo", example = "true")
     private Boolean activo;
 
     // Constructors
     public CiudadDto() {}
 
-    public CiudadDto(Long id, String codigo, String nombre, String distritoCodigo, String distritoNombre, Boolean activo) {
+    public CiudadDto(Long id, String codigo, String nombre, String distritoCodigo, String distritoNombre, 
+                     String departamentoCodigo, String departamentoNombre, Boolean activo) {
         this.id = id;
         this.codigo = codigo;
         this.nombre = nombre;
         this.distritoCodigo = distritoCodigo;
         this.distritoNombre = distritoNombre;
+        this.departamentoCodigo = departamentoCodigo;
+        this.departamentoNombre = departamentoNombre;
         this.activo = activo;
     }
 
@@ -85,5 +94,21 @@ public class CiudadDto {
 
     public void setActivo(Boolean activo) {
         this.activo = activo;
+    }
+
+    public String getDepartamentoCodigo() {
+        return departamentoCodigo;
+    }
+
+    public void setDepartamentoCodigo(String departamentoCodigo) {
+        this.departamentoCodigo = departamentoCodigo;
+    }
+
+    public String getDepartamentoNombre() {
+        return departamentoNombre;
+    }
+
+    public void setDepartamentoNombre(String departamentoNombre) {
+        this.departamentoNombre = departamentoNombre;
     }
 }

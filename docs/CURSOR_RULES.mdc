@@ -1,0 +1,76 @@
+---
+alwaysApply: true
+---
+
+# Reglas de Cursor para el Proyecto FRC-eFact
+
+Este archivo contiene reglas y convenciones importantes para el desarrollo en este proyecto, guardadas para referencia del asistente de IA de Cursor.
+
+---
+
+## Flujo de Manejo de Entidades en FRC-eFact
+
+Al gestionar una entidad en el sistema FRC-eFact, se debe seguir la siguiente arquitectura:
+
+### Backend (Spring Boot)
+
+La arquitectura es en capas:
+
+1.  **Controller** (`/controller`): Expone los endpoints REST.
+2.  **Service** (`/service`): Contiene la lógica de negocio.
+3.  **Repository** (`/repository`): Interactúa con la base de datos (extiende `JpaRepository`).
+4.  **Entity** (`/model`): Representa las tablas de la base de datos con JPA.
+5.  **DTO** (`/dto`): Se utiliza para la transferencia de datos entre capas y hacia el frontend.
+
+### Frontend (Angular)
+
+La arquitectura se basa en componentes y gestión de estado con NgRx:
+
+1.  **Component** (`/features/[entidad]/`): Separado en componentes de lista y formulario.
+2.  **NgRx State Management** (`/core/state/[entidad]/`): Gestiona el estado de la aplicación con:
+    *   **Actions**: Desencadenan cambios de estado.
+    *   **Effects**: Manejan efectos secundarios como las llamadas a la API.
+    *   **Reducers**: Actualizan el estado.
+    *   **Selectors**: Obtienen datos del estado.
+3.  **API Service** (`/core/api/`): Se comunica con la API REST del backend.
+4.  **Model** (`/models/`): Interfaces TypeScript que se corresponden con los DTOs del backend.
+
+### Flujo de Datos
+
+El flujo típico implica que un componente despacha una acción de NgRx, que es capturada por un efecto. El efecto utiliza un servicio de API para comunicarse con el backend. La respuesta del backend actualiza el estado a través de un reducer, y el componente se actualiza utilizando un selector para leer los nuevos datos del estado.
+# Reglas de Cursor para el Proyecto FRC-eFact
+
+Este archivo contiene reglas y convenciones importantes para el desarrollo en este proyecto, guardadas para referencia del asistente de IA de Cursor.
+
+---
+
+## Flujo de Manejo de Entidades en FRC-eFact
+
+Al gestionar una entidad en el sistema FRC-eFact, se debe seguir la siguiente arquitectura:
+
+### Backend (Spring Boot)
+
+La arquitectura es en capas:
+
+1.  **Controller** (`/controller`): Expone los endpoints REST.
+2.  **Service** (`/service`): Contiene la lógica de negocio.
+3.  **Repository** (`/repository`): Interactúa con la base de datos (extiende `JpaRepository`).
+4.  **Entity** (`/model`): Representa las tablas de la base de datos con JPA.
+5.  **DTO** (`/dto`): Se utiliza para la transferencia de datos entre capas y hacia el frontend.
+
+### Frontend (Angular)
+
+La arquitectura se basa en componentes y gestión de estado con NgRx:
+
+1.  **Component** (`/features/[entidad]/`): Separado en componentes de lista y formulario.
+2.  **NgRx State Management** (`/core/state/[entidad]/`): Gestiona el estado de la aplicación con:
+    *   **Actions**: Desencadenan cambios de estado.
+    *   **Effects**: Manejan efectos secundarios como las llamadas a la API.
+    *   **Reducers**: Actualizan el estado.
+    *   **Selectors**: Obtienen datos del estado.
+3.  **API Service** (`/core/api/`): Se comunica con la API REST del backend.
+4.  **Model** (`/models/`): Interfaces TypeScript que se corresponden con los DTOs del backend.
+
+### Flujo de Datos
+
+El flujo típico implica que un componente despacha una acción de NgRx, que es capturada por un efecto. El efecto utiliza un servicio de API para comunicarse con el backend. La respuesta del backend actualiza el estado a través de un reducer, y el componente se actualiza utilizando un selector para leer los nuevos datos del estado.

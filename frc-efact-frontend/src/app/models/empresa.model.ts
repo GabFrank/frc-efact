@@ -2,25 +2,19 @@ export interface Empresa {
   id: number;
   razonSocial: string;
   ruc: string;
+  tipoContribuyente: 'PF' | 'PJ'; // PF = Persona Física, PJ = Persona Jurídica
   nombreFantasia?: string;
   email?: string;
   telefono?: string;
   direccion?: string;
-  tipoSociedad?: string;
-  domicilioFiscal: DomicilioFiscal;
+  // Domicilio fiscal - IDs directos
+  ciudadId: number;
+  barrioId?: number;
+  domicilioFiscalDireccion: string;
   actividadEconomica: ActividadEconomica;
   certificado?: CertificadoInfo;
   activo: boolean;
   creadoEn: string;
-}
-
-export interface DomicilioFiscal {
-  departamento: string;
-  ciudad: string;
-  codigoCiudad: string;
-  localidad: string;
-  barrio: string;
-  direccion: string;
 }
 
 export interface ActividadEconomica {

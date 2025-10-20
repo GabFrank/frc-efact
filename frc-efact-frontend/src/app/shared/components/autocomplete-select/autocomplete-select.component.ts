@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -34,6 +34,7 @@ export interface AutocompleteOption {
         [formControl]="searchControl"
         [matAutocomplete]="auto"
         [placeholder]="placeholder"
+        autocomplete="off"
         (input)="onInput($event)"
         (blur)="onBlur()">
       <mat-icon matSuffix>search</mat-icon>
@@ -100,9 +101,22 @@ export interface AutocompleteOption {
       width: 18px;
       height: 18px;
     }
+
+    /* Disabled state styles */
+    mat-form-field.mat-form-field-disabled {
+      pointer-events: none;
+    }
+
+    mat-form-field.mat-form-field-disabled input {
+      color: rgba(0, 0, 0, 0.38);
+    }
+
+    mat-form-field.mat-form-field-disabled mat-icon {
+      color: rgba(0, 0, 0, 0.38);
+    }
   `]
 })
-export class AutocompleteSelectComponent implements OnInit, OnDestroy {
+export class AutocompleteSelectComponent implements OnInit, OnDestroy, OnChanges {
   @Input() label: string = '';
   @Input() placeholder: string = '';
   @Input() options: AutocompleteOption[] = [];
@@ -110,6 +124,7 @@ export class AutocompleteSelectComponent implements OnInit, OnDestroy {
   @Input() hasError: boolean = false;
   @Input() errorMessage: string = '';
   @Input() required: boolean = false;
+  @Input() disabled: boolean = false;
 
   @Output() valueChange = new EventEmitter<string>();
   @Output() optionSelected = new EventEmitter<AutocompleteOption>();
@@ -120,14 +135,46 @@ export class AutocompleteSelectComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   ngOnInit(): void {
-    // Set initial value
-    if (this.value) {
-      const option = this.options.find(opt => opt.value === this.value);
-      if (option) {
-        this.searchControl.setValue(option.label);
+    this.updateValue();
+    this.setupFiltering();
+    
+    // Set initial disabled state
+    if (this.disabled) {
+      this.searchControl.disable();
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['value'] || changes['options']) {
+      this.updateValue();
+    }
+    
+    if (changes['disabled']) {
+      if (this.disabled) {
+        this.searchControl.disable();
+      } else {
+        this.searchControl.enable();
       }
     }
+  }
 
+  private updateValue(): void {
+    if (this.value && typeof this.value === 'string' && this.value.trim() !== '') {
+      const valueToSearch = this.value.toLowerCase();
+      const option = this.options.find(opt => 
+        opt.value === this.value || 
+        opt.codigo === this.value ||
+        opt.label.toLowerCase().includes(valueToSearch)
+      );
+      if (option) {
+        this.searchControl.setValue(option.label, { emitEvent: false });
+      }
+    } else {
+      this.searchControl.setValue('', { emitEvent: false });
+    }
+  }
+
+  private setupFiltering(): void {
     // Setup filtering
     this.filteredOptions$ = this.searchControl.valueChanges.pipe(
       startWith(''),
@@ -152,39 +199,58 @@ export class AutocompleteSelectComponent implements OnInit, OnDestroy {
       return this.options.slice(0, 50); // Limit to 50 options for performance
     }
 
-    const filterValue = value.toLowerCase();
+    const filterValue = value.toLowerCase().trim();
+
+    // Si no hay texto de búsqueda, mostrar todas las opciones
+    if (filterValue === '') {
+      return this.options.slice(0, 50);
+    }
+
     return this.options
-      .filter(option => 
-        option.label.toLowerCase().includes(filterValue) ||
-        (option.codigo && option.codigo.toLowerCase().includes(filterValue))
-      )
+      .filter(option => {
+        const label = option.label.toLowerCase();
+        const codigo = option.codigo?.toLowerCase() || '';
+        const value = option.value.toLowerCase();
+
+        // Buscar en label, código y value
+        return label.includes(filterValue) ||
+          codigo.includes(filterValue) ||
+          value.includes(filterValue);
+      })
       .slice(0, 50); // Limit to 50 options for performance
   }
 
-  displayFn = (option: AutocompleteOption): string => {
+  displayFn = (option: AutocompleteOption | string): string => {
+    if (typeof option === 'string') {
+      return option;
+    }
     return option ? option.label : '';
   };
 
   onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const value = input.value.toUpperCase(); // Convert to uppercase
-    
-    // Update the input value to uppercase
-    setTimeout(() => {
-      this.searchControl.setValue(value, { emitEvent: false });
-      input.value = value;
-    });
+
+    // Update only the input element, not the form control
+    // This prevents the valueChanges observable from being triggered twice
+    input.value = value;
   }
 
   onBlur(): void {
-    // If the current value doesn't match any option, clear it
+    // Si el valor actual es un objeto (opción seleccionada), no hacer nada
     const currentValue = this.searchControl.value;
-    if (typeof currentValue === 'string') {
-      const matchingOption = this.options.find(opt => 
-        opt.label.toLowerCase() === currentValue.toLowerCase()
+    if (typeof currentValue === 'object' && currentValue !== null) {
+      return;
+    }
+
+    // Si es un string, verificar si coincide con alguna opción
+    if (typeof currentValue === 'string' && currentValue.trim() !== '') {
+      const matchingOption = this.options.find(opt =>
+        opt.label.toLowerCase() === currentValue.toLowerCase().trim()
       );
-      
-      if (!matchingOption && currentValue.trim() !== '') {
+
+      // Si no hay coincidencia exacta, limpiar el campo
+      if (!matchingOption) {
         this.searchControl.setValue('');
         this.valueChange.emit('');
       }

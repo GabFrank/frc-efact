@@ -29,7 +29,7 @@ public class DashboardController {
      * Obtiene el dashboard del usuario actual.
      */
     @GetMapping("/usuario/{usuarioId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USUARIO', 'EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     public ResponseEntity<DashboardUsuarioDto> getDashboardUsuario(@PathVariable Long usuarioId) {
         DashboardUsuarioDto dashboard = dashboardService.getDashboardUsuario(usuarioId);
         return ResponseEntity.ok(dashboard);
@@ -39,7 +39,7 @@ public class DashboardController {
      * Obtiene el dashboard de una empresa.
      */
     @GetMapping("/empresa/{empresaId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     public ResponseEntity<DashboardEmpresaDto> getDashboardEmpresa(
             @PathVariable Long empresaId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaDesde,
@@ -52,7 +52,7 @@ public class DashboardController {
      * Obtiene métricas generales del sistema.
      */
     @GetMapping("/general")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USUARIO', 'EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     public ResponseEntity<DashboardGeneralDto> getDashboardGeneral() {
         DashboardGeneralDto dashboard = dashboardService.getDashboardGeneral();
         return ResponseEntity.ok(dashboard);

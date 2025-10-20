@@ -22,15 +22,15 @@ import { AuthService } from '../../services/auth.service';
       </div>
 
       <div class="dashboard-content">
-        <!-- Dashboard para usuarios con rol EMPRESA -->
-        <app-dashboard-empresa 
-          *ngIf="(userRole$ | async) === 'ROLE_EMPRESA'"
+        <!-- Dashboard para usuarios con rol EMPRESA_ADMIN -->
+        <app-dashboard-empresa
+          *ngIf="(userRole$ | async) === 'EMPRESA_ADMIN'"
           class="dashboard-section">
         </app-dashboard-empresa>
 
-        <!-- Dashboard para usuarios con rol USUARIO -->
-        <app-dashboard-usuario 
-          *ngIf="(userRole$ | async) === 'ROLE_USUARIO'"
+        <!-- Dashboard para usuarios con rol FACTURADOR -->
+        <app-dashboard-usuario
+          *ngIf="(userRole$ | async) === 'FACTURADOR'"
           class="dashboard-section">
         </app-dashboard-usuario>
 
@@ -100,27 +100,27 @@ import { AuthService } from '../../services/auth.service';
           <div class="quick-actions">
             <h2>Accesos Rápidos</h2>
             <div class="actions-grid">
-              <button (click)="navigateTo('/empresas')" class="action-card">
+              <button *ngIf="canAccessEmpresas" (click)="navigateTo('/empresas')" class="action-card">
                 <i class="fas fa-building"></i>
                 <span>Gestionar Empresas</span>
               </button>
-              <button (click)="navigateTo('/productos')" class="action-card">
+              <button *ngIf="canAccessProductos" (click)="navigateTo('/productos')" class="action-card">
                 <i class="fas fa-box"></i>
                 <span>Gestionar Productos</span>
               </button>
-              <button (click)="navigateTo('/clientes')" class="action-card">
+              <button *ngIf="canAccessClientes" (click)="navigateTo('/clientes')" class="action-card">
                 <i class="fas fa-users"></i>
                 <span>Gestionar Clientes</span>
               </button>
-              <button (click)="navigateTo('/facturacion')" class="action-card">
+              <button *ngIf="canAccessFacturacion" (click)="navigateTo('/facturacion')" class="action-card">
                 <i class="fas fa-file-invoice"></i>
                 <span>Nueva Factura</span>
               </button>
-              <button (click)="navigateTo('/documentos')" class="action-card">
+              <button *ngIf="canAccessDocumentos" (click)="navigateTo('/documentos')" class="action-card">
                 <i class="fas fa-file-alt"></i>
                 <span>Ver Documentos</span>
               </button>
-              <button (click)="navigateTo('/reportes')" class="action-card">
+              <button *ngIf="canAccessReportes" (click)="navigateTo('/reportes')" class="action-card">
                 <i class="fas fa-chart-bar"></i>
                 <span>Ver Reportes</span>
               </button>
@@ -358,6 +358,7 @@ import { AuthService } from '../../services/auth.service';
 export class DashboardComponent implements OnInit {
   currentUser$: Observable<User | null>;
   userRole$: Observable<string | null>;
+  currentUser: User | null = null;
 
   // Datos del dashboard general
   totalEmpresas = 0;
@@ -377,13 +378,52 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Suscribirse al usuario actual
+    this.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
+
     this.loadDashboardData();
+  }
+
+  // Métodos de acceso basados en roles
+  get canAccessEmpresas(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN']);
+  }
+
+  get canAccessProductos(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessClientes(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessFacturacion(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessDocumentos(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canAccessReportes(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  private hasAnyRole(roles: string[]): boolean {
+    if (!this.currentUser?.roles) return false;
+
+    return this.currentUser.roles.some(userRole => {
+      const roleName = typeof userRole === 'string' ? userRole : userRole.nombre;
+      return roles.includes(roleName);
+    });
   }
 
   private loadDashboardData(): void {
     this.isLoading = true;
     console.log('Cargando datos del dashboard...');
-    
+
     this.dashboardService.getDashboardGeneral().subscribe({
       next: (data: DashboardGeneralDto) => {
         console.log('Datos del dashboard recibidos:', data);

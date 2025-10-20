@@ -14,7 +14,7 @@ export class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
   private readonly USER_KEY = 'current_user';
-  
+
   private currentUserSubject = new BehaviorSubject<User | null>(this.getUserFromStorage());
   public currentUser$ = this.currentUserSubject.asObservable();
 
@@ -63,9 +63,30 @@ export class AuthService {
     console.log('Respuesta de autenticación:', response);
     localStorage.setItem(this.TOKEN_KEY, response.token);
     localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.usuario));
-    this.currentUserSubject.next(response.usuario as User);
-    console.log('Usuario guardado en localStorage:', response.usuario);
+
+    // Mapear los campos del backend a los nombres del frontend
+    const mappedUser = this.mapBackendUserToFrontend(response.usuario);
+    localStorage.setItem(this.USER_KEY, JSON.stringify(mappedUser));
+    this.currentUserSubject.next(mappedUser);
+    console.log('Usuario guardado en localStorage:', mappedUser);
+  }
+
+  private mapBackendUserToFrontend(backendUser: any): User {
+    return {
+      id: backendUser.id,
+      username: backendUser.username,
+      email: backendUser.email,
+      isActive: backendUser.isActive,
+      roles: backendUser.roles || [],
+      ultimoLogin: backendUser.ultimoLogin,
+      creadoEn: backendUser.creadoEn,
+      actualizadoEn: backendUser.actualizadoEn,
+      failedLoginAttempts: backendUser.failedLoginAttempts || 0,
+      lockedUntil: backendUser.lockedUntil,
+      empresas: backendUser.empresas || [],
+      createdBy: backendUser.createdBy,
+      updatedBy: backendUser.updatedBy
+    };
   }
 
   private getUserFromStorage(): User | null {

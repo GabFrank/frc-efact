@@ -24,6 +24,10 @@ public class EmpresaDto {
     @ValidRuc
     private String ruc;
 
+    @NotBlank(message = "Tipo de contribuyente es requerido")
+    @Size(max = 2, message = "Tipo contribuyente debe ser PF o PJ")
+    private String tipoContribuyente = "PF"; // PF = Persona Física, PJ = Persona Jurídica
+
     @Size(max = 200, message = "Nombre fantasía no debe exceder 200 caracteres")
     private String nombreFantasia;
 
@@ -34,13 +38,17 @@ public class EmpresaDto {
     @Size(max = 50, message = "Teléfono no debe exceder 50 caracteres")
     private String telefono;
 
-    private String direccion;
+    private String direccion; // Dirección general de la empresa
 
     @Size(max = 50, message = "Tipo sociedad no debe exceder 50 caracteres")
     private String tipoSociedad;
 
-    @Valid
-    private DomicilioFiscalDto domicilioFiscal;
+    // Domicilio fiscal simplificado
+    private Long ciudadId;
+    
+    private Long barrioId;
+    
+    private String domicilioFiscalDireccion;
 
     @Valid
     private ActividadEconomicaDto actividadEconomica;
@@ -79,6 +87,14 @@ public class EmpresaDto {
 
     public void setRuc(String ruc) {
         this.ruc = ruc;
+    }
+
+    public String getTipoContribuyente() {
+        return tipoContribuyente;
+    }
+
+    public void setTipoContribuyente(String tipoContribuyente) {
+        this.tipoContribuyente = tipoContribuyente;
     }
 
     public String getNombreFantasia() {
@@ -121,12 +137,28 @@ public class EmpresaDto {
         this.tipoSociedad = tipoSociedad;
     }
 
-    public DomicilioFiscalDto getDomicilioFiscal() {
-        return domicilioFiscal;
+    public Long getCiudadId() {
+        return ciudadId;
     }
 
-    public void setDomicilioFiscal(DomicilioFiscalDto domicilioFiscal) {
-        this.domicilioFiscal = domicilioFiscal;
+    public void setCiudadId(Long ciudadId) {
+        this.ciudadId = ciudadId;
+    }
+
+    public Long getBarrioId() {
+        return barrioId;
+    }
+
+    public void setBarrioId(Long barrioId) {
+        this.barrioId = barrioId;
+    }
+
+    public String getDomicilioFiscalDireccion() {
+        return domicilioFiscalDireccion;
+    }
+
+    public void setDomicilioFiscalDireccion(String domicilioFiscalDireccion) {
+        this.domicilioFiscalDireccion = domicilioFiscalDireccion;
     }
 
     public ActividadEconomicaDto getActividadEconomica() {

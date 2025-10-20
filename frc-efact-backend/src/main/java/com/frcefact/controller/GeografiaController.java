@@ -2,7 +2,6 @@ package com.frcefact.controller;
 
 import com.frcefact.dto.geografia.*;
 import com.frcefact.service.GeografiaService;
-import com.frcefact.service.GeografiaDataLoaderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Controlador REST para datos geográficos de SIFEN.
@@ -25,18 +23,15 @@ import java.util.Map;
 public class GeografiaController {
 
     private final GeografiaService geografiaService;
-    private final GeografiaDataLoaderService geografiaDataLoaderService;
 
-    public GeografiaController(GeografiaService geografiaService, 
-                              GeografiaDataLoaderService geografiaDataLoaderService) {
+    public GeografiaController(GeografiaService geografiaService) {
         this.geografiaService = geografiaService;
-        this.geografiaDataLoaderService = geografiaDataLoaderService;
     }
 
     // ========== DEPARTAMENTOS ==========
 
     @GetMapping("/departamentos")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener departamentos", description = "Obtiene la lista de todos los departamentos activos")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Lista obtenida exitosamente"),
@@ -49,7 +44,7 @@ public class GeografiaController {
     }
 
     @GetMapping("/departamentos/buscar")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Buscar departamentos", description = "Busca departamentos por código o nombre")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Búsqueda realizada exitosamente"),
@@ -63,7 +58,7 @@ public class GeografiaController {
     }
 
     @GetMapping("/departamentos/{codigo}")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener departamento por código", description = "Obtiene un departamento específico por su código")
     public ResponseEntity<DepartamentoDto> obtenerDepartamentoPorCodigo(
             @Parameter(description = "Código del departamento") @PathVariable String codigo) {
@@ -74,7 +69,7 @@ public class GeografiaController {
     // ========== DISTRITOS ==========
 
     @GetMapping("/departamentos/{departamentoCodigo}/distritos")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener distritos por departamento", description = "Obtiene todos los distritos de un departamento")
     public ResponseEntity<List<DistritoDto>> obtenerDistritosPorDepartamento(
             @Parameter(description = "Código del departamento") @PathVariable String departamentoCodigo) {
@@ -83,7 +78,7 @@ public class GeografiaController {
     }
 
     @GetMapping("/distritos/buscar")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Buscar distritos", description = "Busca distritos por código o nombre")
     public ResponseEntity<List<DistritoDto>> buscarDistritos(
             @Parameter(description = "Texto a buscar") @RequestParam String q,
@@ -98,7 +93,7 @@ public class GeografiaController {
     }
 
     @GetMapping("/distritos/{codigo}")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener distrito por código", description = "Obtiene un distrito específico por su código")
     public ResponseEntity<DistritoDto> obtenerDistritoPorCodigo(
             @Parameter(description = "Código del distrito") @PathVariable String codigo) {
@@ -109,7 +104,7 @@ public class GeografiaController {
     // ========== CIUDADES ==========
 
     @GetMapping("/distritos/{distritoCodigo}/ciudades")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener ciudades por distrito", description = "Obtiene todas las ciudades de un distrito")
     public ResponseEntity<List<CiudadDto>> obtenerCiudadesPorDistrito(
             @Parameter(description = "Código del distrito") @PathVariable String distritoCodigo) {
@@ -118,7 +113,7 @@ public class GeografiaController {
     }
 
     @GetMapping("/ciudades/buscar")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Buscar ciudades", description = "Busca ciudades por código o nombre")
     public ResponseEntity<List<CiudadDto>> buscarCiudades(
             @Parameter(description = "Texto a buscar") @RequestParam String q,
@@ -133,7 +128,7 @@ public class GeografiaController {
     }
 
     @GetMapping("/ciudades/{codigo}")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener ciudad por código", description = "Obtiene una ciudad específica por su código")
     public ResponseEntity<CiudadDto> obtenerCiudadPorCodigo(
             @Parameter(description = "Código de la ciudad") @PathVariable String codigo) {
@@ -141,10 +136,19 @@ public class GeografiaController {
         return ciudad != null ? ResponseEntity.ok(ciudad) : ResponseEntity.notFound().build();
     }
 
+    @GetMapping("/ciudades/id/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    @Operation(summary = "Obtener ciudad por ID", description = "Obtiene una ciudad específica por su ID")
+    public ResponseEntity<CiudadDto> obtenerCiudadPorId(
+            @Parameter(description = "ID de la ciudad") @PathVariable Long id) {
+        CiudadDto ciudad = geografiaService.obtenerCiudadPorId(id);
+        return ciudad != null ? ResponseEntity.ok(ciudad) : ResponseEntity.notFound().build();
+    }
+
     // ========== BARRIOS ==========
 
     @GetMapping("/ciudades/{ciudadCodigo}/barrios")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener barrios por ciudad", description = "Obtiene todos los barrios de una ciudad")
     public ResponseEntity<List<BarrioDto>> obtenerBarriosPorCiudad(
             @Parameter(description = "Código de la ciudad") @PathVariable String ciudadCodigo) {
@@ -153,7 +157,7 @@ public class GeografiaController {
     }
 
     @GetMapping("/barrios/buscar")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Buscar barrios", description = "Busca barrios por código o nombre")
     public ResponseEntity<List<BarrioDto>> buscarBarrios(
             @Parameter(description = "Texto a buscar") @RequestParam String q,
@@ -168,81 +172,11 @@ public class GeografiaController {
     }
 
     @GetMapping("/barrios/{codigo}")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USUARIO', 'ROLE_EMPRESA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener barrio por código", description = "Obtiene un barrio específico por su código")
     public ResponseEntity<BarrioDto> obtenerBarrioPorCodigo(
             @Parameter(description = "Código del barrio") @PathVariable String codigo) {
         BarrioDto barrio = geografiaService.obtenerBarrioPorCodigo(codigo);
         return barrio != null ? ResponseEntity.ok(barrio) : ResponseEntity.notFound().build();
-    }
-
-    // ========== ADMINISTRACIÓN ==========
-
-    @PostMapping("/admin/cargar-datos")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @Operation(summary = "Cargar datos geográficos", description = "Carga manualmente los datos geográficos desde el CSV")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Datos cargados exitosamente"),
-        @ApiResponse(responseCode = "401", description = "No autenticado"),
-        @ApiResponse(responseCode = "403", description = "Sin permisos de administrador"),
-        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
-    })
-    public ResponseEntity<Map<String, Object>> cargarDatosGeograficos() {
-        try {
-            geografiaDataLoaderService.cargarDatosGeograficos();
-            Map<String, Object> response = Map.of(
-                "mensaje", "Datos geográficos cargados exitosamente",
-                "estadisticas", geografiaDataLoaderService.obtenerEstadisticas()
-            );
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> error = Map.of(
-                "error", "Error cargando datos geográficos",
-                "detalle", e.getMessage()
-            );
-            return ResponseEntity.internalServerError().body(error);
-        }
-    }
-
-    @GetMapping("/admin/estadisticas")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @Operation(summary = "Obtener estadísticas", description = "Obtiene estadísticas de los datos geográficos cargados")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Estadísticas obtenidas exitosamente"),
-        @ApiResponse(responseCode = "401", description = "No autenticado"),
-        @ApiResponse(responseCode = "403", description = "Sin permisos de administrador")
-    })
-    public ResponseEntity<Map<String, Object>> obtenerEstadisticas() {
-        Map<String, Object> response = Map.of(
-            "estadisticas", geografiaDataLoaderService.obtenerEstadisticas(),
-            "datosCargados", geografiaDataLoaderService.datosGeograficosCargados()
-        );
-        return ResponseEntity.ok(response);
-    }
-
-    @DeleteMapping("/admin/limpiar-datos")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
-    @Operation(summary = "Limpiar datos geográficos", description = "Elimina todos los datos geográficos de la base de datos")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Datos eliminados exitosamente"),
-        @ApiResponse(responseCode = "401", description = "No autenticado"),
-        @ApiResponse(responseCode = "403", description = "Sin permisos de administrador"),
-        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
-    })
-    public ResponseEntity<Map<String, Object>> limpiarDatosGeograficos() {
-        try {
-            geografiaDataLoaderService.limpiarDatosGeograficos();
-            Map<String, Object> response = Map.of(
-                "mensaje", "Datos geográficos eliminados exitosamente",
-                "estadisticas", geografiaDataLoaderService.obtenerEstadisticas()
-            );
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> error = Map.of(
-                "error", "Error eliminando datos geográficos",
-                "detalle", e.getMessage()
-            );
-            return ResponseEntity.internalServerError().body(error);
-        }
     }
 }

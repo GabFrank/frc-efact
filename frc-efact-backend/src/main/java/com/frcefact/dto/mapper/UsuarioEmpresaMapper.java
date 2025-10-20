@@ -4,6 +4,9 @@ import com.frcefact.dto.UsuarioEmpresaDto;
 import com.frcefact.model.UsuarioEmpresa;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * Mapper para convertir entre UsuarioEmpresa y UsuarioEmpresaDto.
  */
@@ -39,6 +42,22 @@ public class UsuarioEmpresaMapper {
         }
 
         return dto;
+    }
+
+    /**
+     * Convierte una lista de entidades UsuarioEmpresa a lista de UsuarioEmpresaDto.
+     *
+     * @param usuarioEmpresas Lista de entidades UsuarioEmpresa
+     * @return Lista de UsuarioEmpresaDto
+     */
+    public List<UsuarioEmpresaDto> toDtoList(List<UsuarioEmpresa> usuarioEmpresas) {
+        if (usuarioEmpresas == null) {
+            return null;
+        }
+
+        return usuarioEmpresas.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
     }
 
     /**

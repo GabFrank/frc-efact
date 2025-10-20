@@ -15,7 +15,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidRuc {
     
-    String message() default "RUC inválido. Debe tener formato XXXXXXXX-X con dígito verificador correcto";
+    String message() default "RUC inválido";
     
     Class<?>[] groups() default {};
     

@@ -13,13 +13,14 @@ import java.util.Set;
 
 /**
  * Entidad Empresa que representa una empresa con datos fiscales completos.
- * Mapea a la tabla empresa.empresa siguiendo la estructura de facturación paraguaya.
+ * Mapea a la tabla empresa.empresa siguiendo la estructura de facturación
+ * paraguaya.
  */
 @Entity
 @Table(name = "empresa", schema = "empresa", indexes = {
-    @Index(name = "idx_empresa_ruc", columnList = "ruc"),
-    @Index(name = "idx_empresa_activo", columnList = "activo"),
-    @Index(name = "idx_empresa_razon_social", columnList = "razon_social")
+        @Index(name = "idx_empresa_ruc", columnList = "ruc"),
+        @Index(name = "idx_empresa_activo", columnList = "activo"),
+        @Index(name = "idx_empresa_razon_social", columnList = "razon_social")
 })
 public class Empresa extends AuditableEntity {
 
@@ -54,29 +55,22 @@ public class Empresa extends AuditableEntity {
     private String direccion;
 
     // Datos fiscales
+    @Size(max = 2, message = "Tipo contribuyente debe ser PF o PJ")
+    @Column(name = "tipo_contribuyente", length = 2, nullable = false)
+    private String tipoContribuyente = "PF"; // PF = Persona Física, PJ = Persona Jurídica
+
     @Size(max = 50, message = "Tipo sociedad no debe exceder 50 caracteres")
     @Column(name = "tipo_sociedad", length = 50)
     private String tipoSociedad;
 
-    @Size(max = 100)
-    @Column(name = "domicilio_fiscal_departamento", length = 100)
-    private String domicilioFiscalDepartamento;
+    // Domicilio fiscal - Relación con Ciudad
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "ciudad_id")
+    private Ciudad ciudad;
 
-    @Size(max = 100)
-    @Column(name = "domicilio_fiscal_ciudad", length = 100)
-    private String domicilioFiscalCiudad;
-
-    @Size(max = 10)
-    @Column(name = "domicilio_fiscal_codigo_ciudad", length = 10)
-    private String domicilioFiscalCodigoCiudad;
-
-    @Size(max = 100)
-    @Column(name = "domicilio_fiscal_localidad", length = 100)
-    private String domicilioFiscalLocalidad;
-
-    @Size(max = 100)
-    @Column(name = "domicilio_fiscal_barrio", length = 100)
-    private String domicilioFiscalBarrio;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "barrio_id")
+    private Barrio barrio;
 
     @Column(name = "domicilio_fiscal_direccion", columnDefinition = "TEXT")
     private String domicilioFiscalDireccion;
@@ -150,8 +144,8 @@ public class Empresa extends AuditableEntity {
             return false;
         }
         LocalDate fechaLimite = LocalDate.now().plusDays(diasAnticipacion);
-        return certificadoFechaExpiracion.isBefore(fechaLimite) && 
-               certificadoFechaExpiracion.isAfter(LocalDate.now());
+        return certificadoFechaExpiracion.isBefore(fechaLimite) &&
+                certificadoFechaExpiracion.isAfter(LocalDate.now());
     }
 
     // Getters y Setters
@@ -215,48 +209,32 @@ public class Empresa extends AuditableEntity {
         return tipoSociedad;
     }
 
+    public String getTipoContribuyente() {
+        return tipoContribuyente;
+    }
+
+    public void setTipoContribuyente(String tipoContribuyente) {
+        this.tipoContribuyente = tipoContribuyente;
+    }
+
     public void setTipoSociedad(String tipoSociedad) {
         this.tipoSociedad = tipoSociedad;
     }
 
-    public String getDomicilioFiscalDepartamento() {
-        return domicilioFiscalDepartamento;
+    public Ciudad getCiudad() {
+        return ciudad;
     }
 
-    public void setDomicilioFiscalDepartamento(String domicilioFiscalDepartamento) {
-        this.domicilioFiscalDepartamento = domicilioFiscalDepartamento;
+    public void setCiudad(Ciudad ciudad) {
+        this.ciudad = ciudad;
     }
 
-    public String getDomicilioFiscalCiudad() {
-        return domicilioFiscalCiudad;
+    public Barrio getBarrio() {
+        return barrio;
     }
 
-    public void setDomicilioFiscalCiudad(String domicilioFiscalCiudad) {
-        this.domicilioFiscalCiudad = domicilioFiscalCiudad;
-    }
-
-    public String getDomicilioFiscalCodigoCiudad() {
-        return domicilioFiscalCodigoCiudad;
-    }
-
-    public void setDomicilioFiscalCodigoCiudad(String domicilioFiscalCodigoCiudad) {
-        this.domicilioFiscalCodigoCiudad = domicilioFiscalCodigoCiudad;
-    }
-
-    public String getDomicilioFiscalLocalidad() {
-        return domicilioFiscalLocalidad;
-    }
-
-    public void setDomicilioFiscalLocalidad(String domicilioFiscalLocalidad) {
-        this.domicilioFiscalLocalidad = domicilioFiscalLocalidad;
-    }
-
-    public String getDomicilioFiscalBarrio() {
-        return domicilioFiscalBarrio;
-    }
-
-    public void setDomicilioFiscalBarrio(String domicilioFiscalBarrio) {
-        this.domicilioFiscalBarrio = domicilioFiscalBarrio;
+    public void setBarrio(Barrio barrio) {
+        this.barrio = barrio;
     }
 
     public String getDomicilioFiscalDireccion() {
@@ -365,8 +343,10 @@ public class Empresa extends AuditableEntity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Empresa empresa = (Empresa) o;
         return Objects.equals(id, empresa.id) && Objects.equals(ruc, empresa.ruc);
     }

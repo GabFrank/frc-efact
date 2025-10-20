@@ -17,7 +17,7 @@ export const EMPRESAS_ROUTES: Routes = [
       },
       {
         path: ':id',
-        loadComponent: () => import('./empresa-form.component').then(m => m.EmpresaFormComponent)
+        loadComponent: () => import('./empresa-usuarios.component').then(m => m.EmpresaUsuariosComponent)
       },
       {
         path: ':id/edit',
@@ -25,7 +25,7 @@ export const EMPRESAS_ROUTES: Routes = [
       },
       {
         path: ':id/usuarios',
-        loadComponent: () => import('./usuario-empresa.component').then(m => m.UsuarioEmpresaComponent)
+        loadComponent: () => import('./empresa-usuarios.component').then(m => m.EmpresaUsuariosComponent)
       }
     ]
   }

@@ -27,6 +27,8 @@ export interface CiudadDto {
   nombre: string;
   distritoCodigo: string;
   distritoNombre: string;
+  departamentoCodigo: string;
+  departamentoNombre: string;
   activo: boolean;
 }
 
@@ -96,6 +98,10 @@ export class SifenService {
 
   getCiudadByCodigo(codigo: string): Observable<CiudadDto> {
     return this.http.get<CiudadDto>(`${this.apiUrl}/ciudades/${codigo}`);
+  }
+
+  getCiudadById(id: number): Observable<CiudadDto> {
+    return this.http.get<CiudadDto>(`${this.apiUrl}/ciudades/id/${id}`);
   }
 
   // ========== BARRIOS ==========

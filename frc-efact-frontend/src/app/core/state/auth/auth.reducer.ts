@@ -92,5 +92,28 @@ export const authReducer = createReducer(
     ...state,
     loading: false,
     error
+  })),
+  
+  // Initialize auth from storage
+  on(AuthActions.initializeAuth, (state) => ({
+    ...state,
+    loading: true
+  })),
+  
+  on(AuthActions.initializeAuthSuccess, (state, { user, token, refreshToken }) => ({
+    ...state,
+    user,
+    token,
+    refreshToken,
+    loading: false,
+    error: null,
+    isAuthenticated: true
+  })),
+  
+  on(AuthActions.initializeAuthFailure, (state) => ({
+    ...state,
+    loading: false,
+    error: null,
+    isAuthenticated: false
   }))
 );

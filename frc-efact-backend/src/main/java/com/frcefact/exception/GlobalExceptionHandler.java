@@ -1,7 +1,11 @@
 package com.frcefact.exception;
 
+import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -20,6 +24,8 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
      * Manejar errores de validación.
@@ -108,6 +114,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        logger.warn("Argumento ilegal: {}", ex.getMessage());
+        
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
@@ -119,13 +127,77 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Manejar errores de recurso no encontrado.
+     */
+    @ExceptionHandler({ResourceNotFoundException.class, EntityNotFoundException.class})
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(RuntimeException ex) {
+        logger.warn("Recurso no encontrado: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
+    /**
+     * Manejar errores de recurso duplicado.
+     */
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateResourceException(DuplicateResourceException ex) {
+        logger.warn("Recurso duplicado: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
+
+    /**
+     * Manejar errores de acceso denegado.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex) {
+        logger.warn("Acceso denegado: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "No tiene permisos para realizar esta operación",
+                null,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    /**
      * Manejar errores genéricos.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        logger.error("Error inesperado", ex);
+        
+        // En producción, no exponer detalles internos
+        String message = "Error interno del servidor";
+        
+        // En desarrollo, incluir más detalles
+        if (logger.isDebugEnabled()) {
+            message = "Error interno: " + ex.getMessage();
+            if (ex.getCause() != null) {
+                message += " | Causa: " + ex.getCause().getMessage();
+            }
+        }
+        
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Error interno del servidor",
+                message,
                 null,
                 LocalDateTime.now()
         );

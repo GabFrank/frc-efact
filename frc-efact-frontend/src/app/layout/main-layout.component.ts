@@ -1,17 +1,17 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, Router } from '@angular/router';
+import { RouterOutlet, Router, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Observable } from 'rxjs';
-import * as AuthActions from '../core/state/auth/auth.actions';
-import { selectCurrentUser, selectUserRole } from '../core/state/auth/auth.selectors';
+import { Observable, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { selectUserRole, selectCurrentUser, selectHasRole } from '../core/state/auth/auth.selectors';
 import { User } from '../models/user.model';
 import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet],
+  imports: [CommonModule, RouterOutlet, RouterModule],
   template: `
     <div class="main-layout">
       <!-- Top Navigation Bar -->
@@ -20,7 +20,7 @@ import { AuthService } from '../services/auth.service';
           <img src="assets/logo.png" alt="FRC eFact" class="logo" />
           <span class="brand-text">FRC eFact</span>
         </div>
-        
+
         <div class="navbar-user">
           <div class="user-avatar-container" *ngIf="currentUser">
             <button class="avatar-btn" (click)="toggleUserMenu($event)" [title]="currentUser.username">
@@ -30,7 +30,7 @@ import { AuthService } from '../services/auth.service';
               <span class="user-name-desktop">{{ currentUser.username }}</span>
               <i class="fas fa-chevron-down"></i>
             </button>
-            
+
             <!-- Dropdown Menu -->
             <div class="user-menu" *ngIf="showUserMenu" (click)="$event.stopPropagation()">
               <div class="user-menu-header">
@@ -44,15 +44,15 @@ import { AuthService } from '../services/auth.service';
               </div>
               <div class="user-menu-divider"></div>
               <ul class="user-menu-list">
-                <li class="user-menu-item disabled" title="Próximamente">
+                <li class="user-menu-item" (click)="navigateToNew()" title="Crear nuevo documento">
                   <i class="fas fa-plus-circle"></i>
                   <span>Nuevo</span>
                 </li>
-                <li class="user-menu-item disabled" title="Próximamente">
+                <li class="user-menu-item" (click)="navigateToProfile()" title="Ver perfil de usuario">
                   <i class="fas fa-user-circle"></i>
                   <span>Perfil</span>
                 </li>
-                <li class="user-menu-item disabled" title="Próximamente">
+                <li class="user-menu-item" (click)="navigateToSettings()" title="Configuración del sistema">
                   <i class="fas fa-cog"></i>
                   <span>Configuración</span>
                 </li>
@@ -78,63 +78,70 @@ import { AuthService } from '../services/auth.service';
                   <span>Dashboard</span>
                 </a>
               </li>
-              
-              <li class="nav-item">
+
+              <li class="nav-item" *ngIf="isAdmin">
+                <a routerLink="/usuarios" routerLinkActive="active" class="nav-link">
+                  <i class="fas fa-user-cog"></i>
+                  <span>Usuarios</span>
+                </a>
+              </li>
+
+              <li class="nav-item" *ngIf="canAccessEmpresas">
                 <a routerLink="/empresas" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-building"></i>
                   <span>Empresas</span>
                 </a>
               </li>
-              
-              <li class="nav-item">
+
+              <li class="nav-item" *ngIf="canAccessTimbrados">
                 <a routerLink="/timbrados" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-stamp"></i>
                   <span>Timbrados</span>
                 </a>
               </li>
-              
-              <li class="nav-item">
+
+              <li class="nav-item" *ngIf="canAccessProductos">
                 <a routerLink="/productos" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-box"></i>
                   <span>Productos</span>
                 </a>
               </li>
-              
-              <li class="nav-item">
+
+              <li class="nav-item" *ngIf="canAccessClientes">
                 <a routerLink="/clientes" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-users"></i>
                   <span>Clientes</span>
                 </a>
               </li>
-              
-              <li class="nav-item">
+
+              <li class="nav-item" *ngIf="canAccessFacturacion">
                 <a routerLink="/facturacion" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-file-invoice"></i>
                   <span>Facturación</span>
                 </a>
               </li>
-              
-              <li class="nav-item">
+
+              <li class="nav-item" *ngIf="canAccessDocumentos">
                 <a routerLink="/documentos" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-file-alt"></i>
                   <span>Documentos Electrónicos</span>
                 </a>
               </li>
-              
-              <li class="nav-item">
+
+              <li class="nav-item" *ngIf="canAccessReportes">
                 <a routerLink="/reportes" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-chart-bar"></i>
                   <span>Reportes</span>
                 </a>
               </li>
-              
-              <li class="nav-item">
+
+              <li class="nav-item" *ngIf="canAccessAuditoria">
                 <a routerLink="/auditoria" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-history"></i>
                   <span>Auditoría</span>
                 </a>
               </li>
-              
+
               <li class="nav-item">
                 <a routerLink="/test" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-flask"></i>
@@ -312,14 +319,12 @@ import { AuthService } from '../services/auth.service';
       font-size: 0.875rem;
     }
 
-    .user-menu-item:hover:not(.disabled) {
+    .user-menu-item:hover {
       background: #f8f9fa;
     }
 
-    .user-menu-item.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      color: #95a5a6;
+    .user-menu-item:active {
+      background: #e9ecef;
     }
 
     .user-menu-item i {
@@ -423,11 +428,11 @@ import { AuthService } from '../services/auth.service';
       .sidebar {
         width: 200px;
       }
-      
+
       .main-content {
         padding: 1rem;
       }
-      
+
       .user-name-desktop {
         display: none;
       }
@@ -445,48 +450,123 @@ import { AuthService } from '../services/auth.service';
         z-index: 999;
         transition: left 0.3s;
       }
-      
+
       .sidebar.open {
         left: 0;
       }
-      
+
       .main-content {
         margin-left: 0;
       }
     }
   `]
 })
-export class MainLayoutComponent implements OnInit {
+export class MainLayoutComponent implements OnInit, OnDestroy {
   currentUser$: Observable<User | null>;
   userRole$: Observable<string | null>;
+  isAdmin$: Observable<boolean>;
   showUserMenu = false;
   currentUser: User | null = null;
   userRole: string | null = null;
+  isAdminUser = false;
+  private destroy$ = new Subject<void>();
 
   constructor(
     private store: Store,
     private router: Router,
     private authService: AuthService
   ) {
-    this.currentUser$ = this.authService.currentUser$;
+    this.currentUser$ = this.store.select(selectCurrentUser);
     this.userRole$ = this.store.select(selectUserRole);
+    this.isAdmin$ = this.store.select(selectHasRole('ADMIN'));
   }
 
   ngOnInit(): void {
-    // Suscribirse al usuario actual
-    this.currentUser$.subscribe(user => {
+    // Suscribirse al usuario actual desde el store
+    this.currentUser$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(user => {
       this.currentUser = user;
-      this.userRole = user?.roles?.[0] || null;
       console.log('Usuario actual en layout:', user);
-      console.log('Rol del usuario:', this.userRole);
+      console.log('Roles del usuario:', user?.roles);
+    });
+
+    // Suscribirse al rol del usuario desde el store
+    this.userRole$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(role => {
+      this.userRole = role;
+      console.log('Rol del usuario desde store:', role);
+    });
+
+    // Suscribirse al estado de admin
+    this.isAdmin$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(isAdmin => {
+      this.isAdminUser = isAdmin;
+      console.log('¿Es admin?:', isAdmin);
     });
 
     // Cerrar el menú al hacer clic fuera
-    document.addEventListener('click', (event) => {
-      if (this.showUserMenu) {
-        this.showUserMenu = false;
-      }
+    document.addEventListener('click', this.handleDocumentClick.bind(this));
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    document.removeEventListener('click', this.handleDocumentClick.bind(this));
+  }
+
+  get isAdmin(): boolean {
+    return this.isAdminUser;
+  }
+
+  // Métodos de acceso basados en roles
+  get canAccessEmpresas(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN']);
+  }
+
+  get canAccessTimbrados(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessProductos(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessClientes(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessFacturacion(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessDocumentos(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canAccessReportes(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canAccessAuditoria(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN']);
+  }
+
+  private hasAnyRole(roles: string[]): boolean {
+    if (!this.currentUser?.roles) return false;
+
+    return this.currentUser.roles.some(userRole => {
+      const roleName = typeof userRole === 'string' ? userRole : userRole.nombre;
+      return roles.includes(roleName);
     });
+  }
+
+  private handleDocumentClick(): void {
+    if (this.showUserMenu) {
+      this.showUserMenu = false;
+    }
   }
 
   toggleUserMenu(event?: Event): void {
@@ -496,10 +576,45 @@ export class MainLayoutComponent implements OnInit {
     this.showUserMenu = !this.showUserMenu;
   }
 
+  navigateToNew(): void {
+    this.showUserMenu = false;
+    this.router.navigate(['/empresas/new']);
+  }
+
+  navigateToProfile(): void {
+    this.showUserMenu = false;
+    // TODO: Implementar navegación a perfil
+    console.log('Navegando a perfil...');
+  }
+
+  navigateToSettings(): void {
+    this.showUserMenu = false;
+    // TODO: Implementar navegación a configuración
+    console.log('Navegando a configuración...');
+  }
+
   logout(): void {
     this.showUserMenu = false;
     this.authService.logout().subscribe(() => {
       this.router.navigate(['/login']);
     });
+  }
+
+  // Método de debug para forzar actualización del estado
+  forceRefresh(): void {
+    console.log('Forzando actualización del estado de auth...');
+    this.store.dispatch({ type: '[Auth] Initialize Auth' });
+  }
+
+  // Helper method para obtener nombres de roles para debug
+  getRoleNames(): string {
+    if (!this.currentUser?.roles) return 'No roles';
+
+    return this.currentUser.roles.map(role => {
+      if (typeof role === 'object' && 'nombre' in role) {
+        return (role as any).nombre;
+      }
+      return role;
+    }).join(', ');
   }
 }

@@ -110,22 +110,31 @@ export class ErrorMessageComponent {
     }
 
     const errors = this.control.errors;
-    
+
+    // Required field validation
     if (errors['required']) {
       return 'Este campo es requerido';
     }
+
+    // Email validation
     if (errors['email']) {
-      return 'Ingrese un email válido';
+      return 'Ingrese un correo electrónico válido';
     }
+
+    // Length validations
     if (errors['minlength']) {
       return `Mínimo ${errors['minlength'].requiredLength} caracteres`;
     }
     if (errors['maxlength']) {
       return `Máximo ${errors['maxlength'].requiredLength} caracteres`;
     }
+
+    // Pattern validation
     if (errors['pattern']) {
       return 'Formato inválido';
     }
+
+    // Numeric validations
     if (errors['min']) {
       return `Valor mínimo: ${errors['min'].min}`;
     }
@@ -133,7 +142,44 @@ export class ErrorMessageComponent {
       return `Valor máximo: ${errors['max'].max}`;
     }
 
+    // User-specific validations
+    if (errors['usernameExists']) {
+      return 'Este nombre de usuario ya está en uso';
+    }
+    if (errors['emailExists']) {
+      return 'Este correo electrónico ya está en uso';
+    }
+    if (errors['usernameValidationError']) {
+      return 'Error al validar el nombre de usuario. Inténtelo de nuevo.';
+    }
+    if (errors['emailValidationError']) {
+      return 'Error al validar el correo electrónico. Inténtelo de nuevo.';
+    }
+
+    // Password validations
+    if (errors['passwordComplexity']) {
+      return 'La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial';
+    }
+
+    // Server validation errors
+    if (errors['serverValidation']) {
+      return errors['serverValidation'];
+    }
+
+    // Generic server errors
+    if (errors['serverError']) {
+      return errors['serverError'];
+    }
+
     // Return first error key if no specific message
-    return `Error: ${Object.keys(errors)[0]}`;
+    const firstErrorKey = Object.keys(errors)[0];
+    const firstError = errors[firstErrorKey];
+
+    // If the error has a message property, use it
+    if (firstError && typeof firstError === 'object' && firstError.message) {
+      return firstError.message;
+    }
+
+    return `Error de validación: ${firstErrorKey}`;
   }
 }

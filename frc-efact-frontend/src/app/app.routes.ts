@@ -51,6 +51,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
       },
       {
+        path: 'usuarios',
+        loadChildren: () => import('./features/usuarios/usuarios.routes').then(m => m.USUARIOS_ROUTES)
+      },
+      {
         path: 'auditoria',
         loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
       },
