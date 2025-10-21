@@ -24,13 +24,13 @@ export class UsuariosEffects {
       switchMap(({ searchRequest }) => {
         if (searchRequest) {
           return this.usuarioApiService.searchUsers(searchRequest).pipe(
-            map((response: { content: User[], totalElements: number, totalPages: number }) => 
-              UsuariosActions.loadUsersSuccess({ 
-                users: response.content, 
-                total: response.totalElements 
+            map((response: { content: User[], totalElements: number, totalPages: number }) =>
+              UsuariosActions.loadUsersSuccess({
+                users: response.content,
+                total: response.totalElements
               })
             ),
-            retryWhen(errors => 
+            retryWhen(errors =>
               errors.pipe(
                 delay(1000),
                 take(2) // Retry up to 2 times
@@ -42,9 +42,11 @@ export class UsuariosEffects {
             })
           );
         } else {
-          return this.usuarioApiService.getAll().pipe(
+          // Use getAsignables() endpoint which works for both ADMIN and EMPRESA_ADMIN
+          // This endpoint excludes ADMIN users from the list
+          return this.usuarioApiService.getAsignables().pipe(
             map((users: User[]) => UsuariosActions.loadUsersSuccess({ users })),
-            retryWhen(errors => 
+            retryWhen(errors =>
               errors.pipe(
                 delay(1000),
                 take(2) // Retry up to 2 times
@@ -68,8 +70,8 @@ export class UsuariosEffects {
         this.usuarioApiService.getById(id).pipe(
           map((user) => UsuariosActions.loadUserSuccess({ user })),
           catchError((error) =>
-            of(UsuariosActions.loadUserFailure({ 
-              error: this.getErrorMessage(error, 'Error al cargar usuario') 
+            of(UsuariosActions.loadUserFailure({
+              error: this.getErrorMessage(error, 'Error al cargar usuario')
             }))
           )
         )
@@ -85,8 +87,8 @@ export class UsuariosEffects {
         this.usuarioApiService.getById(id).pipe(
           map((user) => UsuariosActions.loadUserSuccess({ user })),
           catchError((error) =>
-            of(UsuariosActions.loadUserFailure({ 
-              error: this.getErrorMessage(error, 'Error al cargar usuario') 
+            of(UsuariosActions.loadUserFailure({
+              error: this.getErrorMessage(error, 'Error al cargar usuario')
             }))
           )
         )
@@ -134,8 +136,8 @@ export class UsuariosEffects {
         this.usuarioApiService.delete(id).pipe(
           map(() => UsuariosActions.deleteUserSuccess({ id })),
           catchError((error) =>
-            of(UsuariosActions.deleteUserFailure({ 
-              error: this.getErrorMessage(error, 'Error al eliminar usuario') 
+            of(UsuariosActions.deleteUserFailure({
+              error: this.getErrorMessage(error, 'Error al eliminar usuario')
             }))
           )
         )
@@ -151,8 +153,8 @@ export class UsuariosEffects {
         this.usuarioApiService.resetPassword(request).pipe(
           map(() => UsuariosActions.resetPasswordSuccess({ userId: request.userId })),
           catchError((error) =>
-            of(UsuariosActions.resetPasswordFailure({ 
-              error: this.getErrorMessage(error, 'Error al restablecer contraseña') 
+            of(UsuariosActions.resetPasswordFailure({
+              error: this.getErrorMessage(error, 'Error al restablecer contraseña')
             }))
           )
         )
@@ -172,8 +174,8 @@ export class UsuariosEffects {
         }).pipe(
           map(() => UsuariosActions.resetPasswordSuccess({ userId })),
           catchError((error) =>
-            of(UsuariosActions.resetPasswordFailure({ 
-              error: this.getErrorMessage(error, 'Error al restablecer contraseña') 
+            of(UsuariosActions.resetPasswordFailure({
+              error: this.getErrorMessage(error, 'Error al restablecer contraseña')
             }))
           )
         )
@@ -189,8 +191,8 @@ export class UsuariosEffects {
         this.usuarioApiService.toggleUserStatus(id).pipe(
           map((user) => UsuariosActions.toggleUserStatusSuccess({ user })),
           catchError((error) =>
-            of(UsuariosActions.toggleUserStatusFailure({ 
-              error: this.getErrorMessage(error, 'Error al cambiar estado del usuario') 
+            of(UsuariosActions.toggleUserStatusFailure({
+              error: this.getErrorMessage(error, 'Error al cambiar estado del usuario')
             }))
           )
         )
@@ -206,8 +208,8 @@ export class UsuariosEffects {
         this.usuarioApiService.unlockUser(id).pipe(
           map((user) => UsuariosActions.unlockUserSuccess({ user })),
           catchError((error) =>
-            of(UsuariosActions.unlockUserFailure({ 
-              error: this.getErrorMessage(error, 'Error al desbloquear usuario') 
+            of(UsuariosActions.unlockUserFailure({
+              error: this.getErrorMessage(error, 'Error al desbloquear usuario')
             }))
           )
         )
@@ -422,7 +424,7 @@ export class UsuariosEffects {
   }
 
   private isNetworkError(error: string): boolean {
-    return error.toLowerCase().includes('network') || 
+    return error.toLowerCase().includes('network') ||
            error.toLowerCase().includes('connection') ||
            error.toLowerCase().includes('timeout') ||
            error.toLowerCase().includes('conexión');

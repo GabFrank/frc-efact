@@ -87,6 +87,12 @@ export interface UserAssignmentConfirmationData {
             <li>Ver toda la información de la empresa</li>
             <li>Crear y editar facturas</li>
           </ul>
+          <ul *ngIf="data.rolEmpresa === 'FACTURADOR'">
+            <li>Crear y editar facturas</li>
+            <li>Gestionar productos y clientes</li>
+            <li>Generar documentos electrónicos</li>
+            <li>Ver información de facturación</li>
+          </ul>
           <ul *ngIf="data.rolEmpresa === 'LECTOR'">
             <li>Ver información de la empresa</li>
             <li>Consultar facturas</li>

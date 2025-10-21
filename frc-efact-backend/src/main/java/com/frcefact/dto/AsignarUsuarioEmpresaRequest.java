@@ -13,7 +13,7 @@ public class AsignarUsuarioEmpresaRequest {
     private Long usuarioId;
 
     @NotBlank(message = "Rol de empresa es requerido")
-    @Pattern(regexp = "ADMINISTRADOR|LECTOR", message = "Rol debe ser ADMINISTRADOR o LECTOR")
+    @Pattern(regexp = "ADMINISTRADOR|FACTURADOR|LECTOR", message = "Rol debe ser ADMINISTRADOR, FACTURADOR o LECTOR")
     private String rolEmpresa;
 
     // Constructores

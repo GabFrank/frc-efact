@@ -57,9 +57,9 @@ import { AsignarUsuarioDialogComponent } from './asignar-usuario-dialog.componen
         <mat-card-content>
           <!-- Actions Bar -->
           <div class="actions-bar">
-            <button 
-              mat-raised-button 
-              color="primary" 
+            <button
+              mat-raised-button
+              color="primary"
               (click)="onAsignarUsuario()">
               <mat-icon>person_add</mat-icon>
               Asignar Usuario
@@ -72,7 +72,7 @@ import { AsignarUsuarioDialogComponent } from './asignar-usuario-dialog.componen
           <!-- Usuarios Table -->
           <div class="table-container" *ngIf="!loading">
             <table mat-table [dataSource]="usuariosEmpresa" class="usuarios-table">
-              
+
               <!-- Username Column -->
               <ng-container matColumnDef="username">
                 <th mat-header-cell *matHeaderCellDef>Usuario</th>
@@ -93,8 +93,9 @@ import { AsignarUsuarioDialogComponent } from './asignar-usuario-dialog.componen
               <ng-container matColumnDef="rolEmpresa">
                 <th mat-header-cell *matHeaderCellDef>Rol</th>
                 <td mat-cell *matCellDef="let usuarioEmpresa">
-                  <mat-chip 
+                  <mat-chip
                     [class.admin-chip]="usuarioEmpresa.rolEmpresa === 'ADMINISTRADOR'"
+                    [class.facturador-chip]="usuarioEmpresa.rolEmpresa === 'FACTURADOR'"
                     [class.lector-chip]="usuarioEmpresa.rolEmpresa === 'LECTOR'">
                     {{ usuarioEmpresa.rolEmpresa }}
                   </mat-chip>
@@ -105,8 +106,8 @@ import { AsignarUsuarioDialogComponent } from './asignar-usuario-dialog.componen
               <ng-container matColumnDef="activo">
                 <th mat-header-cell *matHeaderCellDef>Estado</th>
                 <td mat-cell *matCellDef="let usuarioEmpresa">
-                  <mat-chip 
-                    [class.active-chip]="usuarioEmpresa.activo" 
+                  <mat-chip
+                    [class.active-chip]="usuarioEmpresa.activo"
                     [class.inactive-chip]="!usuarioEmpresa.activo">
                     {{ usuarioEmpresa.activo ? 'Activo' : 'Inactivo' }}
                   </mat-chip>
@@ -125,22 +126,22 @@ import { AsignarUsuarioDialogComponent } from './asignar-usuario-dialog.componen
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef>Acciones</th>
                 <td mat-cell *matCellDef="let usuarioEmpresa">
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     color="accent"
                     (click)="onCambiarRol(usuarioEmpresa)"
                     matTooltip="Cambiar rol">
                     <mat-icon>swap_horiz</mat-icon>
                   </button>
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     [color]="usuarioEmpresa.activo ? 'warn' : 'primary'"
                     (click)="onToggleActive(usuarioEmpresa)"
                     [matTooltip]="usuarioEmpresa.activo ? 'Desactivar' : 'Activar'">
                     <mat-icon>{{ usuarioEmpresa.activo ? 'block' : 'check_circle' }}</mat-icon>
                   </button>
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     color="warn"
                     (click)="onRemoverUsuario(usuarioEmpresa)"
                     matTooltip="Remover acceso">
@@ -237,6 +238,11 @@ import { AsignarUsuarioDialogComponent } from './asignar-usuario-dialog.componen
       color: white;
     }
 
+    .facturador-chip {
+      background-color: #ff9800 !important;
+      color: white;
+    }
+
     .lector-chip {
       background-color: #9e9e9e !important;
       color: white;
@@ -302,7 +308,7 @@ export class UsuarioEmpresaComponent implements OnInit {
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    
+
     if (id) {
       this.empresaId = parseInt(id, 10);
       this.empresa$ = this.store.select(selectEmpresaById(this.empresaId));
@@ -342,7 +348,7 @@ export class UsuarioEmpresaComponent implements OnInit {
 
   onCambiarRol(usuarioEmpresa: UsuarioEmpresa): void {
     const nuevoRol = usuarioEmpresa.rolEmpresa === 'ADMINISTRADOR' ? 'LECTOR' : 'ADMINISTRADOR';
-    
+
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
       data: {
         title: 'Cambiar Rol',
@@ -373,7 +379,7 @@ export class UsuarioEmpresaComponent implements OnInit {
 
   onToggleActive(usuarioEmpresa: UsuarioEmpresa): void {
     const action = usuarioEmpresa.activo ? 'desactivar' : 'activar';
-    
+
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
       data: {
         title: `${action.charAt(0).toUpperCase() + action.slice(1)} Usuario`,

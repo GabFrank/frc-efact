@@ -1,4 +1,5 @@
 export { EmpresaUsuariosComponent } from './empresa-usuarios.component';
+export { EmpresaTimbradosComponent } from './empresa-timbrados.component';
 export { AddUserDialogComponent } from './add-user-dialog.component';
 export { EditUserDialogComponent } from './edit-user-dialog.component';
 export { EmpresaInfoComponent } from './empresa-info.component';

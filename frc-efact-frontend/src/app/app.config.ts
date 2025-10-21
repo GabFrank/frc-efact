@@ -18,6 +18,7 @@ import { empresasReducer } from './core/state/empresas/empresas.reducer';
 import { facturacionReducer } from './core/state/facturacion/facturacion.reducer';
 import { documentosReducer } from './core/state/documentos/documentos.reducer';
 import { usuariosReducer } from './core/state/usuarios/usuarios.reducer';
+import { timbradosReducer } from './core/state/timbrados/timbrados.reducer';
 
 // Effects
 import { AuthEffects } from './core/state/auth/auth.effects';
@@ -25,6 +26,7 @@ import { EmpresasEffects } from './core/state/empresas/empresas.effects';
 import { FacturacionEffects } from './core/state/facturacion/facturacion.effects';
 import { DocumentosEffects } from './core/state/documentos/documentos.effects';
 import { UsuariosEffects } from './core/state/usuarios/usuarios.effects';
+import { TimbradosEffects } from './core/state/timbrados/timbrados.effects';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -38,14 +40,16 @@ export const appConfig: ApplicationConfig = {
       empresas: empresasReducer,
       facturacion: facturacionReducer,
       documentos: documentosReducer,
-      usuarios: usuariosReducer
+      usuarios: usuariosReducer,
+      timbrados: timbradosReducer
     }),
     provideEffects([
       AuthEffects,
       EmpresasEffects,
       FacturacionEffects,
       DocumentosEffects,
-      UsuariosEffects
+      UsuariosEffects,
+      TimbradosEffects
     ]),
     provideStoreDevtools({
       maxAge: 25,

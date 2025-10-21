@@ -98,6 +98,7 @@ import { EditUserDialogComponent } from './edit-user-dialog.component';
                   <th mat-header-cell *matHeaderCellDef>Rol en Empresa</th>
                   <td mat-cell *matCellDef="let usuarioEmpresa">
                     <mat-chip [class.admin-chip]="usuarioEmpresa.rolEmpresa === 'ADMINISTRADOR'"
+                             [class.facturador-chip]="usuarioEmpresa.rolEmpresa === 'FACTURADOR'"
                              [class.lector-chip]="usuarioEmpresa.rolEmpresa === 'LECTOR'">
                       {{ usuarioEmpresa.rolEmpresa }}
                     </mat-chip>
@@ -218,6 +219,11 @@ import { EditUserDialogComponent } from './edit-user-dialog.component';
 
     .admin-chip {
       background-color: #4caf50 !important;
+      color: white;
+    }
+
+    .facturador-chip {
+      background-color: #ff9800 !important;
       color: white;
     }
 

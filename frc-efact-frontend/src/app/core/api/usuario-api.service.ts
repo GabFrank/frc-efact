@@ -24,6 +24,11 @@ export class UsuarioApiService {
     return this.http.get<User[]>(this.baseUrl);
   }
 
+  // Get users available for assignment to companies (excludes ADMIN)
+  getAsignables(): Observable<User[]> {
+    return this.http.get<User[]>(`${this.baseUrl}/asignables`);
+  }
+
   getById(id: number): Observable<User> {
     return this.http.get<User>(`${this.baseUrl}/${id}`);
   }
@@ -151,7 +156,7 @@ export class UsuarioApiService {
   getLockedUsers(): Observable<User[]> {
     // This would need to be implemented on the backend if not already available
     // For now, we can filter on the frontend after getting all users
-    return this.getAll();
+    return this.getAsignables();
   }
 
   // Role management methods

@@ -53,7 +53,7 @@ public interface UsuarioEmpresaRepository extends JpaRepository<UsuarioEmpresa, 
      * Busca relaciones por usuario y rol en empresa.
      *
      * @param usuarioId ID del usuario
-     * @param rolEmpresa rol en la empresa (ADMINISTRADOR o LECTOR)
+     * @param rolEmpresa rol en la empresa (ADMINISTRADOR, FACTURADOR o LECTOR)
      * @return lista de relaciones que coinciden
      */
     @Query("SELECT ue FROM UsuarioEmpresa ue " +

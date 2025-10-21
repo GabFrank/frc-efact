@@ -47,7 +47,7 @@ Este módulo implementa la funcionalidad completa para gestionar la asignación 
 ### 3. Control de Acceso
 - **ADMIN del sistema**: Puede gestionar usuarios de cualquier empresa
 - **EMPRESA_ADMIN**: Solo puede gestionar usuarios de empresas donde es ADMINISTRADOR
-- **FACTURADOR/LECTOR**: Solo pueden ver información, no gestionar usuarios
+- **FACTURADOR**: Puede crear y gestionar facturas, productos y clientes
 
 ## Estructura de Archivos
 
@@ -103,11 +103,12 @@ interface AsignarUsuarioEmpresaRequest {
 ### Roles del Sistema
 - **ADMIN**: Administrador del sistema (acceso completo)
 - **EMPRESA_ADMIN**: Administrador de empresa
-- **FACTURADOR**: Puede crear y gestionar facturas
+- **FACTURADOR**: Puede crear facturas y gestionar documentos electrónicos, pero no gestionar usuarios de la empresa
 - **LECTOR**: Solo lectura
 
 ### Roles en Empresa
 - **ADMINISTRADOR**: Puede gestionar usuarios y configuraciones de la empresa
+- **FACTURADOR**: Puede crear facturas y gestionar documentos electrónicos
 - **LECTOR**: Solo puede ver información de la empresa
 
 ## Próximos Pasos

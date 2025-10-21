@@ -56,4 +56,9 @@ export class EmpresaApiService {
   removeUsuarioEmpresa(empresaId: number, usuarioId: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${empresaId}/usuarios/${usuarioId}`);
   }
+
+  // Get users available for assignment to companies (excludes ADMIN)
+  getUsuariosDisponibles(empresaId: number): Observable<User[]> {
+    return this.http.get<User[]>(`${environment.apiUrl}/usuarios/asignables`);
+  }
 }

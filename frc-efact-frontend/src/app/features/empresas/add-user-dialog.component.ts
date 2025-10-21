@@ -79,6 +79,7 @@ import { UserAssignmentConfirmationComponent, UserAssignmentConfirmationData } f
           <mat-label>Rol en Empresa</mat-label>
           <mat-select formControlName="rolEmpresa" required>
             <mat-option value="ADMINISTRADOR">Administrador</mat-option>
+            <mat-option value="FACTURADOR">Facturador</mat-option>
             <mat-option value="LECTOR">Lector</mat-option>
           </mat-select>
         </mat-form-field>
@@ -258,7 +259,7 @@ export class AddUserDialogComponent implements OnInit, OnDestroy {
   }
 
   private loadUsuariosDisponibles(): void {
-    this.usuarioApiService.getAll().pipe(takeUntil(this.destroy$)).subscribe({
+    this.usuarioApiService.getAsignables().pipe(takeUntil(this.destroy$)).subscribe({
       next: (usuarios) => {
         this.usuariosDisponibles = usuarios;
       },

@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { EmpresaApiService } from '../../core/api/empresa-api.service';
+import { UsuarioApiService } from '../../core/api/usuario-api.service';
 import { User, AsignarUsuarioEmpresaRequest } from '../../models/user.model';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 
@@ -30,7 +31,7 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
   ],
   template: `
     <h2 mat-dialog-title>Asignar Usuario a Empresa</h2>
-    
+
     <mat-dialog-content>
       <app-loading-spinner *ngIf="loading"></app-loading-spinner>
 
@@ -56,6 +57,12 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
                 <span class="rol-description">Acceso completo para gestionar la empresa</span>
               </div>
             </mat-option>
+            <mat-option value="FACTURADOR">
+              <div class="rol-option">
+                <strong>Facturador</strong>
+                <span class="rol-description">Puede crear facturas y gestionar documentos electrónicos</span>
+              </div>
+            </mat-option>
             <mat-option value="LECTOR">
               <div class="rol-option">
                 <strong>Lector</strong>
@@ -72,9 +79,9 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
 
     <mat-dialog-actions align="end">
       <button mat-button (click)="onCancel()">Cancelar</button>
-      <button 
-        mat-raised-button 
-        color="primary" 
+      <button
+        mat-raised-button
+        color="primary"
         (click)="onSubmit()"
         [disabled]="!asignarForm.valid || submitting">
         <mat-icon>person_add</mat-icon>
@@ -121,6 +128,7 @@ export class AsignarUsuarioDialogComponent implements OnInit {
     private dialogRef: MatDialogRef<AsignarUsuarioDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { empresaId: number },
     private empresaApiService: EmpresaApiService,
+    private usuarioApiService: UsuarioApiService,
     private snackBar: MatSnackBar
   ) {
     this.asignarForm = this.fb.group({
@@ -135,7 +143,7 @@ export class AsignarUsuarioDialogComponent implements OnInit {
 
   private loadUsuariosDisponibles(): void {
     this.loading = true;
-    // In a real implementation, this would fetch users not yet assigned to this empresa
+
     this.empresaApiService.getUsuariosDisponibles(this.data.empresaId).subscribe({
       next: (usuarios) => {
         this.usuarios = usuarios;
@@ -151,7 +159,7 @@ export class AsignarUsuarioDialogComponent implements OnInit {
   onSubmit(): void {
     if (this.asignarForm.valid && !this.submitting) {
       this.submitting = true;
-      
+
       const request: AsignarUsuarioEmpresaRequest = {
         usuarioId: this.asignarForm.value.usuarioId,
         empresaId: this.data.empresaId,

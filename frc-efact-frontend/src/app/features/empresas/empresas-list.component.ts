@@ -19,10 +19,10 @@ import { FormsModule } from '@angular/forms';
 
 import { Empresa } from '../../models/empresa.model';
 import { EmpresasActions } from '../../core/state/empresas/empresas.actions';
-import { 
-  selectAllEmpresas, 
-  selectEmpresasLoading, 
-  selectEmpresasError 
+import {
+  selectAllEmpresas,
+  selectEmpresasLoading,
+  selectEmpresasError
 } from '../../core/state/empresas/empresas.selectors';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { ErrorMessageComponent } from '../../shared/components/error-message/error-message.component';
@@ -62,17 +62,17 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
           <div class="actions-bar">
             <mat-form-field appearance="outline" class="search-field">
               <mat-label>Buscar empresa</mat-label>
-              <input 
-                matInput 
-                [(ngModel)]="searchTerm" 
+              <input
+                matInput
+                [(ngModel)]="searchTerm"
                 (ngModelChange)="onSearchChange()"
                 placeholder="Buscar por razón social, RUC o nombre fantasía">
               <mat-icon matSuffix>search</mat-icon>
             </mat-form-field>
 
-            <button 
-              mat-raised-button 
-              color="primary" 
+            <button
+              mat-raised-button
+              color="primary"
               (click)="onCreateEmpresa()">
               <mat-icon>add</mat-icon>
               Nueva Empresa
@@ -83,7 +83,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
           <app-loading-spinner *ngIf="loading$ | async"></app-loading-spinner>
 
           <!-- Error State -->
-          <app-error-message 
+          <app-error-message
             *ngIf="error$ | async as error"
             [message]="error">
           </app-error-message>
@@ -91,7 +91,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
           <!-- Empresas Table -->
           <div class="table-container" *ngIf="!(loading$ | async) && !(error$ | async)">
             <table mat-table [dataSource]="filteredEmpresas" class="empresas-table">
-              
+
               <!-- RUC Column -->
               <ng-container matColumnDef="ruc">
                 <th mat-header-cell *matHeaderCellDef>RUC</th>
@@ -130,13 +130,13 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef>Acciones</th>
                 <td mat-cell *matCellDef="let empresa">
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     [matMenuTriggerFor]="actionsMenu"
                     matTooltip="Acciones">
                     <mat-icon>more_vert</mat-icon>
                   </button>
-                  
+
                   <mat-menu #actionsMenu="matMenu">
                     <button mat-menu-item (click)="onViewEmpresa(empresa)">
                       <mat-icon>visibility</mat-icon>
@@ -150,9 +150,13 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                       <mat-icon>people</mat-icon>
                       <span>Gestionar usuarios</span>
                     </button>
+                    <button mat-menu-item (click)="onManageTimbrados(empresa)">
+                      <mat-icon>receipt</mat-icon>
+                      <span>Gestionar timbrados</span>
+                    </button>
                     <mat-divider></mat-divider>
-                    <button 
-                      mat-menu-item 
+                    <button
+                      mat-menu-item
                       (click)="onToggleActive(empresa)"
                       [class.deactivate-option]="empresa.activo"
                       [class.activate-option]="!empresa.activo">
@@ -325,7 +329,7 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
   displayedColumns: string[] = ['ruc', 'razonSocial', 'nombreFantasia', 'email', 'activo', 'actions'];
   filteredEmpresas: Empresa[] = [];
   searchTerm: string = '';
-  
+
   private searchSubject = new Subject<string>();
   private destroy$ = new Subject<void>();
 
@@ -375,10 +379,10 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
     } else if (searchTerm.trim().length >= 2) {
       // Para búsquedas de 2+ caracteres, usar filtro backend (cuando esté implementado)
       // TODO: Implementar searchEmpresas action
-      // this.store.dispatch(EmpresasActions.searchEmpresas({ 
-      //   searchTerm: searchTerm.trim() 
+      // this.store.dispatch(EmpresasActions.searchEmpresas({
+      //   searchTerm: searchTerm.trim()
       // }));
-      
+
       // Por ahora, usar filtro frontend
       this.empresas$.pipe(takeUntil(this.destroy$)).subscribe(empresas => {
         this.filteredEmpresas = this.filterEmpresas(empresas, searchTerm);
@@ -393,13 +397,13 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
 
   private filterEmpresas(empresas: Empresa[], searchTerm?: string): Empresa[] {
     const term = searchTerm || this.searchTerm;
-    
+
     if (!term || term.trim() === '') {
       return empresas;
     }
 
     const normalizedTerm = term.toLowerCase().trim();
-    return empresas.filter(empresa => 
+    return empresas.filter(empresa =>
       empresa.razonSocial.toLowerCase().includes(normalizedTerm) ||
       empresa.ruc.toLowerCase().includes(normalizedTerm) ||
       (empresa.nombreFantasia && empresa.nombreFantasia.toLowerCase().includes(normalizedTerm))
@@ -420,6 +424,10 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
 
   onManageUsers(empresa: Empresa): void {
     this.router.navigate(['/empresas', empresa.id, 'usuarios']);
+  }
+
+  onManageTimbrados(empresa: Empresa): void {
+    this.router.navigate(['/empresas', empresa.id, 'timbrados']);
   }
 
   onToggleActive(empresa: Empresa): void {

@@ -176,4 +176,18 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
      */
     @Query("SELECT u FROM Usuario u ORDER BY u.ultimoLogin DESC NULLS LAST")
     Page<Usuario> findAllOrderByUltimoLoginDesc(Pageable pageable);
+
+    /**
+     * Buscar usuarios disponibles para asignación a empresas (excluye ADMIN).
+     *
+     * @return lista de usuarios que pueden ser asignados a empresas
+     */
+    @Query("SELECT DISTINCT u FROM Usuario u " +
+           "WHERE u.isActive = true " +
+           "AND u.id NOT IN (" +
+           "    SELECT DISTINCT u2.id FROM Usuario u2 " +
+           "    JOIN u2.usuarioRoles ur " +
+           "    WHERE ur.rol.nombre = 'ADMIN'" +
+           ")")
+    List<Usuario> findUsuariosAsignables();
 }

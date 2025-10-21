@@ -36,7 +36,7 @@ public class UsuarioEmpresa extends AuditableEntity {
     private Empresa empresa;
 
     @Column(name = "rol_empresa", nullable = false, length = 20)
-    private String rolEmpresa; // ADMINISTRADOR o LECTOR
+    private String rolEmpresa; // ADMINISTRADOR, FACTURADOR o LECTOR
 
     @Column(nullable = false)
     private Boolean activo = true;

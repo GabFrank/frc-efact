@@ -37,6 +37,7 @@ import { EmpresaApiService } from '../../core/api/empresa-api.service';
           <mat-label>Rol en Empresa</mat-label>
           <mat-select formControlName="rolEmpresa" required>
             <mat-option value="ADMINISTRADOR">Administrador</mat-option>
+            <mat-option value="FACTURADOR">Facturador</mat-option>
             <mat-option value="LECTOR">Lector</mat-option>
           </mat-select>
         </mat-form-field>

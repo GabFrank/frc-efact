@@ -2,7 +2,7 @@ export interface UsuarioEmpresa {
   id: number;
   usuarioId: number;
   empresaId: number;
-  rolEmpresa: 'ADMINISTRADOR' | 'LECTOR';
+  rolEmpresa: 'ADMINISTRADOR' | 'FACTURADOR' | 'LECTOR';
   activo: boolean;
   usuarioUsername?: string;
   empresaRazonSocial?: string;
@@ -12,5 +12,5 @@ export interface UsuarioEmpresa {
 
 export interface AsignarUsuarioEmpresaRequest {
   usuarioId: number;
-  rolEmpresa: 'ADMINISTRADOR' | 'LECTOR';
+  rolEmpresa: 'ADMINISTRADOR' | 'FACTURADOR' | 'LECTOR';
 }

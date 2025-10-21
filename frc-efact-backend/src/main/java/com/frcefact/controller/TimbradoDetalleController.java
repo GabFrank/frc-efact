@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * Controlador REST para gestión de timbrados detalle (puntos de expedición).
  */
 @RestController
-@RequestMapping("/api/timbrados-detalle")
+@RequestMapping("/timbrados-detalle")
 @Tag(name = "Timbrados Detalle", description = "API para gestión de puntos de expedición de timbrados")
 public class TimbradoDetalleController {
 

@@ -93,6 +93,29 @@ public class UsuarioController {
     // ========== ENDPOINTS DE ADMINISTRACIÓN DE USUARIOS ==========
 
     /**
+     * Obtener usuarios disponibles para asignación a empresas (excluye ADMIN).
+     * Disponible para ADMIN y EMPRESA_ADMIN.
+     *
+     * @return lista de usuarios asignables
+     */
+    @GetMapping("/asignables")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
+    @Operation(summary = "Listar usuarios asignables", description = "Obtiene lista de usuarios que pueden ser asignados a empresas (excluye ADMIN)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista obtenida exitosamente"),
+            @ApiResponse(responseCode = "401", description = "No autenticado"),
+            @ApiResponse(responseCode = "403", description = "Sin permisos")
+    })
+    public ResponseEntity<List<UsuarioDto>> obtenerUsuariosAsignables() {
+        logger.debug("GET /usuarios/asignables - Obteniendo usuarios asignables a empresas");
+
+        List<Usuario> usuarios = usuarioService.listarUsuariosAsignables();
+        List<UsuarioDto> usuariosDto = usuarioMapper.toDtoList(usuarios);
+
+        return ResponseEntity.ok(usuariosDto);
+    }
+
+    /**
      * Obtener todos los usuarios (solo administradores).
      *
      * @return lista de todos los usuarios
@@ -105,8 +128,17 @@ public class UsuarioController {
             @ApiResponse(responseCode = "401", description = "No autenticado"),
             @ApiResponse(responseCode = "403", description = "Sin permisos de administrador")
     })
-    public ResponseEntity<List<UsuarioDto>> obtenerTodosLosUsuarios() {
-        logger.debug("GET /usuarios - Obteniendo todos los usuarios");
+    public ResponseEntity<List<UsuarioDto>> obtenerTodosLosUsuarios(
+            org.springframework.security.core.Authentication authentication) {
+        logger.warn("⚠️ ============================================");
+        logger.warn("⚠️ WRONG ENDPOINT CALLED: GET /usuarios (ADMIN only)");
+        logger.warn("⚠️ User: {}", authentication != null ? authentication.getName() : "null");
+        if (authentication != null) {
+            logger.warn("⚠️ Authorities: {}", authentication.getAuthorities());
+        }
+        logger.warn("⚠️ This endpoint requires ADMIN role!");
+        logger.warn("⚠️ Use /usuarios/asignables instead for EMPRESA_ADMIN");
+        logger.warn("⚠️ ============================================");
 
         List<Usuario> usuarios = usuarioService.listarTodos();
         List<UsuarioDto> usuariosDto = usuarioMapper.toDtoList(usuarios);

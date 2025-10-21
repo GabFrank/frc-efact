@@ -283,7 +283,7 @@ public class EmpresaService {
      *
      * @param empresaId  ID de la empresa
      * @param usuarioId  ID del usuario
-     * @param rolEmpresa rol del usuario en la empresa (ADMINISTRADOR o LECTOR)
+     * @param rolEmpresa rol del usuario en la empresa (ADMINISTRADOR, FACTURADOR o LECTOR)
      * @return la relación usuario-empresa creada
      * @throws EntityNotFoundException  si la empresa o usuario no existen
      * @throws AccessDeniedException    si el usuario no tiene permisos
@@ -298,8 +298,8 @@ public class EmpresaService {
         }
 
         // Validar rol
-        if (!rolEmpresa.equals("ADMINISTRADOR") && !rolEmpresa.equals("LECTOR")) {
-            throw new IllegalArgumentException("Rol inválido. Debe ser ADMINISTRADOR o LECTOR");
+        if (!rolEmpresa.equals("ADMINISTRADOR") && !rolEmpresa.equals("FACTURADOR") && !rolEmpresa.equals("LECTOR")) {
+            throw new IllegalArgumentException("Rol inválido. Debe ser ADMINISTRADOR, FACTURADOR o LECTOR");
         }
 
         Empresa empresa = empresaRepository.findById(empresaId)

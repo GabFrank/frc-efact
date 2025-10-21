@@ -114,6 +114,16 @@ public class UsuarioService {
     }
 
     /**
+     * Listar usuarios disponibles para asignación a empresas (excluye ADMIN).
+     *
+     * @return Lista de usuarios que pueden ser asignados a empresas
+     */
+    @Transactional(readOnly = true)
+    public List<Usuario> listarUsuariosAsignables() {
+        return usuarioRepository.findUsuariosAsignables();
+    }
+
+    /**
      * Listar todos los usuarios.
      *
      * @return Lista de todos los usuarios

@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  * Controlador REST para gestión de timbrados.
  */
 @RestController
-@RequestMapping("/api/timbrados")
+@RequestMapping("/timbrados")
 @Tag(name = "Timbrados", description = "API para gestión de timbrados fiscales")
 public class TimbradoController {
 

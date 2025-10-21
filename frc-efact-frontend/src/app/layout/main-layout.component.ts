@@ -4,7 +4,7 @@ import { RouterOutlet, Router, RouterModule } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { selectUserRole, selectCurrentUser, selectHasRole } from '../core/state/auth/auth.selectors';
+import { selectUserRole, selectCurrentUser, selectHasRole, selectUserRoles } from '../core/state/auth/auth.selectors';
 import { User } from '../models/user.model';
 import { AuthService } from '../services/auth.service';
 
@@ -487,8 +487,6 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(user => {
       this.currentUser = user;
-      console.log('Usuario actual en layout:', user);
-      console.log('Roles del usuario:', user?.roles);
     });
 
     // Suscribirse al rol del usuario desde el store
@@ -496,7 +494,6 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(role => {
       this.userRole = role;
-      console.log('Rol del usuario desde store:', role);
     });
 
     // Suscribirse al estado de admin
@@ -504,7 +501,6 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(isAdmin => {
       this.isAdminUser = isAdmin;
-      console.log('¿Es admin?:', isAdmin);
     });
 
     // Cerrar el menú al hacer clic fuera
@@ -596,25 +592,9 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   logout(): void {
     this.showUserMenu = false;
     this.authService.logout().subscribe(() => {
-      this.router.navigate(['/login']);
+      // Reiniciar la aplicación para limpiar completamente el estado
+      window.location.href = '/login';
     });
   }
 
-  // Método de debug para forzar actualización del estado
-  forceRefresh(): void {
-    console.log('Forzando actualización del estado de auth...');
-    this.store.dispatch({ type: '[Auth] Initialize Auth' });
-  }
-
-  // Helper method para obtener nombres de roles para debug
-  getRoleNames(): string {
-    if (!this.currentUser?.roles) return 'No roles';
-
-    return this.currentUser.roles.map(role => {
-      if (typeof role === 'object' && 'nombre' in role) {
-        return (role as any).nombre;
-      }
-      return role;
-    }).join(', ');
-  }
 }

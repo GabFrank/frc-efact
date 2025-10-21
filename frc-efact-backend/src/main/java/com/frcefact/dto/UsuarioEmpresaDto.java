@@ -20,7 +20,7 @@ public class UsuarioEmpresaDto {
     private Long empresaId;
 
     @NotBlank(message = "Rol en empresa es requerido")
-    private String rolEmpresa; // ADMINISTRADOR o LECTOR
+    private String rolEmpresa; // ADMINISTRADOR, FACTURADOR o LECTOR
 
     private Boolean activo;
 

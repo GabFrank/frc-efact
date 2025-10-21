@@ -79,7 +79,8 @@ export class AuthEffects {
       this.actions$.pipe(
         ofType(AuthActions.logoutSuccess),
         tap(() => {
-          this.router.navigate(['/login']);
+          // Reiniciar la aplicación para limpiar completamente el estado
+          window.location.href = '/login';
         })
       ),
     { dispatch: false }

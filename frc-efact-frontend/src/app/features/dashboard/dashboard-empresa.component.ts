@@ -1,20 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ChartConfiguration } from 'chart.js';
-import { DashboardApiService } from '../../core/api/dashboard-api.service';
-import { DashboardEmpresa, ClienteRanking } from '../../models/dashboard.model';
-import { MetricCardComponent } from '../../shared/components/metric-card/metric-card.component';
-import { ChartCardComponent } from '../../shared/components/chart-card/chart-card.component';
-import { RankingListComponent, RankingItem } from '../../shared/components/ranking-list/ranking-list.component';
+import { MatTableModule } from '@angular/material/table';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { EmpresaApiService } from '../../core/api/empresa-api.service';
+import { Empresa } from '../../models/empresa.model';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { ErrorMessageComponent } from '../../shared/components/error-message/error-message.component';
 
@@ -26,110 +25,117 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
     ReactiveFormsModule,
     MatCardModule,
     MatFormFieldModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MetricCardComponent,
-    ChartCardComponent,
-    RankingListComponent,
+    MatTableModule,
+    MatPaginatorModule,
+    MatChipsModule,
+    MatTooltipModule,
     LoadingSpinnerComponent,
     ErrorMessageComponent
   ],
   template: `
     <div class="dashboard-container">
       <div class="dashboard-header">
-        <div>
-          <h1 class="dashboard-title">Dashboard de Empresa</h1>
-          <p class="dashboard-subtitle" *ngIf="dashboard">{{ dashboard.razonSocial }}</p>
-        </div>
-        
-        <!-- Filtro de fechas -->
-        <mat-card class="filter-card">
-          <form [formGroup]="filterForm" class="filter-form">
-            <mat-form-field appearance="outline">
-              <mat-label>Fecha Inicio</mat-label>
-              <input matInput [matDatepicker]="pickerInicio" formControlName="fechaInicio">
-              <mat-datepicker-toggle matIconSuffix [for]="pickerInicio"></mat-datepicker-toggle>
-              <mat-datepicker #pickerInicio></mat-datepicker>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Fecha Fin</mat-label>
-              <input matInput [matDatepicker]="pickerFin" formControlName="fechaFin">
-              <mat-datepicker-toggle matIconSuffix [for]="pickerFin"></mat-datepicker-toggle>
-              <mat-datepicker #pickerFin></mat-datepicker>
-            </mat-form-field>
-
-            <button mat-raised-button color="primary" (click)="aplicarFiltros()">
-              <mat-icon>filter_list</mat-icon>
-              Filtrar
-            </button>
-
-            <button mat-button (click)="limpiarFiltros()">
-              <mat-icon>clear</mat-icon>
-              Limpiar
-            </button>
-          </form>
-        </mat-card>
+        <h1 class="dashboard-title">Mis Empresas</h1>
+        <p class="dashboard-subtitle">Gestiona las empresas que administras</p>
       </div>
+
+      <!-- Filtro de búsqueda -->
+      <mat-card class="filter-card">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Buscar por nombre o RUC</mat-label>
+          <input matInput [formControl]="searchControl" placeholder="Ingresa nombre o RUC de la empresa">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+      </mat-card>
 
       <app-loading-spinner *ngIf="loading"></app-loading-spinner>
       <app-error-message *ngIf="error" [message]="error"></app-error-message>
 
-      <div *ngIf="!loading && !error && dashboard" class="dashboard-content">
-        <!-- Métricas principales -->
-        <div class="metrics-grid">
-          <app-metric-card
-            label="Total Facturas"
-            [value]="dashboard.totalFacturasEmitidas"
-            subtitle="Facturas emitidas"
-            icon="receipt_long"
-            iconColor="primary">
-          </app-metric-card>
+      <!-- Tabla de empresas -->
+      <mat-card *ngIf="!loading && !error" class="empresas-card">
+        <mat-card-content>
+          <div class="table-container">
+            <table mat-table [dataSource]="empresas" class="empresas-table">
+              <!-- Columna RUC -->
+              <ng-container matColumnDef="ruc">
+                <th mat-header-cell *matHeaderCellDef>RUC</th>
+                <td mat-cell *matCellDef="let empresa">
+                  <span class="ruc-text">{{ empresa.ruc }}</span>
+                </td>
+              </ng-container>
 
-          <app-metric-card
-            label="Ventas del Mes"
-            [value]="formatCurrency(dashboard.totalGuaraniesMesActual)"
-            subtitle="Total en guaraníes"
-            icon="payments"
-            iconColor="success">
-          </app-metric-card>
+              <!-- Columna Razón Social -->
+              <ng-container matColumnDef="razonSocial">
+                <th mat-header-cell *matHeaderCellDef>Razón Social</th>
+                <td mat-cell *matCellDef="let empresa">
+                  <div class="empresa-info">
+                    <span class="razon-social">{{ empresa.razonSocial }}</span>
+                    <span class="nombre-comercial" *ngIf="empresa.nombreFantasia">
+                      {{ empresa.nombreFantasia }}
+                    </span>
+                  </div>
+                </td>
+              </ng-container>
 
-          <app-metric-card
-            label="IVA 10%"
-            [value]="formatCurrency(dashboard.totalesPorIva.totalIva10)"
-            subtitle="Ventas con IVA 10%"
-            icon="percent"
-            iconColor="accent">
-          </app-metric-card>
+              <!-- Columna Estado -->
+              <ng-container matColumnDef="estado">
+                <th mat-header-cell *matHeaderCellDef>Estado</th>
+                <td mat-cell *matCellDef="let empresa">
+                  <mat-chip [class.active-chip]="empresa.activo" [class.inactive-chip]="!empresa.activo">
+                    {{ empresa.activo ? 'Activa' : 'Inactiva' }}
+                  </mat-chip>
+                </td>
+              </ng-container>
 
-          <app-metric-card
-            label="Total General"
-            [value]="formatCurrency(dashboard.totalesPorIva.totalGeneral)"
-            subtitle="Suma de todas las tasas"
-            icon="account_balance"
-            iconColor="warn">
-          </app-metric-card>
-        </div>
+              <!-- Columna Acciones -->
+              <ng-container matColumnDef="acciones">
+                <th mat-header-cell *matHeaderCellDef>Acciones</th>
+                <td mat-cell *matCellDef="let empresa">
+                  <div class="actions-container">
+                    <button
+                      mat-icon-button
+                      color="primary"
+                      [matTooltip]="'Gestionar ' + empresa.razonSocial"
+                      (click)="goToEmpresaManagement(empresa.id)">
+                      <mat-icon>settings</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      color="accent"
+                      [matTooltip]="'Ver detalles de ' + empresa.razonSocial"
+                      (click)="goToEmpresaDetails(empresa.id)">
+                      <mat-icon>visibility</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </ng-container>
 
-        <!-- Gráficos y rankings -->
-        <div class="charts-grid">
-          <!-- Gráfico de torta por IVA -->
-          <app-chart-card
-            title="Ventas por Tasa de IVA"
-            [chartConfig]="ivaChartConfig">
-          </app-chart-card>
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+            </table>
 
-          <!-- Ranking de clientes -->
-          <app-ranking-list
-            title="Top 10 Clientes"
-            [items]="clientesRanking"
-            emptyMessage="No hay datos de clientes">
-          </app-ranking-list>
-        </div>
-      </div>
+            <!-- Mensaje cuando no hay empresas -->
+            <div *ngIf="empresas.length === 0" class="no-data">
+              <mat-icon>business</mat-icon>
+              <p>No se encontraron empresas</p>
+            </div>
+          </div>
+
+          <!-- Paginación -->
+          <mat-paginator
+            *ngIf="empresas.length > 0"
+            [length]="totalEmpresas"
+            [pageSize]="pageSize"
+            [pageSizeOptions]="[5, 10, 25, 50]"
+            [pageIndex]="currentPage"
+            (page)="onPageChange($event)"
+            showFirstLastButtons>
+          </mat-paginator>
+        </mat-card-content>
+      </mat-card>
     </div>
   `,
   styles: [`
@@ -158,36 +164,95 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
 
     .filter-card {
       padding: 16px;
-      margin-top: 16px;
+      margin-bottom: 24px;
     }
 
-    .filter-form {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
+    .search-field {
+      width: 100%;
+      max-width: 400px;
     }
 
-    .filter-form mat-form-field {
-      flex: 0 1 200px;
+    .empresas-card {
+      margin-bottom: 24px;
     }
 
-    .dashboard-content {
+    .table-container {
+      overflow-x: auto;
+    }
+
+    .empresas-table {
+      width: 100%;
+    }
+
+    .empresas-table th {
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.87);
+      background-color: #f5f5f5;
+    }
+
+    .empresas-table td {
+      padding: 16px 8px;
+    }
+
+    .ruc-text {
+      font-family: 'Courier New', monospace;
+      font-weight: 500;
+      color: #1976d2;
+    }
+
+    .empresa-info {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 4px;
     }
 
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 16px;
+    .razon-social {
+      font-weight: 500;
+      color: rgba(0, 0, 0, 0.87);
     }
 
-    .charts-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-      gap: 24px;
+    .nombre-comercial {
+      font-size: 14px;
+      color: rgba(0, 0, 0, 0.6);
+      font-style: italic;
+    }
+
+    .active-chip {
+      background-color: #4caf50 !important;
+      color: white !important;
+    }
+
+    .inactive-chip {
+      background-color: #f44336 !important;
+      color: white !important;
+    }
+
+    .actions-container {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .no-data {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    .no-data mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    .no-data p {
+      margin: 0;
+      font-size: 16px;
     }
 
     @media (max-width: 768px) {
@@ -195,165 +260,117 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
         padding: 16px;
       }
 
-      .metrics-grid {
-        grid-template-columns: 1fr;
+      .dashboard-title {
+        font-size: 24px;
       }
 
-      .charts-grid {
-        grid-template-columns: 1fr;
+      .empresas-table td {
+        padding: 12px 4px;
       }
 
-      .filter-form {
+      .actions-container {
         flex-direction: column;
-        align-items: stretch;
-      }
-
-      .filter-form mat-form-field {
-        flex: 1 1 auto;
-      }
-
-      .filter-form button {
-        width: 100%;
+        gap: 4px;
       }
     }
   `]
 })
 export class DashboardEmpresaComponent implements OnInit {
-  dashboard?: DashboardEmpresa;
+  empresas: Empresa[] = [];
   loading = false;
   error?: string;
-  empresaId!: number;
 
-  filterForm = new FormGroup({
-    fechaInicio: new FormControl<Date | null>(null),
-    fechaFin: new FormControl<Date | null>(null)
-  });
+  // Paginación
+  totalEmpresas = 0;
+  currentPage = 0;
+  pageSize = 10;
 
-  ivaChartConfig!: ChartConfiguration;
-  clientesRanking: RankingItem[] = [];
+  // Filtro de búsqueda
+  searchControl = new FormControl('');
+
+  // Columnas de la tabla
+  displayedColumns: string[] = ['ruc', 'razonSocial', 'estado', 'acciones'];
 
   constructor(
     private route: ActivatedRoute,
-    private dashboardApi: DashboardApiService
+    private router: Router,
+    private empresaApi: EmpresaApiService
   ) {}
 
   ngOnInit(): void {
+    // Verificar si hay parámetro de ruta (para rutas específicas como /dashboard/empresa/123)
     this.route.params.subscribe(params => {
-      this.empresaId = +params['id'];
-      this.loadDashboard();
+      const routeEmpresaId = params['id'];
+      if (routeEmpresaId) {
+        // Si hay parámetro de ruta, redirigir a gestión de empresa específica
+        this.router.navigate(['/empresas', routeEmpresaId]);
+      } else {
+        // Si no hay parámetro de ruta, cargar lista de empresas
+        this.setupSearchFilter();
+        this.loadEmpresas();
+      }
     });
   }
 
-  loadDashboard(): void {
+  private setupSearchFilter(): void {
+    this.searchControl.valueChanges
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged()
+      )
+      .subscribe(() => {
+        this.currentPage = 0;
+        this.loadEmpresas();
+      });
+  }
+
+  loadEmpresas(): void {
     this.loading = true;
     this.error = undefined;
 
-    const fechaInicio = this.filterForm.value.fechaInicio 
-      ? this.formatDate(this.filterForm.value.fechaInicio) 
-      : undefined;
-    const fechaFin = this.filterForm.value.fechaFin 
-      ? this.formatDate(this.filterForm.value.fechaFin) 
-      : undefined;
+    const searchTerm = this.searchControl.value || '';
 
-    this.dashboardApi.getDashboardEmpresa(this.empresaId, fechaInicio, fechaFin).subscribe({
-      next: (data) => {
-        this.dashboard = data;
-        this.updateCharts();
-        this.updateRankings();
+    this.empresaApi.getMisEmpresas().subscribe({
+      next: (empresas) => {
+        // Filtrar empresas por término de búsqueda
+        let filteredEmpresas = empresas;
+        if (searchTerm.trim()) {
+          const term = searchTerm.toLowerCase().trim();
+          filteredEmpresas = empresas.filter(empresa =>
+            empresa.razonSocial.toLowerCase().includes(term) ||
+            empresa.nombreFantasia?.toLowerCase().includes(term) ||
+            empresa.ruc.includes(term)
+          );
+        }
+
+        this.totalEmpresas = filteredEmpresas.length;
+
+        // Aplicar paginación
+        const startIndex = this.currentPage * this.pageSize;
+        const endIndex = startIndex + this.pageSize;
+        this.empresas = filteredEmpresas.slice(startIndex, endIndex);
+
         this.loading = false;
       },
       error: (err) => {
-        this.error = 'Error al cargar el dashboard de la empresa';
+        this.error = 'Error al cargar las empresas';
         this.loading = false;
-        console.error('Error loading empresa dashboard:', err);
+        console.error('Error loading empresas:', err);
       }
     });
   }
 
-  aplicarFiltros(): void {
-    this.loadDashboard();
+  onPageChange(event: PageEvent): void {
+    this.currentPage = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.loadEmpresas();
   }
 
-  limpiarFiltros(): void {
-    this.filterForm.reset();
-    this.loadDashboard();
+  goToEmpresaManagement(empresaId: number): void {
+    this.router.navigate(['/empresas', empresaId]);
   }
 
-  private updateCharts(): void {
-    if (!this.dashboard) return;
-
-    const totales = this.dashboard.totalesPorIva;
-    
-    this.ivaChartConfig = {
-      type: 'pie',
-      data: {
-        labels: ['IVA 10%', 'IVA 5%', 'IVA 0%'],
-        datasets: [{
-          data: [
-            totales.totalIva10,
-            totales.totalIva5,
-            totales.totalIva0
-          ],
-          backgroundColor: [
-            '#1976d2',
-            '#4caf50',
-            '#ff9800'
-          ],
-          borderWidth: 2,
-          borderColor: '#ffffff'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              padding: 15,
-              font: {
-                size: 12
-              }
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const label = context.label || '';
-                const value = context.parsed || 0;
-                return `${label}: ${this.formatCurrency(value)}`;
-              }
-            }
-          }
-        }
-      }
-    };
-  }
-
-  private updateRankings(): void {
-    if (!this.dashboard) return;
-
-    this.clientesRanking = this.dashboard.top10Clientes.map((cliente, index) => ({
-      position: index + 1,
-      title: cliente.nombre,
-      subtitle: cliente.ruc || 'Sin RUC',
-      value: this.formatCurrency(cliente.montoTotal)
-    }));
-  }
-
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('es-PY', {
-      style: 'currency',
-      currency: 'PYG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
-  }
-
-  private formatDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  goToEmpresaDetails(empresaId: number): void {
+    this.router.navigate(['/empresas', empresaId, 'edit']);
   }
 }
