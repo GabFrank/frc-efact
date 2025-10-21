@@ -60,10 +60,10 @@ export class AuthEffects {
           localStorage.setItem('auth_token', token);
           localStorage.setItem('refresh_token', refreshToken);
           localStorage.setItem('current_user', JSON.stringify(user));
-          
+
           // Actualizar el AuthService para mantener sincronización
           this.authService.updateCurrentUser(user);
-          
+
           // Navegar al dashboard
           this.router.navigate(['/dashboard']);
         })
