@@ -2,14 +2,17 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+import { Observable } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { AuthService } from '../../services/auth.service';
 import { LoginRequest } from '../../models/login-request.model';
+import * as AuthActions from '../../core/state/auth/auth.actions';
+import { selectAuthLoading, selectAuthError } from '../../core/state/auth/auth.selectors';
 
 @Component({
   selector: 'app-login',
@@ -29,12 +32,12 @@ import { LoginRequest } from '../../models/login-request.model';
 })
 export class LoginComponent {
   private fb = inject(FormBuilder);
-  private authService = inject(AuthService);
+  private store = inject(Store);
   private router = inject(Router);
 
   loginForm: FormGroup;
-  isLoading = false;
-  errorMessage = '';
+  isLoading$: Observable<boolean>;
+  errorMessage$: Observable<string | null>;
   hidePassword = true;
 
   constructor() {
@@ -42,6 +45,10 @@ export class LoginComponent {
       username: ['', [Validators.required, Validators.minLength(3)]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
+
+    // Inicializar observables desde el store
+    this.isLoading$ = this.store.select(selectAuthLoading);
+    this.errorMessage$ = this.store.select(selectAuthError);
   }
 
   onSubmit(): void {
@@ -50,23 +57,13 @@ export class LoginComponent {
       return;
     }
 
-    this.isLoading = true;
-    this.errorMessage = '';
-
     const credentials: LoginRequest = this.loginForm.value;
 
-    this.authService.login(credentials).subscribe({
-      next: (response) => {
-        console.log('Login exitoso, respuesta:', response);
-        console.log('Usuario guardado:', this.authService.getCurrentUser());
-        this.isLoading = false;
-        this.router.navigate(['/dashboard']);
-      },
-      error: (error) => {
-        this.isLoading = false;
-        this.errorMessage = this.getErrorMessage(error);
-      }
-    });
+    // Despachar acción de login usando NgRx
+    this.store.dispatch(AuthActions.login({
+      username: credentials.username,
+      password: credentials.password
+    }));
   }
 
   private markFormGroupTouched(formGroup: FormGroup): void {

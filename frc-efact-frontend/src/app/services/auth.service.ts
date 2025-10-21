@@ -59,6 +59,11 @@ export class AuthService {
     return this.currentUserSubject.value;
   }
 
+  // Método para actualizar el usuario actual desde NgRx
+  updateCurrentUser(user: User): void {
+    this.currentUserSubject.next(user);
+  }
+
   private handleAuthResponse(response: AuthResponse): void {
     console.log('Respuesta de autenticación:', response);
     localStorage.setItem(this.TOKEN_KEY, response.token);

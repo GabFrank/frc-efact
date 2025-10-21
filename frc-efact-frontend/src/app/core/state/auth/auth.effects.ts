@@ -55,7 +55,16 @@ export class AuthEffects {
     () =>
       this.actions$.pipe(
         ofType(AuthActions.loginSuccess),
-        tap(() => {
+        tap(({ user, token, refreshToken }) => {
+          // Guardar datos en localStorage
+          localStorage.setItem('auth_token', token);
+          localStorage.setItem('refresh_token', refreshToken);
+          localStorage.setItem('current_user', JSON.stringify(user));
+          
+          // Actualizar el AuthService para mantener sincronización
+          this.authService.updateCurrentUser(user);
+          
+          // Navegar al dashboard
           this.router.navigate(['/dashboard']);
         })
       ),
@@ -109,22 +118,41 @@ export class AuthEffects {
     this.actions$.pipe(
       ofType(AuthActions.initializeAuth),
       map(() => {
-        const token = this.authService.getToken();
-        const refreshToken = this.authService.getRefreshToken();
-        const user = this.authService.getCurrentUser();
+        const token = localStorage.getItem('auth_token');
+        const refreshToken = localStorage.getItem('refresh_token');
+        const userJson = localStorage.getItem('current_user');
 
-        if (token && refreshToken && user) {
-          console.log('Inicializando auth desde localStorage:', { user, token: !!token, refreshToken: !!refreshToken });
-          return AuthActions.initializeAuthSuccess({
-            user,
-            token,
-            refreshToken
-          });
+        if (token && refreshToken && userJson) {
+          try {
+            const user = JSON.parse(userJson);
+            console.log('Inicializando auth desde localStorage:', { user, token: !!token, refreshToken: !!refreshToken });
+            return AuthActions.initializeAuthSuccess({
+              user,
+              token,
+              refreshToken
+            });
+          } catch (error) {
+            console.error('Error parsing user from localStorage:', error);
+            localStorage.removeItem('current_user');
+            return AuthActions.initializeAuthFailure();
+          }
         } else {
           console.log('No se encontró información de auth en localStorage');
           return AuthActions.initializeAuthFailure();
         }
       })
     )
+  );
+
+  initializeAuthSuccess$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(AuthActions.initializeAuthSuccess),
+        tap(({ user }) => {
+          // Actualizar el AuthService para mantener sincronización
+          this.authService.updateCurrentUser(user);
+        })
+      ),
+    { dispatch: false }
   );
 }

@@ -41,7 +41,7 @@
           <mat-error>{{ getFieldError('password') }}</mat-error>
         </mat-form-field>
 
-        <div class="error-message" *ngIf="errorMessage">
+        <div class="error-message" *ngIf="errorMessage$ | async as errorMessage">
           <mat-icon>error</mat-icon>
           <span>{{ errorMessage }}</span>
         </div>
@@ -51,10 +51,10 @@
           color="primary" 
           type="submit" 
           class="full-width login-button"
-          [disabled]="isLoading"
+          [disabled]="isLoading$ | async"
           [attr.data-cy]="'login-button'">
-          <span *ngIf="!isLoading">Iniciar Sesión</span>
-          <mat-spinner *ngIf="isLoading" diameter="20"></mat-spinner>
+          <span *ngIf="!(isLoading$ | async)">Iniciar Sesión</span>
+          <mat-spinner *ngIf="isLoading$ | async" diameter="20"></mat-spinner>
         </button>
       </form>
     </mat-card-content>

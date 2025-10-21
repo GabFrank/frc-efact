@@ -12,3 +12,4 @@ ALTER TABLE empresa.usuario_empresa
 
 -- Update the comment to reflect the new role
 COMMENT ON COLUMN empresa.usuario_empresa.rol_empresa IS 'Rol del usuario en la empresa (ADMINISTRADOR, FACTURADOR o LECTOR)';
+
