@@ -19,6 +19,7 @@ import { facturacionReducer } from './core/state/facturacion/facturacion.reducer
 import { documentosReducer } from './core/state/documentos/documentos.reducer';
 import { usuariosReducer } from './core/state/usuarios/usuarios.reducer';
 import { timbradosReducer } from './core/state/timbrados/timbrados.reducer';
+import { timbradoDetallesReducer } from './core/state/timbrado-detalles/timbrado-detalles.reducer';
 
 // Effects
 import { AuthEffects } from './core/state/auth/auth.effects';
@@ -27,6 +28,7 @@ import { FacturacionEffects } from './core/state/facturacion/facturacion.effects
 import { DocumentosEffects } from './core/state/documentos/documentos.effects';
 import { UsuariosEffects } from './core/state/usuarios/usuarios.effects';
 import { TimbradosEffects } from './core/state/timbrados/timbrados.effects';
+import { TimbradoDetallesEffects } from './core/state/timbrado-detalles/timbrado-detalles.effects';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -41,7 +43,8 @@ export const appConfig: ApplicationConfig = {
       facturacion: facturacionReducer,
       documentos: documentosReducer,
       usuarios: usuariosReducer,
-      timbrados: timbradosReducer
+      timbrados: timbradosReducer,
+      timbradoDetalles: timbradoDetallesReducer
     }),
     provideEffects([
       AuthEffects,
@@ -49,7 +52,8 @@ export const appConfig: ApplicationConfig = {
       FacturacionEffects,
       DocumentosEffects,
       UsuariosEffects,
-      TimbradosEffects
+      TimbradosEffects,
+      TimbradoDetallesEffects
     ]),
     provideStoreDevtools({
       maxAge: 25,

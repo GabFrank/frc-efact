@@ -89,9 +89,9 @@ interface TimbradoDetalleWithStats extends TimbradoDetalle {
                   <strong>{{ detalle.puntoExpedicion }}-{{ detalle.codigoEstablecimientoFactura }}</strong>
                   - {{ detalle.numerosDisponibles }} números disponibles ({{ detalle.porcentajeUsado }}% usado)
                 </span>
-                <button 
-                  mat-button 
-                  color="primary" 
+                <button
+                  mat-button
+                  color="primary"
                   (click)="onEditDetalle(detalle)">
                   Ampliar rango
                 </button>
@@ -112,15 +112,15 @@ interface TimbradoDetalleWithStats extends TimbradoDetalle {
         <mat-card-content>
           <!-- Actions Bar -->
           <div class="actions-bar">
-            <button 
-              mat-raised-button 
-              color="primary" 
+            <button
+              mat-raised-button
+              color="primary"
               (click)="onCreateDetalle()">
               <mat-icon>add</mat-icon>
               Nuevo Punto de Expedición
             </button>
-            <button 
-              mat-button 
+            <button
+              mat-button
               (click)="onBack()">
               <mat-icon>arrow_back</mat-icon>
               Volver a Timbrados
@@ -131,7 +131,7 @@ interface TimbradoDetalleWithStats extends TimbradoDetalle {
           <app-loading-spinner *ngIf="loading"></app-loading-spinner>
 
           <!-- Error State -->
-          <app-error-message 
+          <app-error-message
             *ngIf="error"
             [message]="error">
           </app-error-message>
@@ -139,7 +139,7 @@ interface TimbradoDetalleWithStats extends TimbradoDetalle {
           <!-- Detalles Table -->
           <div class="table-container" *ngIf="!loading && !error">
             <table mat-table [dataSource]="detalles" class="detalles-table">
-              
+
               <!-- Punto Expedición Column -->
               <ng-container matColumnDef="puntoExpedicion">
                 <th mat-header-cell *matHeaderCellDef>Punto Exp.</th>
@@ -165,8 +165,8 @@ interface TimbradoDetalleWithStats extends TimbradoDetalle {
                 <td mat-cell *matCellDef="let detalle">
                   <div class="numero-actual-info">
                     <strong>{{ detalle.numeroActual }}</strong>
-                    <mat-progress-bar 
-                      mode="determinate" 
+                    <mat-progress-bar
+                      mode="determinate"
                       [value]="detalle.porcentajeUsado"
                       [class.progress-warning]="detalle.alertaAgotamiento"
                       [class.progress-danger]="detalle.porcentajeUsado >= 95">
@@ -180,7 +180,7 @@ interface TimbradoDetalleWithStats extends TimbradoDetalle {
               <ng-container matColumnDef="disponibles">
                 <th mat-header-cell *matHeaderCellDef>Disponibles</th>
                 <td mat-cell *matCellDef="let detalle">
-                  <mat-chip 
+                  <mat-chip
                     [class.disponibles-ok]="detalle.numerosDisponibles > 100"
                     [class.disponibles-warning]="detalle.numerosDisponibles <= 100 && detalle.numerosDisponibles > 20"
                     [class.disponibles-danger]="detalle.numerosDisponibles <= 20">
@@ -215,22 +215,22 @@ interface TimbradoDetalleWithStats extends TimbradoDetalle {
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef>Acciones</th>
                 <td mat-cell *matCellDef="let detalle">
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     color="primary"
                     (click)="onViewDetalle(detalle)"
                     matTooltip="Ver detalles">
                     <mat-icon>visibility</mat-icon>
                   </button>
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     color="accent"
                     (click)="onEditDetalle(detalle)"
                     matTooltip="Editar">
                     <mat-icon>edit</mat-icon>
                   </button>
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     [color]="detalle.activo ? 'warn' : 'primary'"
                     (click)="onToggleActive(detalle)"
                     [matTooltip]="detalle.activo ? 'Desactivar' : 'Activar'">
@@ -480,11 +480,17 @@ interface TimbradoDetalleWithStats extends TimbradoDetalle {
       color: #666;
     }
 
-    .no-data-message mat-icon {
+    .no-data-message > mat-icon:first-child {
       font-size: 64px;
       width: 64px;
       height: 64px;
       color: #ccc;
+    }
+
+    .no-data-message button mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
 
     .no-data-message p {
@@ -514,11 +520,11 @@ export class TimbradoDetalleListComponent implements OnInit {
   timbrado: Timbrado | null = null;
   detalles: TimbradoDetalleWithStats[] = [];
   detallesConAlerta: TimbradoDetalleWithStats[] = [];
-  
+
   loading = false;
   error: string | null = null;
   timbradoId: number | null = null;
-  
+
   displayedColumns: string[] = ['puntoExpedicion', 'rango', 'numeroActual', 'disponibles', 'ubicacion', 'activo', 'actions'];
 
   constructor(

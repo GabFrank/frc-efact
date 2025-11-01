@@ -1,6 +1,8 @@
 package com.frcefact.dto.mapper;
 
 import com.frcefact.dto.TimbradoDetalleDto;
+import com.frcefact.model.Barrio;
+import com.frcefact.model.Ciudad;
 import com.frcefact.model.Timbrado;
 import com.frcefact.model.TimbradoDetalle;
 import org.springframework.stereotype.Component;
@@ -24,18 +26,24 @@ public class TimbradoDetalleMapper {
         dto.setTimbradoId(detalle.getTimbrado().getId());
         dto.setPuntoExpedicion(detalle.getPuntoExpedicion());
         dto.setCodigoEstablecimientoFactura(detalle.getCodigoEstablecimientoFactura());
+        dto.setCantidad(detalle.getCantidad());
         dto.setRangoDesde(detalle.getRangoDesde());
         dto.setRangoHasta(detalle.getRangoHasta());
-        dto.setCantidad(detalle.getCantidad());
         dto.setNumeroActual(detalle.getNumeroActual());
-        dto.setDepartamento(detalle.getDepartamento());
-        dto.setCiudad(detalle.getCiudad());
-        dto.setCodigoCiudad(detalle.getCodigoCiudad());
-        dto.setLocalidad(detalle.getLocalidad());
-        dto.setBarrio(detalle.getBarrio());
+        
+        // Mapear relaciones geográficas
+        if (detalle.getCiudad() != null) {
+            dto.setCiudadId(detalle.getCiudad().getId());
+        }
+        if (detalle.getBarrio() != null) {
+            dto.setBarrioId(detalle.getBarrio().getId());
+        }
+        
         dto.setDireccion(detalle.getDireccion());
         dto.setTelefono(detalle.getTelefono());
         dto.setActivo(detalle.getActivo());
+
+        // Campos calculados
         dto.setNumerosDisponibles(detalle.getNumerosDisponibles());
         dto.setPorcentajeUtilizado(detalle.getPorcentajeUtilizado());
 
@@ -53,7 +61,7 @@ public class TimbradoDetalleMapper {
         TimbradoDetalle detalle = new TimbradoDetalle();
         detalle.setId(dto.getId());
         
-        // El timbrado se establece en el servicio
+        // La relación con Timbrado se establece en el servicio
         if (dto.getTimbradoId() != null) {
             Timbrado timbrado = new Timbrado();
             timbrado.setId(dto.getTimbradoId());
@@ -62,15 +70,23 @@ public class TimbradoDetalleMapper {
 
         detalle.setPuntoExpedicion(dto.getPuntoExpedicion());
         detalle.setCodigoEstablecimientoFactura(dto.getCodigoEstablecimientoFactura());
+        detalle.setCantidad(dto.getCantidad());
         detalle.setRangoDesde(dto.getRangoDesde());
         detalle.setRangoHasta(dto.getRangoHasta());
-        detalle.setCantidad(dto.getCantidad());
         detalle.setNumeroActual(dto.getNumeroActual());
-        detalle.setDepartamento(dto.getDepartamento());
-        detalle.setCiudad(dto.getCiudad());
-        detalle.setCodigoCiudad(dto.getCodigoCiudad());
-        detalle.setLocalidad(dto.getLocalidad());
-        detalle.setBarrio(dto.getBarrio());
+        
+        // Establecer relaciones geográficas usando IDs
+        if (dto.getCiudadId() != null) {
+            Ciudad ciudad = new Ciudad();
+            ciudad.setId(dto.getCiudadId());
+            detalle.setCiudad(ciudad);
+        }
+        if (dto.getBarrioId() != null) {
+            Barrio barrio = new Barrio();
+            barrio.setId(dto.getBarrioId());
+            detalle.setBarrio(barrio);
+        }
+        
         detalle.setDireccion(dto.getDireccion());
         detalle.setTelefono(dto.getTelefono());
         

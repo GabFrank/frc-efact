@@ -93,12 +93,6 @@ import { AuthService } from '../services/auth.service';
                 </a>
               </li>
 
-              <li class="nav-item" *ngIf="canAccessTimbrados">
-                <a routerLink="/timbrados" routerLinkActive="active" class="nav-link">
-                  <i class="fas fa-stamp"></i>
-                  <span>Timbrados</span>
-                </a>
-              </li>
 
               <li class="nav-item" *ngIf="canAccessProductos">
                 <a routerLink="/productos" routerLinkActive="active" class="nav-link">
@@ -520,10 +514,6 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   // Métodos de acceso basados en roles
   get canAccessEmpresas(): boolean {
     return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN']);
-  }
-
-  get canAccessTimbrados(): boolean {
-    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
   }
 
   get canAccessProductos(): boolean {

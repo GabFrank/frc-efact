@@ -7,7 +7,8 @@ import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 
 /**
- * DTO para Timbrado con validaciones.
+ * DTO simplificado para Timbrado.
+ * Solo contiene datos específicos del timbrado, los datos de empresa se obtienen de la relación.
  */
 @ValidFechasTimbrado
 public class TimbradoDto {
@@ -16,14 +17,6 @@ public class TimbradoDto {
 
     @NotNull(message = "ID de empresa es requerido")
     private Long empresaId;
-
-    @NotBlank(message = "Razón social es requerida")
-    @Size(max = 200, message = "Razón social no debe exceder 200 caracteres")
-    private String razonSocial;
-
-    @NotBlank(message = "RUC es requerido")
-    @Size(max = 20, message = "RUC no debe exceder 20 caracteres")
-    private String ruc;
 
     @NotBlank(message = "Número de timbrado es requerido")
     @ValidTimbrado
@@ -41,47 +34,12 @@ public class TimbradoDto {
     @NotNull(message = "Fecha de fin es requerida")
     private LocalDate fechaFin;
 
-    @Email(message = "Email debe ser válido")
-    @Size(max = 100, message = "Email no debe exceder 100 caracteres")
-    private String email;
-
-    @Size(max = 50, message = "Tipo de sociedad no debe exceder 50 caracteres")
-    private String tipoSociedad;
-
-    @Size(max = 100, message = "Departamento no debe exceder 100 caracteres")
-    private String domicilioFiscalDepartamento;
-
-    @Size(max = 100, message = "Ciudad no debe exceder 100 caracteres")
-    private String domicilioFiscalCiudad;
-
-    @Size(max = 10, message = "Código de ciudad no debe exceder 10 caracteres")
-    private String domicilioFiscalCodigoCiudad;
-
-    @Size(max = 100, message = "Localidad no debe exceder 100 caracteres")
-    private String domicilioFiscalLocalidad;
-
-    @Size(max = 100, message = "Barrio no debe exceder 100 caracteres")
-    private String domicilioFiscalBarrio;
-
-    private String domicilioFiscalDireccion;
-
-    @Size(max = 50, message = "Teléfono no debe exceder 50 caracteres")
-    private String telefono;
-
-    @Size(max = 20, message = "Código de actividad económica no debe exceder 20 caracteres")
-    private String codActividadEconomicaPrincipal;
-
-    @Size(max = 200, message = "Descripción de actividad económica no debe exceder 200 caracteres")
-    private String descActividadEconomicaPrincipal;
-
-    private String listCodigoActividadEconomicaSecundaria;
-
-    private String listDescripcionActividadEconomicaSecundaria;
-
     private Boolean activo;
 
+    // Campos calculados para mostrar información de empresa
+    private String razonSocial; // Solo para mostrar, no se valida
+    private String ruc; // Solo para mostrar, no se valida
     private Boolean vigente;
-
     private Long diasRestantes;
 
     // Constructores
@@ -103,22 +61,6 @@ public class TimbradoDto {
 
     public void setEmpresaId(Long empresaId) {
         this.empresaId = empresaId;
-    }
-
-    public String getRazonSocial() {
-        return razonSocial;
-    }
-
-    public void setRazonSocial(String razonSocial) {
-        this.razonSocial = razonSocial;
-    }
-
-    public String getRuc() {
-        return ruc;
-    }
-
-    public void setRuc(String ruc) {
-        this.ruc = ruc;
     }
 
     public String getNumero() {
@@ -161,116 +103,29 @@ public class TimbradoDto {
         this.fechaFin = fechaFin;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getTipoSociedad() {
-        return tipoSociedad;
-    }
-
-    public void setTipoSociedad(String tipoSociedad) {
-        this.tipoSociedad = tipoSociedad;
-    }
-
-    public String getDomicilioFiscalDepartamento() {
-        return domicilioFiscalDepartamento;
-    }
-
-    public void setDomicilioFiscalDepartamento(String domicilioFiscalDepartamento) {
-        this.domicilioFiscalDepartamento = domicilioFiscalDepartamento;
-    }
-
-    public String getDomicilioFiscalCiudad() {
-        return domicilioFiscalCiudad;
-    }
-
-    public void setDomicilioFiscalCiudad(String domicilioFiscalCiudad) {
-        this.domicilioFiscalCiudad = domicilioFiscalCiudad;
-    }
-
-    public String getDomicilioFiscalCodigoCiudad() {
-        return domicilioFiscalCodigoCiudad;
-    }
-
-    public void setDomicilioFiscalCodigoCiudad(String domicilioFiscalCodigoCiudad) {
-        this.domicilioFiscalCodigoCiudad = domicilioFiscalCodigoCiudad;
-    }
-
-    public String getDomicilioFiscalLocalidad() {
-        return domicilioFiscalLocalidad;
-    }
-
-    public void setDomicilioFiscalLocalidad(String domicilioFiscalLocalidad) {
-        this.domicilioFiscalLocalidad = domicilioFiscalLocalidad;
-    }
-
-    public String getDomicilioFiscalBarrio() {
-        return domicilioFiscalBarrio;
-    }
-
-    public void setDomicilioFiscalBarrio(String domicilioFiscalBarrio) {
-        this.domicilioFiscalBarrio = domicilioFiscalBarrio;
-    }
-
-    public String getDomicilioFiscalDireccion() {
-        return domicilioFiscalDireccion;
-    }
-
-    public void setDomicilioFiscalDireccion(String domicilioFiscalDireccion) {
-        this.domicilioFiscalDireccion = domicilioFiscalDireccion;
-    }
-
-    public String getTelefono() {
-        return telefono;
-    }
-
-    public void setTelefono(String telefono) {
-        this.telefono = telefono;
-    }
-
-    public String getCodActividadEconomicaPrincipal() {
-        return codActividadEconomicaPrincipal;
-    }
-
-    public void setCodActividadEconomicaPrincipal(String codActividadEconomicaPrincipal) {
-        this.codActividadEconomicaPrincipal = codActividadEconomicaPrincipal;
-    }
-
-    public String getDescActividadEconomicaPrincipal() {
-        return descActividadEconomicaPrincipal;
-    }
-
-    public void setDescActividadEconomicaPrincipal(String descActividadEconomicaPrincipal) {
-        this.descActividadEconomicaPrincipal = descActividadEconomicaPrincipal;
-    }
-
-    public String getListCodigoActividadEconomicaSecundaria() {
-        return listCodigoActividadEconomicaSecundaria;
-    }
-
-    public void setListCodigoActividadEconomicaSecundaria(String listCodigoActividadEconomicaSecundaria) {
-        this.listCodigoActividadEconomicaSecundaria = listCodigoActividadEconomicaSecundaria;
-    }
-
-    public String getListDescripcionActividadEconomicaSecundaria() {
-        return listDescripcionActividadEconomicaSecundaria;
-    }
-
-    public void setListDescripcionActividadEconomicaSecundaria(String listDescripcionActividadEconomicaSecundaria) {
-        this.listDescripcionActividadEconomicaSecundaria = listDescripcionActividadEconomicaSecundaria;
-    }
-
     public Boolean getActivo() {
         return activo;
     }
 
     public void setActivo(Boolean activo) {
         this.activo = activo;
+    }
+
+    // Campos de solo lectura (información de empresa)
+    public String getRazonSocial() {
+        return razonSocial;
+    }
+
+    public void setRazonSocial(String razonSocial) {
+        this.razonSocial = razonSocial;
+    }
+
+    public String getRuc() {
+        return ruc;
+    }
+
+    public void setRuc(String ruc) {
+        this.ruc = ruc;
     }
 
     public Boolean getVigente() {

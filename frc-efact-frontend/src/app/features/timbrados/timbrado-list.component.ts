@@ -71,17 +71,17 @@ interface TimbradoWithStatus extends Timbrado {
 
             <mat-form-field appearance="outline" class="search-field">
               <mat-label>Buscar timbrado</mat-label>
-              <input 
-                matInput 
-                [(ngModel)]="searchTerm" 
+              <input
+                matInput
+                [(ngModel)]="searchTerm"
                 (ngModelChange)="onSearchChange()"
                 placeholder="Buscar por número o razón social">
               <mat-icon matSuffix>search</mat-icon>
             </mat-form-field>
 
-            <button 
-              mat-raised-button 
-              color="primary" 
+            <button
+              mat-raised-button
+              color="primary"
               (click)="onCreateTimbrado()">
               <mat-icon>add</mat-icon>
               Nuevo Timbrado
@@ -99,12 +99,12 @@ interface TimbradoWithStatus extends Timbrado {
                 <div class="alert-list">
                   <div *ngFor="let timbrado of timbradosConAlerta" class="alert-item">
                     <span class="alert-text">
-                      <strong>{{ timbrado.numero }}</strong> - {{ timbrado.razonSocial }}
+                      <strong>{{ timbrado.numero }}</strong> - {{ timbrado.razonSocial || 'Sin empresa' }}
                       <span class="dias-restantes">({{ timbrado.diasParaVencer }} días restantes)</span>
                     </span>
-                    <button 
-                      mat-button 
-                      color="primary" 
+                    <button
+                      mat-button
+                      color="primary"
                       (click)="onEditTimbrado(timbrado)">
                       Renovar
                     </button>
@@ -118,7 +118,7 @@ interface TimbradoWithStatus extends Timbrado {
           <app-loading-spinner *ngIf="loading"></app-loading-spinner>
 
           <!-- Error State -->
-          <app-error-message 
+          <app-error-message
             *ngIf="error"
             [message]="error">
           </app-error-message>
@@ -126,7 +126,7 @@ interface TimbradoWithStatus extends Timbrado {
           <!-- Timbrados Table -->
           <div class="table-container" *ngIf="!loading && !error">
             <table mat-table [dataSource]="filteredTimbrados" class="timbrados-table">
-              
+
               <!-- Número Column -->
               <ng-container matColumnDef="numero">
                 <th mat-header-cell *matHeaderCellDef>Número</th>
@@ -136,13 +136,13 @@ interface TimbradoWithStatus extends Timbrado {
               <!-- Razón Social Column -->
               <ng-container matColumnDef="razonSocial">
                 <th mat-header-cell *matHeaderCellDef>Razón Social</th>
-                <td mat-cell *matCellDef="let timbrado">{{ timbrado.razonSocial }}</td>
+                <td mat-cell *matCellDef="let timbrado">{{ timbrado.razonSocial || 'Sin empresa' }}</td>
               </ng-container>
 
               <!-- RUC Column -->
               <ng-container matColumnDef="ruc">
                 <th mat-header-cell *matHeaderCellDef>RUC</th>
-                <td mat-cell *matCellDef="let timbrado">{{ timbrado.ruc }}</td>
+                <td mat-cell *matCellDef="let timbrado">{{ timbrado.ruc || 'Sin RUC' }}</td>
               </ng-container>
 
               <!-- Tipo Column -->
@@ -161,7 +161,7 @@ interface TimbradoWithStatus extends Timbrado {
                 <td mat-cell *matCellDef="let timbrado">
                   <div class="vigencia-info">
                     <div>{{ timbrado.fechaInicio | date:'dd/MM/yyyy' }} - {{ timbrado.fechaFin | date:'dd/MM/yyyy' }}</div>
-                    <mat-chip 
+                    <mat-chip
                       [class.vigente-chip]="timbrado.vigente && !timbrado.alertaVencimiento"
                       [class.alerta-chip]="timbrado.vigente && timbrado.alertaVencimiento"
                       [class.vencido-chip]="!timbrado.vigente">
@@ -186,29 +186,29 @@ interface TimbradoWithStatus extends Timbrado {
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef>Acciones</th>
                 <td mat-cell *matCellDef="let timbrado">
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     color="primary"
                     (click)="onViewTimbrado(timbrado)"
                     matTooltip="Ver detalles">
                     <mat-icon>visibility</mat-icon>
                   </button>
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     color="accent"
                     (click)="onEditTimbrado(timbrado)"
                     matTooltip="Editar">
                     <mat-icon>edit</mat-icon>
                   </button>
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     color="primary"
                     (click)="onManageDetalles(timbrado)"
                     matTooltip="Puntos de expedición">
                     <mat-icon>store</mat-icon>
                   </button>
-                  <button 
-                    mat-icon-button 
+                  <button
+                    mat-icon-button
                     [color]="timbrado.activo ? 'warn' : 'primary'"
                     (click)="onToggleActive(timbrado)"
                     [matTooltip]="timbrado.activo ? 'Desactivar' : 'Activar'">
@@ -409,11 +409,17 @@ interface TimbradoWithStatus extends Timbrado {
       color: #666;
     }
 
-    .no-data-message mat-icon {
+    .no-data-message > mat-icon:first-child {
       font-size: 64px;
       width: 64px;
       height: 64px;
       color: #ccc;
+    }
+
+    .no-data-message button mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
 
     .no-data-message p {
@@ -444,10 +450,10 @@ export class TimbradoListComponent implements OnInit {
   empresas: Empresa[] = [];
   filteredTimbrados: TimbradoWithStatus[] = [];
   timbradosConAlerta: TimbradoWithStatus[] = [];
-  
+
   loading = false;
   error: string | null = null;
-  
+
   displayedColumns: string[] = ['numero', 'razonSocial', 'ruc', 'tipo', 'vigencia', 'activo', 'actions'];
   searchTerm: string = '';
   selectedEmpresaId: number | null = null;
@@ -512,10 +518,10 @@ export class TimbradoListComponent implements OnInit {
     // Filter by search term
     if (this.searchTerm && this.searchTerm.trim() !== '') {
       const term = this.searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(t => 
+      filtered = filtered.filter(t =>
         t.numero.toLowerCase().includes(term) ||
-        t.razonSocial.toLowerCase().includes(term) ||
-        t.ruc.toLowerCase().includes(term)
+        (t.razonSocial && t.razonSocial.toLowerCase().includes(term)) ||
+        (t.ruc && t.ruc.toLowerCase().includes(term))
       );
     }
 

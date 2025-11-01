@@ -1,12 +1,13 @@
 package com.frcefact.dto;
 
-import com.frcefact.validation.ValidRangoTimbrado;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 /**
- * DTO para TimbradoDetalle con validaciones.
+ * DTO para TimbradoDetalle (puntos de expedición).
+ * Representa un punto de expedición específico dentro de un timbrado.
  */
-@ValidRangoTimbrado
 public class TimbradoDetalleDto {
 
     private Long id;
@@ -16,50 +17,33 @@ public class TimbradoDetalleDto {
 
     @NotBlank(message = "Punto de expedición es requerido")
     @Size(max = 10, message = "Punto de expedición no debe exceder 10 caracteres")
-    @Pattern(regexp = "^[0-9]{3}$", message = "Punto de expedición debe ser un número de 3 dígitos")
     private String puntoExpedicion;
 
     @NotBlank(message = "Código de establecimiento es requerido")
     @Size(max = 10, message = "Código de establecimiento no debe exceder 10 caracteres")
-    @Pattern(regexp = "^[0-9]{3}$", message = "Código de establecimiento debe ser un número de 3 dígitos")
     private String codigoEstablecimientoFactura;
 
-    @NotNull(message = "Rango desde es requerido")
-    @Min(value = 1, message = "Rango desde debe ser mayor a 0")
-    private Long rangoDesde;
-
-    @NotNull(message = "Rango hasta es requerido")
-    @Min(value = 1, message = "Rango hasta debe ser mayor a 0")
-    private Long rangoHasta;
-
+    // Campos de rango (opcionales para timbrados electrónicos)
     private Long cantidad;
-
+    private Long rangoDesde;
+    private Long rangoHasta;
     private Long numeroActual;
 
-    @Size(max = 100, message = "Departamento no debe exceder 100 caracteres")
-    private String departamento;
+    // Ubicación del punto de expedición
+    @NotNull(message = "Ciudad es requerida")
+    private Long ciudadId;
 
-    @Size(max = 100, message = "Ciudad no debe exceder 100 caracteres")
-    private String ciudad;
-
-    @Size(max = 10, message = "Código de ciudad no debe exceder 10 caracteres")
-    private String codigoCiudad;
-
-    @Size(max = 100, message = "Localidad no debe exceder 100 caracteres")
-    private String localidad;
-
-    @Size(max = 100, message = "Barrio no debe exceder 100 caracteres")
-    private String barrio;
+    private Long barrioId;
 
     private String direccion;
 
-    @Size(max = 50, message = "Teléfono no debe exceder 50 caracteres")
+    @Size(max = 50)
     private String telefono;
 
     private Boolean activo;
 
+    // Campos calculados (solo lectura)
     private Long numerosDisponibles;
-
     private Double porcentajeUtilizado;
 
     // Constructores
@@ -99,6 +83,14 @@ public class TimbradoDetalleDto {
         this.codigoEstablecimientoFactura = codigoEstablecimientoFactura;
     }
 
+    public Long getCantidad() {
+        return cantidad;
+    }
+
+    public void setCantidad(Long cantidad) {
+        this.cantidad = cantidad;
+    }
+
     public Long getRangoDesde() {
         return rangoDesde;
     }
@@ -115,14 +107,6 @@ public class TimbradoDetalleDto {
         this.rangoHasta = rangoHasta;
     }
 
-    public Long getCantidad() {
-        return cantidad;
-    }
-
-    public void setCantidad(Long cantidad) {
-        this.cantidad = cantidad;
-    }
-
     public Long getNumeroActual() {
         return numeroActual;
     }
@@ -131,44 +115,20 @@ public class TimbradoDetalleDto {
         this.numeroActual = numeroActual;
     }
 
-    public String getDepartamento() {
-        return departamento;
+    public Long getCiudadId() {
+        return ciudadId;
     }
 
-    public void setDepartamento(String departamento) {
-        this.departamento = departamento;
+    public void setCiudadId(Long ciudadId) {
+        this.ciudadId = ciudadId;
     }
 
-    public String getCiudad() {
-        return ciudad;
+    public Long getBarrioId() {
+        return barrioId;
     }
 
-    public void setCiudad(String ciudad) {
-        this.ciudad = ciudad;
-    }
-
-    public String getCodigoCiudad() {
-        return codigoCiudad;
-    }
-
-    public void setCodigoCiudad(String codigoCiudad) {
-        this.codigoCiudad = codigoCiudad;
-    }
-
-    public String getLocalidad() {
-        return localidad;
-    }
-
-    public void setLocalidad(String localidad) {
-        this.localidad = localidad;
-    }
-
-    public String getBarrio() {
-        return barrio;
-    }
-
-    public void setBarrio(String barrio) {
-        this.barrio = barrio;
+    public void setBarrioId(Long barrioId) {
+        this.barrioId = barrioId;
     }
 
     public String getDireccion() {
@@ -195,6 +155,7 @@ public class TimbradoDetalleDto {
         this.activo = activo;
     }
 
+    // Campos calculados (solo lectura)
     public Long getNumerosDisponibles() {
         return numerosDisponibles;
     }

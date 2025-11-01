@@ -80,26 +80,18 @@ public class TimbradoService {
         // Validar fechas
         validarFechas(timbradoActualizado.getFechaInicio(), timbradoActualizado.getFechaFin());
 
-        // Actualizar campos
-        timbradoExistente.setRazonSocial(timbradoActualizado.getRazonSocial());
-        timbradoExistente.setRuc(timbradoActualizado.getRuc());
+        // Actualizar campos específicos del timbrado
         timbradoExistente.setNumero(timbradoActualizado.getNumero());
         timbradoExistente.setIsElectronico(timbradoActualizado.getIsElectronico());
         timbradoExistente.setFechaInicio(timbradoActualizado.getFechaInicio());
         timbradoExistente.setFechaFin(timbradoActualizado.getFechaFin());
-        timbradoExistente.setEmail(timbradoActualizado.getEmail());
-        timbradoExistente.setTipoSociedad(timbradoActualizado.getTipoSociedad());
-        timbradoExistente.setDomicilioFiscalDepartamento(timbradoActualizado.getDomicilioFiscalDepartamento());
-        timbradoExistente.setDomicilioFiscalCiudad(timbradoActualizado.getDomicilioFiscalCiudad());
-        timbradoExistente.setDomicilioFiscalCodigoCiudad(timbradoActualizado.getDomicilioFiscalCodigoCiudad());
-        timbradoExistente.setDomicilioFiscalLocalidad(timbradoActualizado.getDomicilioFiscalLocalidad());
-        timbradoExistente.setDomicilioFiscalBarrio(timbradoActualizado.getDomicilioFiscalBarrio());
-        timbradoExistente.setDomicilioFiscalDireccion(timbradoActualizado.getDomicilioFiscalDireccion());
-        timbradoExistente.setTelefono(timbradoActualizado.getTelefono());
-        timbradoExistente.setCodActividadEconomicaPrincipal(timbradoActualizado.getCodActividadEconomicaPrincipal());
-        timbradoExistente.setDescActividadEconomicaPrincipal(timbradoActualizado.getDescActividadEconomicaPrincipal());
-        timbradoExistente.setListCodigoActividadEconomicaSecundaria(timbradoActualizado.getListCodigoActividadEconomicaSecundaria());
-        timbradoExistente.setListDescripcionActividadEconomicaSecundaria(timbradoActualizado.getListDescripcionActividadEconomicaSecundaria());
+        timbradoExistente.setActivo(timbradoActualizado.getActivo());
+
+        // Actualizar empresa si cambió
+        if (timbradoActualizado.getEmpresa() != null && 
+            !timbradoActualizado.getEmpresa().getId().equals(timbradoExistente.getEmpresa().getId())) {
+            timbradoExistente.setEmpresa(timbradoActualizado.getEmpresa());
+        }
 
         // Encriptar CSC si cambió y es electrónico
         if (Boolean.TRUE.equals(timbradoActualizado.getIsElectronico()) 

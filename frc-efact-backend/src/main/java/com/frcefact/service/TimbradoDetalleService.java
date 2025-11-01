@@ -1,116 +1,171 @@
 package com.frcefact.service;
 
+import com.frcefact.annotation.Auditable;
+import com.frcefact.dto.TimbradoDetalleDto;
+import com.frcefact.dto.mapper.TimbradoDetalleMapper;
+import com.frcefact.model.AccionEnum;
+import com.frcefact.model.Barrio;
+import com.frcefact.model.Ciudad;
 import com.frcefact.model.Timbrado;
 import com.frcefact.model.TimbradoDetalle;
 import com.frcefact.repository.TimbradoDetalleRepository;
 import com.frcefact.repository.TimbradoRepository;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.OptimisticLockException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 /**
- * Servicio para gestión de timbrados detalle (puntos de expedición).
- * Implementa gestión de rangos con lock optimista para concurrencia.
+ * Servicio para gestión de detalles de timbrados (puntos de expedición).
+ * Implementa CRUD completo con validaciones de rangos y permisos.
  */
 @Service
 @Transactional
 public class TimbradoDetalleService {
 
-    private static final Logger logger = LoggerFactory.getLogger(TimbradoDetalleService.class);
-    private static final int UMBRAL_ALERTA_PORCENTAJE = 90; // Alertar cuando se use el 90%
-    private static final long UMBRAL_ALERTA_CANTIDAD = 100; // Alertar cuando queden menos de 100
-
     private final TimbradoDetalleRepository timbradoDetalleRepository;
     private final TimbradoRepository timbradoRepository;
+    private final TimbradoDetalleMapper timbradoDetalleMapper;
     private final EmpresaSecurityService empresaSecurityService;
 
     public TimbradoDetalleService(
             TimbradoDetalleRepository timbradoDetalleRepository,
             TimbradoRepository timbradoRepository,
+            TimbradoDetalleMapper timbradoDetalleMapper,
             EmpresaSecurityService empresaSecurityService) {
         this.timbradoDetalleRepository = timbradoDetalleRepository;
         this.timbradoRepository = timbradoRepository;
+        this.timbradoDetalleMapper = timbradoDetalleMapper;
         this.empresaSecurityService = empresaSecurityService;
     }
 
     /**
-     * Crea un nuevo timbrado detalle.
-     * Valida que el rango sea coherente.
+     * Crea un nuevo detalle de timbrado.
+     * Valida rangos, unicidad y permisos.
      */
-    public TimbradoDetalle crear(TimbradoDetalle detalle) {
-        // Validar rango
-        validarRango(detalle.getRangoDesde(), detalle.getRangoHasta());
-
-        // Verificar que el timbrado existe
-        Timbrado timbrado = timbradoRepository.findById(detalle.getTimbrado().getId())
+    @Auditable(entidad = "TimbradoDetalle", accion = AccionEnum.CREATE)
+    public TimbradoDetalle crear(TimbradoDetalleDto dto) {
+        // Validar que el timbrado existe
+        Timbrado timbrado = timbradoRepository.findById(dto.getTimbradoId())
                 .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado no encontrado con ID: " + detalle.getTimbrado().getId()));
+                        "Timbrado no encontrado con ID: " + dto.getTimbradoId()));
 
-        // Verificar permisos
+        // Verificar permisos de escritura
         empresaSecurityService.verificarAccesoEscritura(timbrado.getEmpresa().getId());
 
-        detalle.setTimbrado(timbrado);
+        // Validar datos del detalle
+        validarDetalle(dto, null);
 
-        // Calcular cantidad si no está establecida
-        if (detalle.getCantidad() == null) {
-            detalle.setCantidad(detalle.getRangoHasta() - detalle.getRangoDesde() + 1);
+        // Verificar unicidad del punto de expedición
+        if (timbradoDetalleRepository.findByTimbradoIdAndPuntoExpedicion(
+                dto.getTimbradoId(), dto.getPuntoExpedicion()).isPresent()) {
+            throw new IllegalArgumentException(
+                    "Ya existe un punto de expedición con el código: " + dto.getPuntoExpedicion());
         }
 
-        // Establecer número actual al inicio del rango si no está establecido
-        if (detalle.getNumeroActual() == null || detalle.getNumeroActual() == 0) {
-            detalle.setNumeroActual(detalle.getRangoDesde());
+        // Verificar que no hay rangos superpuestos (solo si se proporcionan rangos)
+        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            if (timbradoDetalleRepository.existsRangoSuperpuesto(
+                    dto.getTimbradoId(), dto.getRangoDesde(), dto.getRangoHasta(), 0L)) {
+                throw new IllegalArgumentException(
+                        "El rango especificado se superpone con otro punto de expedición existente");
+            }
+        }
+
+        // Convertir DTO a entidad
+        TimbradoDetalle detalle = timbradoDetalleMapper.toEntity(dto);
+        detalle.setTimbrado(timbrado);
+
+        // Calcular cantidad y establecer número actual solo si hay rangos
+        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            detalle.setCantidad(dto.getRangoHasta() - dto.getRangoDesde() + 1);
+            detalle.setNumeroActual(dto.getRangoDesde());
         }
 
         return timbradoDetalleRepository.save(detalle);
     }
 
     /**
-     * Actualiza un timbrado detalle existente.
+     * Actualiza un detalle de timbrado existente.
      */
-    public TimbradoDetalle actualizar(Long id, TimbradoDetalle detalleActualizado) {
+    @Auditable(entidad = "TimbradoDetalle", accion = AccionEnum.UPDATE)
+    public TimbradoDetalle actualizar(Long id, TimbradoDetalleDto dto) {
         TimbradoDetalle detalleExistente = timbradoDetalleRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado detalle no encontrado con ID: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + id));
 
-        // Verificar permisos
-        empresaSecurityService.verificarAccesoEscritura(
-                detalleExistente.getTimbrado().getEmpresa().getId());
+        // Verificar permisos de escritura
+        empresaSecurityService.verificarAccesoEscritura(detalleExistente.getTimbrado().getEmpresa().getId());
 
-        // Validar rango
-        validarRango(detalleActualizado.getRangoDesde(), detalleActualizado.getRangoHasta());
+        // Validar datos del detalle
+        validarDetalle(dto, id);
+
+        // Verificar unicidad del punto de expedición (excluyendo el actual)
+        if (timbradoDetalleRepository.findByTimbradoIdAndPuntoExpedicionAndIdNot(
+                dto.getTimbradoId(), dto.getPuntoExpedicion(), id).isPresent()) {
+            throw new IllegalArgumentException(
+                    "Ya existe otro punto de expedición con el código: " + dto.getPuntoExpedicion());
+        }
+
+        // Verificar que no hay rangos superpuestos (excluyendo el actual, solo si se proporcionan rangos)
+        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            if (timbradoDetalleRepository.existsRangoSuperpuesto(
+                    dto.getTimbradoId(), dto.getRangoDesde(), dto.getRangoHasta(), id)) {
+                throw new IllegalArgumentException(
+                        "El rango especificado se superpone con otro punto de expedición existente");
+            }
+        }
 
         // Actualizar campos
-        detalleExistente.setPuntoExpedicion(detalleActualizado.getPuntoExpedicion());
-        detalleExistente.setCodigoEstablecimientoFactura(detalleActualizado.getCodigoEstablecimientoFactura());
-        detalleExistente.setRangoDesde(detalleActualizado.getRangoDesde());
-        detalleExistente.setRangoHasta(detalleActualizado.getRangoHasta());
-        detalleExistente.setCantidad(detalleActualizado.getRangoHasta() - detalleActualizado.getRangoDesde() + 1);
-        detalleExistente.setDepartamento(detalleActualizado.getDepartamento());
-        detalleExistente.setCiudad(detalleActualizado.getCiudad());
-        detalleExistente.setCodigoCiudad(detalleActualizado.getCodigoCiudad());
-        detalleExistente.setLocalidad(detalleActualizado.getLocalidad());
-        detalleExistente.setBarrio(detalleActualizado.getBarrio());
-        detalleExistente.setDireccion(detalleActualizado.getDireccion());
-        detalleExistente.setTelefono(detalleActualizado.getTelefono());
+        detalleExistente.setPuntoExpedicion(dto.getPuntoExpedicion());
+        detalleExistente.setCodigoEstablecimientoFactura(dto.getCodigoEstablecimientoFactura());
+        
+        // Actualizar rangos solo si se proporcionan
+        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            detalleExistente.setRangoDesde(dto.getRangoDesde());
+            detalleExistente.setRangoHasta(dto.getRangoHasta());
+        }
+        
+        // Actualizar relaciones geográficas usando mapper
+        if (dto.getCiudadId() != null) {
+            Ciudad ciudad = new Ciudad();
+            ciudad.setId(dto.getCiudadId());
+            detalleExistente.setCiudad(ciudad);
+        }
+        if (dto.getBarrioId() != null) {
+            Barrio barrio = new Barrio();
+            barrio.setId(dto.getBarrioId());
+            detalleExistente.setBarrio(barrio);
+        }
+        
+        detalleExistente.setDireccion(dto.getDireccion());
+        detalleExistente.setTelefono(dto.getTelefono());
+        detalleExistente.setActivo(dto.getActivo());
+
+        // Recalcular cantidad y ajustar número actual solo si hay rangos
+        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            detalleExistente.setCantidad(dto.getRangoHasta() - dto.getRangoDesde() + 1);
+
+            // Ajustar número actual si está fuera del nuevo rango
+            if (detalleExistente.getNumeroActual() < dto.getRangoDesde()) {
+                detalleExistente.setNumeroActual(dto.getRangoDesde());
+            } else if (detalleExistente.getNumeroActual() > dto.getRangoHasta()) {
+                detalleExistente.setNumeroActual(dto.getRangoHasta());
+            }
+        }
 
         return timbradoDetalleRepository.save(detalleExistente);
     }
 
     /**
-     * Obtiene un timbrado detalle por ID.
+     * Obtiene un detalle por ID.
      */
     @Transactional(readOnly = true)
     public TimbradoDetalle obtenerPorId(Long id) {
         TimbradoDetalle detalle = timbradoDetalleRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado detalle no encontrado con ID: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + id));
 
-        // Verificar permisos
+        // Verificar permisos de lectura
         empresaSecurityService.verificarAccesoLectura(detalle.getTimbrado().getEmpresa().getId());
 
         return detalle;
@@ -121,187 +176,125 @@ public class TimbradoDetalleService {
      */
     @Transactional(readOnly = true)
     public List<TimbradoDetalle> listarPorTimbrado(Long timbradoId) {
+        // Verificar que el timbrado existe y permisos
         Timbrado timbrado = timbradoRepository.findById(timbradoId)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado no encontrado con ID: " + timbradoId));
+                .orElseThrow(() -> new EntityNotFoundException("Timbrado no encontrado con ID: " + timbradoId));
 
-        // Verificar permisos
+        empresaSecurityService.verificarAccesoLectura(timbrado.getEmpresa().getId());
+
+        return timbradoDetalleRepository.findByTimbradoIdOrderByPuntoExpedicionAsc(timbradoId);
+    }
+
+    /**
+     * Lista detalles activos de un timbrado.
+     */
+    @Transactional(readOnly = true)
+    public List<TimbradoDetalle> listarActivosPorTimbrado(Long timbradoId) {
+        // Verificar que el timbrado existe y permisos
+        Timbrado timbrado = timbradoRepository.findById(timbradoId)
+                .orElseThrow(() -> new EntityNotFoundException("Timbrado no encontrado con ID: " + timbradoId));
+
         empresaSecurityService.verificarAccesoLectura(timbrado.getEmpresa().getId());
 
         return timbradoDetalleRepository.findByTimbradoIdAndActivoTrue(timbradoId);
     }
 
     /**
-     * Desactiva un timbrado detalle (soft delete).
+     * Desactiva un detalle de timbrado (soft delete).
      */
+    @Auditable(entidad = "TimbradoDetalle", accion = AccionEnum.DELETE)
     public void desactivar(Long id) {
         TimbradoDetalle detalle = timbradoDetalleRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado detalle no encontrado con ID: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + id));
 
-        // Verificar permisos
+        // Verificar permisos de escritura
         empresaSecurityService.verificarAccesoEscritura(detalle.getTimbrado().getEmpresa().getId());
+
+        // Verificar si tiene facturas asociadas
+        if (!detalle.getFacturas().isEmpty()) {
+            throw new IllegalStateException(
+                    "No se puede eliminar el punto de expedición porque tiene facturas asociadas. " +
+                    "Use la opción de desactivar en su lugar.");
+        }
 
         detalle.setActivo(false);
         timbradoDetalleRepository.save(detalle);
     }
 
     /**
-     * Incrementa el número actual del timbrado detalle con lock optimista.
-     * Este método es thread-safe y maneja concurrencia.
-     * 
-     * @param id ID del timbrado detalle
-     * @return El número asignado
-     * @throws IllegalStateException si no hay números disponibles
-     * @throws OptimisticLockException si hay conflicto de concurrencia (debe reintentarse)
+     * Obtiene detalles que están por agotarse.
      */
-    public Long incrementarNumeroActual(Long id) {
-        // Obtener con lock pesimista para evitar conflictos
-        TimbradoDetalle detalle = timbradoDetalleRepository.findByIdWithLock(id)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado detalle no encontrado con ID: " + id));
-
+    @Transactional(readOnly = true)
+    public List<TimbradoDetalle> obtenerDetallesPorAgotarse(Long timbradoId, double umbralPorcentaje) {
         // Verificar permisos
+        Timbrado timbrado = timbradoRepository.findById(timbradoId)
+                .orElseThrow(() -> new EntityNotFoundException("Timbrado no encontrado con ID: " + timbradoId));
+
+        empresaSecurityService.verificarAccesoLectura(timbrado.getEmpresa().getId());
+
+        return timbradoDetalleRepository.findDetallesPorAgotarse(timbradoId, umbralPorcentaje);
+    }
+
+    /**
+     * Obtiene y incrementa el número actual de un detalle de timbrado.
+     * Usado para asignar números de factura.
+     */
+    @Transactional
+    public synchronized Long incrementarNumeroActual(Long detalleId) {
+        TimbradoDetalle detalle = timbradoDetalleRepository.findById(detalleId)
+                .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + detalleId));
+
+        // Verificar permisos de escritura
         empresaSecurityService.verificarAccesoEscritura(detalle.getTimbrado().getEmpresa().getId());
 
-        // Verificar que el timbrado esté vigente
-        if (!detalle.getTimbrado().isVigente()) {
-            throw new IllegalStateException(
-                    "El timbrado no está vigente. Fecha fin: " + detalle.getTimbrado().getFechaFin());
-        }
-
-        // Verificar que hay números disponibles
+        // Verificar que tiene números disponibles
         if (!detalle.tieneNumerosDisponibles()) {
-            throw new IllegalStateException(
-                    "No hay números disponibles en el rango. Rango: " + 
-                    detalle.getRangoDesde() + " - " + detalle.getRangoHasta() +
-                    ", Número actual: " + detalle.getNumeroActual());
+            throw new IllegalStateException("No hay números disponibles en el rango del punto de expedición");
         }
 
-        // Obtener el número actual y incrementar
+        // Obtener y incrementar el número
         Long numeroAsignado = detalle.obtenerYIncrementarNumeroActual();
-
-        // Guardar cambios
+        
+        // Guardar los cambios
         timbradoDetalleRepository.save(detalle);
-
-        // Verificar si debe alertar
-        verificarYAlertarRangoAgotandose(detalle);
-
-        logger.info("Número asignado: {} del timbrado detalle ID: {}", numeroAsignado, id);
-
+        
         return numeroAsignado;
     }
 
     /**
-     * Verifica si un timbrado detalle tiene números disponibles.
+     * Valida los datos de un detalle de timbrado.
+     * Los rangos son opcionales para timbrados electrónicos.
      */
-    @Transactional(readOnly = true)
-    public boolean verificarDisponibilidad(Long id) {
-        TimbradoDetalle detalle = timbradoDetalleRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado detalle no encontrado con ID: " + id));
+    private void validarDetalle(TimbradoDetalleDto dto, Long excludeId) {
+        // Validar rangos solo si están presentes (no son obligatorios para timbrados electrónicos)
+        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            if (dto.getRangoDesde() >= dto.getRangoHasta()) {
+                throw new IllegalArgumentException("El rango desde debe ser menor que el rango hasta");
+            }
 
-        // Verificar permisos
-        empresaSecurityService.verificarAccesoLectura(detalle.getTimbrado().getEmpresa().getId());
+            if (dto.getRangoDesde() < 1) {
+                throw new IllegalArgumentException("El rango desde debe ser mayor a 0");
+            }
 
-        return detalle.tieneNumerosDisponibles() && detalle.getTimbrado().isVigente();
-    }
+            if (dto.getRangoHasta() < 1) {
+                throw new IllegalArgumentException("El rango hasta debe ser mayor a 0");
+            }
 
-    /**
-     * Obtiene la cantidad de números disponibles.
-     */
-    @Transactional(readOnly = true)
-    public long obtenerNumerosDisponibles(Long id) {
-        TimbradoDetalle detalle = timbradoDetalleRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado detalle no encontrado con ID: " + id));
-
-        // Verificar permisos
-        empresaSecurityService.verificarAccesoLectura(detalle.getTimbrado().getEmpresa().getId());
-
-        return detalle.getNumerosDisponibles();
-    }
-
-    /**
-     * Obtiene el porcentaje de utilización del rango.
-     */
-    @Transactional(readOnly = true)
-    public double obtenerPorcentajeUtilizado(Long id) {
-        TimbradoDetalle detalle = timbradoDetalleRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado detalle no encontrado con ID: " + id));
-
-        // Verificar permisos
-        empresaSecurityService.verificarAccesoLectura(detalle.getTimbrado().getEmpresa().getId());
-
-        return detalle.getPorcentajeUtilizado();
-    }
-
-    /**
-     * Obtiene detalles que están por agotar su rango.
-     */
-    @Transactional(readOnly = true)
-    public List<TimbradoDetalle> obtenerDetallesPorAgotarse(Long empresaId) {
-        // Verificar permisos
-        empresaSecurityService.verificarAccesoLectura(empresaId);
-
-        return timbradoDetalleRepository.findDetallesPorAgotarse(empresaId, UMBRAL_ALERTA_CANTIDAD);
-    }
-
-    /**
-     * Obtiene detalles con números disponibles de un timbrado.
-     */
-    @Transactional(readOnly = true)
-    public List<TimbradoDetalle> obtenerDetallesConNumerosDisponibles(Long timbradoId) {
-        Timbrado timbrado = timbradoRepository.findById(timbradoId)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Timbrado no encontrado con ID: " + timbradoId));
-
-        // Verificar permisos
-        empresaSecurityService.verificarAccesoLectura(timbrado.getEmpresa().getId());
-
-        return timbradoDetalleRepository.findDetallesConNumerosDisponibles(timbradoId);
-    }
-
-    /**
-     * Valida que el rango sea coherente.
-     */
-    private void validarRango(Long rangoDesde, Long rangoHasta) {
-        if (rangoDesde == null || rangoHasta == null) {
-            throw new IllegalArgumentException("Los rangos desde y hasta son requeridos");
+            // Validar que la cantidad calculada sea coherente
+            long cantidadCalculada = dto.getRangoHasta() - dto.getRangoDesde() + 1;
+            if (dto.getCantidad() != null && !dto.getCantidad().equals(cantidadCalculada)) {
+                throw new IllegalArgumentException("La cantidad debe ser igual a (rango hasta - rango desde + 1)");
+            }
         }
 
-        if (rangoDesde <= 0 || rangoHasta <= 0) {
-            throw new IllegalArgumentException("Los rangos deben ser números positivos");
+        // Validar formato de códigos
+        if (dto.getPuntoExpedicion() != null && !dto.getPuntoExpedicion().matches("^[A-Z0-9]{1,10}$")) {
+            throw new IllegalArgumentException("El punto de expedición debe contener solo letras mayúsculas y números");
         }
 
-        if (rangoHasta < rangoDesde) {
-            throw new IllegalArgumentException(
-                    "El rango hasta (" + rangoHasta + ") no puede ser menor que el rango desde (" + rangoDesde + ")");
-        }
-
-        if (rangoDesde.equals(rangoHasta)) {
-            throw new IllegalArgumentException(
-                    "El rango debe tener al menos un número. Desde y hasta no pueden ser iguales");
-        }
-    }
-
-    /**
-     * Verifica si el rango se está agotando y registra alerta.
-     */
-    private void verificarYAlertarRangoAgotandose(TimbradoDetalle detalle) {
-        long numerosDisponibles = detalle.getNumerosDisponibles();
-        double porcentajeUtilizado = detalle.getPorcentajeUtilizado();
-
-        if (numerosDisponibles <= UMBRAL_ALERTA_CANTIDAD || 
-            porcentajeUtilizado >= UMBRAL_ALERTA_PORCENTAJE) {
-            
-            logger.warn("ALERTA: El timbrado detalle ID {} está por agotarse. " +
-                       "Números disponibles: {}, Porcentaje utilizado: {:.2f}%",
-                       detalle.getId(), numerosDisponibles, porcentajeUtilizado);
-            
-            // TODO: Integrar con sistema de notificaciones cuando esté implementado
-            // notificacionService.alertarRangoAgotandose(detalle);
+        if (dto.getCodigoEstablecimientoFactura() != null && 
+            !dto.getCodigoEstablecimientoFactura().matches("^[A-Z0-9]{1,10}$")) {
+            throw new IllegalArgumentException("El código de establecimiento debe contener solo letras mayúsculas y números");
         }
     }
 }

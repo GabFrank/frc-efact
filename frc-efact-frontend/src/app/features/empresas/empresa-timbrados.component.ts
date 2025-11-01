@@ -22,12 +22,14 @@ import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 
 import { Timbrado } from '../../models/timbrado.model';
+import { Empresa } from '../../models/empresa.model';
 import { TimbradosActions } from '../../core/state/timbrados';
 import {
   selectAllTimbrados,
   selectTimbradosLoading,
   selectTimbradosError
 } from '../../core/state/timbrados/timbrados.selectors';
+import { EmpresaApiService } from '../../core/api/empresa-api.service';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { ErrorMessageComponent } from '../../shared/components/error-message/error-message.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
@@ -334,11 +336,17 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
       color: #666;
     }
 
-    .no-data-message mat-icon {
+    .no-data-message > mat-icon:first-child {
       font-size: 64px;
       width: 64px;
       height: 64px;
       color: #ccc;
+    }
+
+    .no-data-message button mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
 
     .no-data-message p {
@@ -390,6 +398,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
   empresaId!: number;
   empresaNombre: string = '';
+  empresa: Empresa | null = null;
   displayedColumns: string[] = ['numero', 'fechaInicio', 'fechaFin', 'isElectronico', 'actions'];
 
   // Pagination
@@ -413,7 +422,8 @@ export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private dialog: MatDialog,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private empresaApiService: EmpresaApiService
   ) {
     this.filterForm = this.fb.group({
       numero: [''],
@@ -428,6 +438,7 @@ export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
     // Obtener empresaId de la ruta
     this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.empresaId = +params['id'];
+      this.loadEmpresaInfo();
       this.loadTimbradosEmpresa();
     });
 
@@ -460,10 +471,21 @@ export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
     this.router.navigate(['/empresas']);
   }
 
+  private loadEmpresaInfo(): void {
+    this.empresaApiService.getById(this.empresaId).subscribe({
+      next: (empresa) => {
+        this.empresa = empresa;
+        this.empresaNombre = empresa.razonSocial;
+      },
+      error: (err) => {
+        console.error('Error loading empresa info:', err);
+        this.empresaNombre = `Empresa ${this.empresaId}`;
+      }
+    });
+  }
+
   private loadTimbradosEmpresa(): void {
     this.store.dispatch(TimbradosActions.loadTimbradosByEmpresa({ empresaId: this.empresaId }));
-    // TODO: Load empresa name - could be from route data or separate call
-    this.empresaNombre = `Empresa ${this.empresaId}`; // Placeholder
   }
 
   private applyFilters(timbrados: Timbrado[]): Timbrado[] {
@@ -520,18 +542,17 @@ export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
   }
 
   onCreateTimbrado(): void {
-    // TODO: Implement create timbrado dialog
-    console.log('Crear nuevo timbrado');
+    this.router.navigate(['/timbrados/new'], {
+      queryParams: { empresaId: this.empresaId }
+    });
   }
 
   onViewTimbrado(timbrado: Timbrado): void {
-    // TODO: Implement view timbrado details
-    console.log('Ver timbrado:', timbrado);
+    this.router.navigate(['/timbrados', timbrado.id]);
   }
 
   onEditTimbrado(timbrado: Timbrado): void {
-    // TODO: Implement edit timbrado dialog
-    console.log('Editar timbrado:', timbrado);
+    this.router.navigate(['/timbrados', timbrado.id, 'edit']);
   }
 
   onToggleActive(timbrado: Timbrado): void {

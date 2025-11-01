@@ -28,7 +28,7 @@ export const routes: Routes = [
       },
       {
         path: 'timbrados',
-        loadComponent: () => import('./features/timbrados/timbrado-list.component').then(m => m.TimbradoListComponent)
+        loadChildren: () => import('./features/timbrados/timbrados.routes').then(m => m.TIMBRADOS_ROUTES)
       },
       {
         path: 'productos',

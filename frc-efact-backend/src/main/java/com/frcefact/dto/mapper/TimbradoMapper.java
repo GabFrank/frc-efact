@@ -3,13 +3,21 @@ package com.frcefact.dto.mapper;
 import com.frcefact.dto.TimbradoDto;
 import com.frcefact.model.Empresa;
 import com.frcefact.model.Timbrado;
+import com.frcefact.service.EncryptionService;
 import org.springframework.stereotype.Component;
 
 /**
- * Mapper para convertir entre Timbrado y TimbradoDto.
+ * Mapper simplificado para convertir entre Timbrado y TimbradoDto.
+ * Solo mapea campos específicos del timbrado, los datos de empresa se obtienen de la relación.
  */
 @Component
 public class TimbradoMapper {
+
+    private final EncryptionService encryptionService;
+
+    public TimbradoMapper(EncryptionService encryptionService) {
+        this.encryptionService = encryptionService;
+    }
 
     /**
      * Convierte una entidad Timbrado a TimbradoDto.
@@ -22,29 +30,33 @@ public class TimbradoMapper {
         TimbradoDto dto = new TimbradoDto();
         dto.setId(timbrado.getId());
         dto.setEmpresaId(timbrado.getEmpresa().getId());
-        dto.setRazonSocial(timbrado.getRazonSocial());
-        dto.setRuc(timbrado.getRuc());
         dto.setNumero(timbrado.getNumero());
         dto.setIsElectronico(timbrado.getIsElectronico());
-        // No incluir CSC encriptado en el DTO de respuesta por seguridad
+        
+        // Desencriptar CSC si existe para enviarlo al frontend
+        if (Boolean.TRUE.equals(timbrado.getIsElectronico()) && timbrado.getCscEncrypted() != null) {
+            try {
+                String cscDesencriptado = encryptionService.decrypt(timbrado.getCscEncrypted());
+                dto.setCsc(cscDesencriptado);
+            } catch (Exception e) {
+                // Si hay error al desencriptar, no incluir CSC
+                dto.setCsc(null);
+            }
+        }
+        
         dto.setFechaInicio(timbrado.getFechaInicio());
         dto.setFechaFin(timbrado.getFechaFin());
-        dto.setEmail(timbrado.getEmail());
-        dto.setTipoSociedad(timbrado.getTipoSociedad());
-        dto.setDomicilioFiscalDepartamento(timbrado.getDomicilioFiscalDepartamento());
-        dto.setDomicilioFiscalCiudad(timbrado.getDomicilioFiscalCiudad());
-        dto.setDomicilioFiscalCodigoCiudad(timbrado.getDomicilioFiscalCodigoCiudad());
-        dto.setDomicilioFiscalLocalidad(timbrado.getDomicilioFiscalLocalidad());
-        dto.setDomicilioFiscalBarrio(timbrado.getDomicilioFiscalBarrio());
-        dto.setDomicilioFiscalDireccion(timbrado.getDomicilioFiscalDireccion());
-        dto.setTelefono(timbrado.getTelefono());
-        dto.setCodActividadEconomicaPrincipal(timbrado.getCodActividadEconomicaPrincipal());
-        dto.setDescActividadEconomicaPrincipal(timbrado.getDescActividadEconomicaPrincipal());
-        dto.setListCodigoActividadEconomicaSecundaria(timbrado.getListCodigoActividadEconomicaSecundaria());
-        dto.setListDescripcionActividadEconomicaSecundaria(timbrado.getListDescripcionActividadEconomicaSecundaria());
         dto.setActivo(timbrado.getActivo());
+        
+        // Campos calculados
         dto.setVigente(timbrado.isVigente());
         dto.setDiasRestantes(timbrado.getDiasRestantes());
+        
+        // Información de empresa para mostrar (solo lectura)
+        if (timbrado.getEmpresa() != null) {
+            dto.setRazonSocial(timbrado.getEmpresa().getRazonSocial());
+            dto.setRuc(timbrado.getEmpresa().getRuc());
+        }
 
         return dto;
     }
@@ -67,27 +79,14 @@ public class TimbradoMapper {
             timbrado.setEmpresa(empresa);
         }
 
-        timbrado.setRazonSocial(dto.getRazonSocial());
-        timbrado.setRuc(dto.getRuc());
         timbrado.setNumero(dto.getNumero());
         timbrado.setIsElectronico(dto.getIsElectronico());
         // El CSC se maneja en el servicio para encriptación
-        timbrado.setCscEncrypted(dto.getCsc());
+        if (dto.getCsc() != null) {
+            timbrado.setCscEncrypted(dto.getCsc());
+        }
         timbrado.setFechaInicio(dto.getFechaInicio());
         timbrado.setFechaFin(dto.getFechaFin());
-        timbrado.setEmail(dto.getEmail());
-        timbrado.setTipoSociedad(dto.getTipoSociedad());
-        timbrado.setDomicilioFiscalDepartamento(dto.getDomicilioFiscalDepartamento());
-        timbrado.setDomicilioFiscalCiudad(dto.getDomicilioFiscalCiudad());
-        timbrado.setDomicilioFiscalCodigoCiudad(dto.getDomicilioFiscalCodigoCiudad());
-        timbrado.setDomicilioFiscalLocalidad(dto.getDomicilioFiscalLocalidad());
-        timbrado.setDomicilioFiscalBarrio(dto.getDomicilioFiscalBarrio());
-        timbrado.setDomicilioFiscalDireccion(dto.getDomicilioFiscalDireccion());
-        timbrado.setTelefono(dto.getTelefono());
-        timbrado.setCodActividadEconomicaPrincipal(dto.getCodActividadEconomicaPrincipal());
-        timbrado.setDescActividadEconomicaPrincipal(dto.getDescActividadEconomicaPrincipal());
-        timbrado.setListCodigoActividadEconomicaSecundaria(dto.getListCodigoActividadEconomicaSecundaria());
-        timbrado.setListDescripcionActividadEconomicaSecundaria(dto.getListDescripcionActividadEconomicaSecundaria());
         
         if (dto.getActivo() != null) {
             timbrado.setActivo(dto.getActivo());

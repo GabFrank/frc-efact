@@ -77,14 +77,8 @@ public class CertificadoService {
             throw new BusinessException("Error al procesar certificado digital");
         }
 
-        // Desencriptar CSC
-        String csc;
-        try {
-            csc = encryptionService.decrypt(empresa.getCscEncrypted());
-        } catch (Exception e) {
-            log.error("❌ Error al desencriptar CSC para empresa {}", empresaId, e);
-            throw new BusinessException("Error al procesar código de seguridad");
-        }
+        // Nota: CSC ahora se maneja a nivel de timbrado específico, no a nivel de empresa
+        // El CSC se configura cuando se crea o actualiza un timbrado electrónico específico
 
         // Determinar ambiente SIFEN
         TipoAmbiente ambiente;
@@ -106,12 +100,11 @@ public class CertificadoService {
                         certificadoPassword);
 
                 // Configurar CSC (Código de Seguridad del Contribuyente)
-                // NOTA: La configuración del CSC podría requerir un enfoque diferente
-                // según la versión de jsifenlib. Por ahora, la configuración básica
-                // del certificado debería ser suficiente para operaciones básicas.
-                // El CSC se puede configurar por separado cuando sea necesario.
+                // NOTA: El CSC ahora se maneja a nivel de timbrado específico.
+                // La configuración básica del certificado es suficiente para operaciones básicas.
+                // El CSC se configura por separado cuando se procesa un timbrado electrónico específico.
 
-                log.debug("CSC configurado para empresa: {} (ID: {})", empresa.getRuc(), empresa.getCscId());
+                log.debug("Certificado configurado para empresa: {}", empresa.getRuc());
 
                 // Configurar SIFEN globalmente (thread-safe)
                 Sifen.setSifenConfig(config);

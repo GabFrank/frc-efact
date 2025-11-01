@@ -271,11 +271,17 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
       color: #666;
     }
 
-    .no-data-message mat-icon {
+    .no-data-message > mat-icon:first-child {
       font-size: 64px;
       width: 64px;
       height: 64px;
       color: #ccc;
+    }
+
+    .no-data-message button mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
 
     .no-data-message p {

@@ -1,13 +1,20 @@
 export interface Timbrado {
   id: number;
   empresaId: number;
-  razonSocial: string;
-  ruc: string;
   numero: string;
   isElectronico: boolean;
+  csc?: string;
   fechaInicio: string;
   fechaFin: string;
   activo: boolean;
+
+  // Campos calculados/derivados (solo lectura)
+  vigente?: boolean;
+  diasRestantes?: number;
+
+  // Información de empresa para mostrar (solo lectura)
+  razonSocial?: string;
+  ruc?: string;
 }
 
 export interface TimbradoDetalle {
@@ -19,12 +26,13 @@ export interface TimbradoDetalle {
   rangoDesde: number;
   rangoHasta: number;
   numeroActual: number;
-  departamento?: string;
-  ciudad?: string;
-  codigoCiudad?: string;
-  localidad?: string;
-  barrio?: string;
+  ciudadId: number;
+  barrioId?: number;
   direccion?: string;
   telefono?: string;
   activo: boolean;
+
+  // Campos calculados (solo lectura)
+  numerosDisponibles?: number;
+  porcentajeUtilizado?: number;
 }

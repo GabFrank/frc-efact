@@ -4,25 +4,20 @@ import com.frcefact.dto.TimbradoDetalleDto;
 import com.frcefact.dto.mapper.TimbradoDetalleMapper;
 import com.frcefact.model.TimbradoDetalle;
 import com.frcefact.service.TimbradoDetalleService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
- * Controlador REST para gestión de timbrados detalle (puntos de expedición).
+ * Controller REST para gestión de detalles de timbrados (puntos de expedición).
  */
 @RestController
-@RequestMapping("/timbrados-detalle")
-@Tag(name = "Timbrados Detalle", description = "API para gestión de puntos de expedición de timbrados")
+@RequestMapping("/api")
+@CrossOrigin(origins = "*")
 public class TimbradoDetalleController {
 
     private final TimbradoDetalleService timbradoDetalleService;
@@ -36,123 +31,104 @@ public class TimbradoDetalleController {
     }
 
     /**
-     * Crea un nuevo timbrado detalle.
+     * Crea un nuevo detalle de timbrado.
      */
-    @PostMapping
+    @PostMapping("/timbrados/{timbradoId}/detalles")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
-    @Operation(summary = "Crear punto de expedición", 
-               description = "Crea un nuevo punto de expedición para un timbrado")
-    public ResponseEntity<TimbradoDetalleDto> crear(@Valid @RequestBody TimbradoDetalleDto detalleDto) {
-        TimbradoDetalle detalle = timbradoDetalleMapper.toEntity(detalleDto);
-        TimbradoDetalle detalleCreado = timbradoDetalleService.crear(detalle);
-        TimbradoDetalleDto responseDto = timbradoDetalleMapper.toDto(detalleCreado);
-        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
-    }
-
-    /**
-     * Actualiza un timbrado detalle existente.
-     */
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
-    @Operation(summary = "Actualizar punto de expedición", 
-               description = "Actualiza un punto de expedición existente")
-    public ResponseEntity<TimbradoDetalleDto> actualizar(
-            @PathVariable Long id,
-            @Valid @RequestBody TimbradoDetalleDto detalleDto) {
-        TimbradoDetalle detalle = timbradoDetalleMapper.toEntity(detalleDto);
-        TimbradoDetalle detalleActualizado = timbradoDetalleService.actualizar(id, detalle);
-        TimbradoDetalleDto responseDto = timbradoDetalleMapper.toDto(detalleActualizado);
-        return ResponseEntity.ok(responseDto);
-    }
-
-    /**
-     * Obtiene un timbrado detalle por ID.
-     */
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
-    @Operation(summary = "Obtener punto de expedición", 
-               description = "Obtiene un punto de expedición por su ID")
-    public ResponseEntity<TimbradoDetalleDto> obtenerPorId(@PathVariable Long id) {
-        TimbradoDetalle detalle = timbradoDetalleService.obtenerPorId(id);
-        TimbradoDetalleDto responseDto = timbradoDetalleMapper.toDto(detalle);
-        return ResponseEntity.ok(responseDto);
+    public ResponseEntity<TimbradoDetalleDto> crearDetalle(
+            @PathVariable Long timbradoId,
+            @Valid @RequestBody TimbradoDetalleDto dto) {
+        
+        dto.setTimbradoId(timbradoId);
+        TimbradoDetalle detalle = timbradoDetalleService.crear(dto);
+        TimbradoDetalleDto detalleDto = timbradoDetalleMapper.toDto(detalle);
+        
+        return ResponseEntity.status(HttpStatus.CREATED).body(detalleDto);
     }
 
     /**
      * Lista todos los detalles de un timbrado.
      */
-    @GetMapping("/timbrado/{timbradoId}")
+    @GetMapping("/timbrados/{timbradoId}/detalles")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
-    @Operation(summary = "Listar puntos de expedición", 
-               description = "Lista todos los puntos de expedición de un timbrado")
-    public ResponseEntity<List<TimbradoDetalleDto>> listarPorTimbrado(@PathVariable Long timbradoId) {
-        List<TimbradoDetalle> detalles = timbradoDetalleService.listarPorTimbrado(timbradoId);
-        List<TimbradoDetalleDto> responseDtos = detalles.stream()
-                .map(timbradoDetalleMapper::toDto)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responseDtos);
-    }
-
-    /**
-     * Verifica si un timbrado detalle tiene números disponibles.
-     */
-    @GetMapping("/{id}/disponible")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
-    @Operation(summary = "Verificar disponibilidad", 
-               description = "Verifica si un punto de expedición tiene números disponibles")
-    public ResponseEntity<Map<String, Object>> verificarDisponibilidad(@PathVariable Long id) {
-        boolean disponible = timbradoDetalleService.verificarDisponibilidad(id);
-        long numerosDisponibles = timbradoDetalleService.obtenerNumerosDisponibles(id);
-        double porcentajeUtilizado = timbradoDetalleService.obtenerPorcentajeUtilizado(id);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("disponible", disponible);
-        response.put("numerosDisponibles", numerosDisponibles);
-        response.put("porcentajeUtilizado", porcentajeUtilizado);
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Obtiene detalles con números disponibles de un timbrado.
-     */
-    @GetMapping("/timbrado/{timbradoId}/con-numeros-disponibles")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
-    @Operation(summary = "Listar puntos con números disponibles", 
-               description = "Lista puntos de expedición que tienen números disponibles")
-    public ResponseEntity<List<TimbradoDetalleDto>> obtenerDetallesConNumerosDisponibles(
+    public ResponseEntity<List<TimbradoDetalleDto>> listarDetallesPorTimbrado(
             @PathVariable Long timbradoId) {
-        List<TimbradoDetalle> detalles = timbradoDetalleService.obtenerDetallesConNumerosDisponibles(timbradoId);
-        List<TimbradoDetalleDto> responseDtos = detalles.stream()
+        
+        List<TimbradoDetalle> detalles = timbradoDetalleService.listarPorTimbrado(timbradoId);
+        List<TimbradoDetalleDto> detallesDto = detalles.stream()
                 .map(timbradoDetalleMapper::toDto)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responseDtos);
+                .toList();
+        
+        return ResponseEntity.ok(detallesDto);
     }
 
     /**
-     * Obtiene detalles que están por agotar su rango.
+     * Lista detalles activos de un timbrado.
      */
-    @GetMapping("/empresa/{empresaId}/por-agotarse")
+    @GetMapping("/timbrados/{timbradoId}/detalles/activos")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
-    @Operation(summary = "Listar puntos por agotarse", 
-               description = "Lista puntos de expedición que están por agotar su rango de numeración")
-    public ResponseEntity<List<TimbradoDetalleDto>> obtenerDetallesPorAgotarse(@PathVariable Long empresaId) {
-        List<TimbradoDetalle> detalles = timbradoDetalleService.obtenerDetallesPorAgotarse(empresaId);
-        List<TimbradoDetalleDto> responseDtos = detalles.stream()
+    public ResponseEntity<List<TimbradoDetalleDto>> listarDetallesActivosPorTimbrado(
+            @PathVariable Long timbradoId) {
+        
+        List<TimbradoDetalle> detalles = timbradoDetalleService.listarActivosPorTimbrado(timbradoId);
+        List<TimbradoDetalleDto> detallesDto = detalles.stream()
                 .map(timbradoDetalleMapper::toDto)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responseDtos);
+                .toList();
+        
+        return ResponseEntity.ok(detallesDto);
     }
 
     /**
-     * Desactiva un timbrado detalle.
+     * Obtiene un detalle específico por ID.
      */
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
-    @Operation(summary = "Desactivar punto de expedición", 
-               description = "Desactiva un punto de expedición (soft delete)")
-    public ResponseEntity<Void> desactivar(@PathVariable Long id) {
+    @GetMapping("/timbrado-detalles/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    public ResponseEntity<TimbradoDetalleDto> obtenerDetalle(@PathVariable Long id) {
+        TimbradoDetalle detalle = timbradoDetalleService.obtenerPorId(id);
+        TimbradoDetalleDto detalleDto = timbradoDetalleMapper.toDto(detalle);
+        
+        return ResponseEntity.ok(detalleDto);
+    }
+
+    /**
+     * Actualiza un detalle de timbrado.
+     */
+    @PutMapping("/timbrado-detalles/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    public ResponseEntity<TimbradoDetalleDto> actualizarDetalle(
+            @PathVariable Long id,
+            @Valid @RequestBody TimbradoDetalleDto dto) {
+        
+        TimbradoDetalle detalle = timbradoDetalleService.actualizar(id, dto);
+        TimbradoDetalleDto detalleDto = timbradoDetalleMapper.toDto(detalle);
+        
+        return ResponseEntity.ok(detalleDto);
+    }
+
+    /**
+     * Desactiva un detalle de timbrado.
+     */
+    @DeleteMapping("/timbrado-detalles/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    public ResponseEntity<Void> desactivarDetalle(@PathVariable Long id) {
         timbradoDetalleService.desactivar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Obtiene detalles que están por agotarse.
+     */
+    @GetMapping("/timbrados/{timbradoId}/detalles/por-agotarse")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    public ResponseEntity<List<TimbradoDetalleDto>> obtenerDetallesPorAgotarse(
+            @PathVariable Long timbradoId,
+            @RequestParam(defaultValue = "80.0") double umbralPorcentaje) {
+        
+        List<TimbradoDetalle> detalles = timbradoDetalleService.obtenerDetallesPorAgotarse(timbradoId, umbralPorcentaje);
+        List<TimbradoDetalleDto> detallesDto = detalles.stream()
+                .map(timbradoDetalleMapper::toDto)
+                .toList();
+        
+        return ResponseEntity.ok(detallesDto);
     }
 }

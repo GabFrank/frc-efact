@@ -57,25 +57,14 @@ public class TimbradoDetalle extends AuditableEntity {
     private Long numeroActual = 0L;
 
     // Ubicación del punto de expedición
-    @Size(max = 100)
-    @Column(length = 100)
-    private String departamento;
+    @NotNull(message = "Ciudad es requerida")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "ciudad_id", nullable = false)
+    private Ciudad ciudad;
 
-    @Size(max = 100)
-    @Column(length = 100)
-    private String ciudad;
-
-    @Size(max = 10)
-    @Column(name = "codigo_ciudad", length = 10)
-    private String codigoCiudad;
-
-    @Size(max = 100)
-    @Column(length = 100)
-    private String localidad;
-
-    @Size(max = 100)
-    @Column(length = 100)
-    private String barrio;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "barrio_id")
+    private Barrio barrio;
 
     @Column(columnDefinition = "TEXT")
     private String direccion;
@@ -203,43 +192,19 @@ public class TimbradoDetalle extends AuditableEntity {
         this.numeroActual = numeroActual;
     }
 
-    public String getDepartamento() {
-        return departamento;
-    }
-
-    public void setDepartamento(String departamento) {
-        this.departamento = departamento;
-    }
-
-    public String getCiudad() {
+    public Ciudad getCiudad() {
         return ciudad;
     }
 
-    public void setCiudad(String ciudad) {
+    public void setCiudad(Ciudad ciudad) {
         this.ciudad = ciudad;
     }
 
-    public String getCodigoCiudad() {
-        return codigoCiudad;
-    }
-
-    public void setCodigoCiudad(String codigoCiudad) {
-        this.codigoCiudad = codigoCiudad;
-    }
-
-    public String getLocalidad() {
-        return localidad;
-    }
-
-    public void setLocalidad(String localidad) {
-        this.localidad = localidad;
-    }
-
-    public String getBarrio() {
+    public Barrio getBarrio() {
         return barrio;
     }
 
-    public void setBarrio(String barrio) {
+    public void setBarrio(Barrio barrio) {
         this.barrio = barrio;
     }
 
