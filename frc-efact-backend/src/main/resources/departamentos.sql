@@ -1,0 +1,18 @@
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (1,'4','CORDILLERA',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (2,'9','MISIONES',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (3,'6','CAAGUAZU',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (4,'5','GUAIRA',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (5,'2','CONCEPCION',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (6,'10','PARAGUARI',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (7,'16','BOQUERON',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (8,'12','CENTRAL',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (9,'13','NEEMBUCU',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (10,'1','CAPITAL',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (11,'18','CANINDEYU',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (12,'3','SAN PEDRO',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (13,'15','PTE. HAYES',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (14,'17','ALTO PARAGUAY',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (15,'7','CAAZAPA',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (16,'11','ALTO PARANA',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (17,'8','ITAPUA',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
+INSERT INTO geografia.departamento (id,codigo,nombre,pais_id,activo,created_at,updated_at) VALUES (18,'14','AMAMBAY',1,true,'2025-10-14 23:06:07.762','2025-10-14 23:06:07.762') on conflict do nothing;
