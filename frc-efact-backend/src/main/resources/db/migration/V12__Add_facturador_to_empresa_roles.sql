@@ -21,3 +21,4 @@ COMMENT ON COLUMN empresa.usuario_empresa.rol_empresa IS 'Rol del usuario en la 
 
 
 
+
