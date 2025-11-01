@@ -72,22 +72,29 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     /**
-     * Obtener authorities/roles del usuario.
-     * Por ahora retorna un rol básico USER, pero puede extenderse para soportar roles.
+     * Obtener authorities/roles del usuario desde la base de datos.
+     * Carga los roles asignados al usuario en la tabla persona.usuario_rol.
      *
      * @param usuario la entidad Usuario
      * @return colección de authorities
      */
     private Collection<? extends GrantedAuthority> getAuthorities(Usuario usuario) {
         List<GrantedAuthority> authorities = new ArrayList<>();
-        // Por defecto todos los usuarios tienen rol USER
-        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
         
-        // Aquí se pueden agregar más roles basados en la lógica de negocio
-        // Por ejemplo, si el usuario es admin:
-        // if (usuario.isAdmin()) {
-        //     authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
-        // }
+        // Cargar roles desde la relación usuario-rol
+        if (usuario.getUsuarioRoles() != null && !usuario.getUsuarioRoles().isEmpty()) {
+            usuario.getUsuarioRoles().forEach(usuarioRol -> {
+                if (usuarioRol.getRol() != null) {
+                    // Agregar el rol con prefijo ROLE_ para Spring Security
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + usuarioRol.getRol().getNombre()));
+                }
+            });
+        }
+        
+        // Si no tiene roles asignados, dar rol USER por defecto
+        if (authorities.isEmpty()) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        }
         
         return authorities;
     }

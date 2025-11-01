@@ -1,7 +1,18 @@
 package com.frcefact.service;
 
+import com.frcefact.dto.CreateUserRequest;
+import com.frcefact.dto.UpdateUserRequest;
+import com.frcefact.dto.UserSearchRequest;
+import com.frcefact.model.Rol;
 import com.frcefact.model.Usuario;
+import com.frcefact.model.UsuarioRol;
+import com.frcefact.repository.RolRepository;
 import com.frcefact.repository.UsuarioRepository;
+import com.frcefact.repository.UsuarioRolRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Servicio para la gestión de usuarios.
@@ -19,10 +32,17 @@ import java.util.Optional;
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final RolRepository rolRepository;
+    private final UsuarioRolRepository usuarioRolRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
+    public UsuarioService(UsuarioRepository usuarioRepository, 
+                         RolRepository rolRepository,
+                         UsuarioRolRepository usuarioRolRepository,
+                         PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
+        this.rolRepository = rolRepository;
+        this.usuarioRolRepository = usuarioRolRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -91,6 +111,16 @@ public class UsuarioService {
     @Transactional(readOnly = true)
     public Optional<Usuario> buscarPorUsernameOEmail(String usernameOrEmail) {
         return usuarioRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail);
+    }
+
+    /**
+     * Listar usuarios disponibles para asignación a empresas (excluye ADMIN).
+     *
+     * @return Lista de usuarios que pueden ser asignados a empresas
+     */
+    @Transactional(readOnly = true)
+    public List<Usuario> listarUsuariosAsignables() {
+        return usuarioRepository.findUsuariosAsignables();
     }
 
     /**
@@ -243,5 +273,297 @@ public class UsuarioService {
      */
     public void eliminarUsuario(Long usuarioId) {
         desactivarUsuario(usuarioId);
+    }
+
+    // ========== MÉTODOS PARA ADMINISTRACIÓN DE USUARIOS ==========
+
+    /**
+     * Crear usuario desde request de administrador.
+     *
+     * @param request datos del usuario a crear
+     * @return el usuario creado
+     */
+    public Usuario crearUsuarioAdmin(CreateUserRequest request) {
+        if (usuarioRepository.existsByUsername(request.getUsername())) {
+            throw new IllegalArgumentException("Username ya existe: " + request.getUsername());
+        }
+        if (usuarioRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email ya existe: " + request.getEmail());
+        }
+
+        Usuario usuario = new Usuario();
+        usuario.setUsername(request.getUsername());
+        usuario.setEmail(request.getEmail());
+        usuario.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        usuario.setIsActive(request.getIsActive());
+        usuario.setIntentosFallidosLogin(0);
+
+        Usuario usuarioCreado = usuarioRepository.save(usuario);
+
+        // Asignar roles
+        asignarRoles(usuarioCreado, request.getRoles());
+
+        return usuarioCreado;
+    }
+
+    /**
+     * Actualizar usuario desde request de administrador.
+     *
+     * @param usuarioId el ID del usuario
+     * @param request datos de actualización
+     * @return el usuario actualizado
+     */
+    public Usuario actualizarUsuarioAdmin(Long usuarioId, UpdateUserRequest request) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + usuarioId));
+
+        // Validar unicidad si se cambia username o email
+        if (request.getUsername() != null && !request.getUsername().equals(usuario.getUsername())) {
+            if (usuarioRepository.existsByUsername(request.getUsername())) {
+                throw new IllegalArgumentException("Username ya existe: " + request.getUsername());
+            }
+            usuario.setUsername(request.getUsername());
+        }
+
+        if (request.getEmail() != null && !request.getEmail().equals(usuario.getEmail())) {
+            if (usuarioRepository.existsByEmail(request.getEmail())) {
+                throw new IllegalArgumentException("Email ya existe: " + request.getEmail());
+            }
+            usuario.setEmail(request.getEmail());
+        }
+
+        if (request.getIsActive() != null) {
+            usuario.setIsActive(request.getIsActive());
+        }
+
+        Usuario usuarioActualizado = usuarioRepository.save(usuario);
+
+        // Actualizar roles si se proporcionan
+        if (request.getRoles() != null) {
+            // Remover roles existentes
+            usuarioRolRepository.deleteByUsuarioId(usuarioId);
+            // Asignar nuevos roles
+            asignarRoles(usuarioActualizado, request.getRoles());
+        }
+
+        return usuarioActualizado;
+    }
+
+    /**
+     * Buscar usuarios con filtros y paginación.
+     *
+     * @param searchRequest criterios de búsqueda
+     * @return página de usuarios
+     */
+    @Transactional(readOnly = true)
+    public Page<Usuario> buscarUsuarios(UserSearchRequest searchRequest) {
+        Sort sort = Sort.by(
+            "DESC".equalsIgnoreCase(searchRequest.getSortDirection()) 
+                ? Sort.Direction.DESC 
+                : Sort.Direction.ASC,
+            searchRequest.getSortBy()
+        );
+        
+        Pageable pageable = PageRequest.of(searchRequest.getPage(), searchRequest.getSize(), sort);
+
+        if (searchRequest.getSearchTerm() != null && !searchRequest.getSearchTerm().trim().isEmpty()) {
+            return usuarioRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                searchRequest.getSearchTerm().trim(),
+                searchRequest.getSearchTerm().trim(),
+                pageable
+            );
+        }
+
+        if (searchRequest.getIsActive() != null) {
+            return usuarioRepository.findByIsActive(searchRequest.getIsActive(), pageable);
+        }
+
+        return usuarioRepository.findAll(pageable);
+    }
+
+    /**
+     * Buscar usuarios por término de búsqueda.
+     *
+     * @param searchTerm término a buscar en username o email
+     * @return lista de usuarios que coinciden
+     */
+    @Transactional(readOnly = true)
+    public List<Usuario> buscarUsuariosPorTermino(String searchTerm) {
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            return usuarioRepository.findAll();
+        }
+        return usuarioRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+            searchTerm.trim(), searchTerm.trim()
+        );
+    }
+
+    /**
+     * Resetear contraseña de usuario.
+     *
+     * @param usuarioId el ID del usuario
+     * @param newPassword la nueva contraseña
+     * @param forcePasswordChange si debe forzar cambio en próximo login
+     */
+    public void resetearPassword(Long usuarioId, String newPassword, Boolean forcePasswordChange) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + usuarioId));
+        
+        usuario.setPasswordHash(passwordEncoder.encode(newPassword));
+        
+        // Si se requiere forzar cambio de contraseña, se podría implementar un campo adicional
+        // Por ahora, resetear intentos fallidos
+        usuario.resetFailedLoginAttempts();
+        
+        usuarioRepository.save(usuario);
+    }
+
+    /**
+     * Desbloquear cuenta de usuario.
+     *
+     * @param usuarioId el ID del usuario
+     */
+    public void desbloquearUsuario(Long usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + usuarioId));
+        
+        usuario.resetFailedLoginAttempts();
+        usuarioRepository.save(usuario);
+    }
+
+    /**
+     * Obtener roles de un usuario.
+     *
+     * @param usuarioId el ID del usuario
+     * @return conjunto de nombres de roles
+     */
+    @Transactional(readOnly = true)
+    public Set<String> obtenerRolesUsuario(Long usuarioId) {
+        return usuarioRolRepository.findByUsuarioId(usuarioId)
+                .stream()
+                .map(usuarioRol -> usuarioRol.getRol().getNombre())
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Asignar roles a un usuario.
+     *
+     * @param usuario el usuario
+     * @param nombreRoles nombres de los roles a asignar
+     */
+    private void asignarRoles(Usuario usuario, Set<String> nombreRoles) {
+        for (String nombreRol : nombreRoles) {
+            Rol rol = rolRepository.findByNombre(nombreRol)
+                    .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + nombreRol));
+            
+            UsuarioRol usuarioRol = new UsuarioRol();
+            usuarioRol.setUsuario(usuario);
+            usuarioRol.setRol(rol);
+            usuarioRolRepository.save(usuarioRol);
+        }
+    }
+
+    /**
+     * Verificar si un usuario tiene un rol específico.
+     *
+     * @param usuarioId el ID del usuario
+     * @param nombreRol el nombre del rol
+     * @return true si el usuario tiene el rol
+     */
+    @Transactional(readOnly = true)
+    public boolean usuarioTieneRol(Long usuarioId, String nombreRol) {
+        return usuarioRolRepository.existsByUsuarioIdAndRolNombre(usuarioId, nombreRol);
+    }
+
+    /**
+     * Obtener estadísticas de usuarios.
+     *
+     * @return mapa con estadísticas básicas
+     */
+    @Transactional(readOnly = true)
+    public UserStatsDto obtenerEstadisticasUsuarios() {
+        long totalUsuarios = usuarioRepository.count();
+        long usuariosActivos = usuarioRepository.countByIsActiveTrue();
+        long usuariosInactivos = totalUsuarios - usuariosActivos;
+        long usuariosBloqueados = usuarioRepository.countLockedUsers(LocalDateTime.now());
+
+        return new UserStatsDto(totalUsuarios, usuariosActivos, usuariosInactivos, usuariosBloqueados);
+    }
+
+    /**
+     * Verificar si un username está disponible.
+     *
+     * @param username el username a verificar
+     * @param excludeUserId ID del usuario a excluir de la verificación (opcional)
+     * @return true si el username está disponible
+     */
+    @Transactional(readOnly = true)
+    public boolean isUsernameAvailable(String username, Long excludeUserId) {
+        if (excludeUserId != null) {
+            // Verificar si existe otro usuario con el mismo username (excluyendo el usuario especificado)
+            return !usuarioRepository.existsByUsernameAndIdNot(username, excludeUserId);
+        } else {
+            // Verificar si el username no existe
+            return !usuarioRepository.existsByUsername(username);
+        }
+    }
+
+    /**
+     * Verificar si un email está disponible.
+     *
+     * @param email el email a verificar
+     * @param excludeUserId ID del usuario a excluir de la verificación (opcional)
+     * @return true si el email está disponible
+     */
+    @Transactional(readOnly = true)
+    public boolean isEmailAvailable(String email, Long excludeUserId) {
+        if (excludeUserId != null) {
+            // Verificar si existe otro usuario con el mismo email (excluyendo el usuario especificado)
+            return !usuarioRepository.existsByEmailAndIdNot(email, excludeUserId);
+        } else {
+            // Verificar si el email no existe
+            return !usuarioRepository.existsByEmail(email);
+        }
+    }
+
+    /**
+     * Obtener todos los roles disponibles.
+     *
+     * @return lista de DTOs de roles
+     */
+    @Transactional(readOnly = true)
+    public List<com.frcefact.dto.RolDto> obtenerTodosLosRoles() {
+        List<Rol> roles = rolRepository.findAll();
+        return roles.stream()
+                .map(rol -> {
+                    com.frcefact.dto.RolDto dto = new com.frcefact.dto.RolDto();
+                    dto.setId(rol.getId());
+                    dto.setNombre(rol.getNombre());
+                    dto.setDescripcion(rol.getDescripcion());
+                    dto.setCreadoEn(rol.getCreadoEn());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * DTO para estadísticas de usuarios.
+     */
+    public static class UserStatsDto {
+        private final long totalUsuarios;
+        private final long usuariosActivos;
+        private final long usuariosInactivos;
+        private final long usuariosBloqueados;
+
+        public UserStatsDto(long totalUsuarios, long usuariosActivos, long usuariosInactivos, long usuariosBloqueados) {
+            this.totalUsuarios = totalUsuarios;
+            this.usuariosActivos = usuariosActivos;
+            this.usuariosInactivos = usuariosInactivos;
+            this.usuariosBloqueados = usuariosBloqueados;
+        }
+
+        public long getTotalUsuarios() { return totalUsuarios; }
+        public long getUsuariosActivos() { return usuariosActivos; }
+        public long getUsuariosInactivos() { return usuariosInactivos; }
+        public long getUsuariosBloqueados() { return usuariosBloqueados; }
     }
 }

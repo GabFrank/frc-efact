@@ -2,7 +2,6 @@ package com.frcefact.service;
 
 import com.frcefact.dto.AuthResponse;
 import com.frcefact.dto.LoginRequest;
-import com.frcefact.dto.UsuarioDto;
 import com.frcefact.model.Usuario;
 import com.frcefact.repository.UsuarioRepository;
 import com.frcefact.security.JwtTokenProvider;
@@ -11,7 +10,6 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,15 +25,18 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final UsuarioRepository usuarioRepository;
     private final UsuarioService usuarioService;
+    private final com.frcefact.dto.mapper.UsuarioMapper usuarioMapper;
 
     public AuthService(AuthenticationManager authenticationManager,
                       JwtTokenProvider tokenProvider,
                       UsuarioRepository usuarioRepository,
-                      UsuarioService usuarioService) {
+                      UsuarioService usuarioService,
+                      com.frcefact.dto.mapper.UsuarioMapper usuarioMapper) {
         this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
         this.usuarioRepository = usuarioRepository;
         this.usuarioService = usuarioService;
+        this.usuarioMapper = usuarioMapper;
     }
 
     /**
@@ -79,7 +80,7 @@ public class AuthService {
             // Recargar usuario con datos actualizados
             usuario = usuarioRepository.findByUsername(usuario.getUsername()).orElseThrow();
 
-            return new AuthResponse(token, refreshToken, UsuarioDto.fromEntity(usuario));
+            return new AuthResponse(token, refreshToken, usuarioMapper.toDto(usuario));
 
         } catch (AuthenticationException ex) {
             // Registrar intento fallido
@@ -117,7 +118,7 @@ public class AuthService {
         String newToken = tokenProvider.generateToken(usuario.getUsername(), usuario.getId());
         String newRefreshToken = tokenProvider.generateRefreshToken(usuario.getUsername(), usuario.getId());
 
-        return new AuthResponse(newToken, newRefreshToken, UsuarioDto.fromEntity(usuario));
+        return new AuthResponse(newToken, newRefreshToken, usuarioMapper.toDto(usuario));
     }
 
     /**

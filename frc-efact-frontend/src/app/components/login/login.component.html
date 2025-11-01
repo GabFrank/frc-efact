@@ -9,9 +9,9 @@
       <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Usuario</mat-label>
-          <input 
-            matInput 
-            formControlName="username" 
+          <input
+            matInput
+            formControlName="username"
             placeholder="Ingrese su usuario"
             autocomplete="username"
             [attr.data-cy]="'username'">
@@ -21,17 +21,17 @@
 
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Contraseña</mat-label>
-          <input 
-            matInput 
+          <input
+            matInput
             [type]="hidePassword ? 'password' : 'text'"
-            formControlName="password" 
+            formControlName="password"
             placeholder="Ingrese su contraseña"
             autocomplete="current-password"
             [attr.data-cy]="'password'">
           <mat-icon matPrefix>lock</mat-icon>
-          <button 
-            mat-icon-button 
-            matSuffix 
+          <button
+            mat-icon-button
+            matSuffix
             type="button"
             (click)="hidePassword = !hidePassword"
             [attr.aria-label]="'Mostrar contraseña'"
@@ -41,20 +41,20 @@
           <mat-error>{{ getFieldError('password') }}</mat-error>
         </mat-form-field>
 
-        <div class="error-message" *ngIf="errorMessage">
+        <div class="error-message" *ngIf="errorMessage$ | async as errorMessage">
           <mat-icon>error</mat-icon>
           <span>{{ errorMessage }}</span>
         </div>
 
-        <button 
-          mat-raised-button 
-          color="primary" 
-          type="submit" 
+        <button
+          mat-raised-button
+          color="primary"
+          type="submit"
           class="full-width login-button"
-          [disabled]="isLoading"
+          [disabled]="isLoading$ | async"
           [attr.data-cy]="'login-button'">
-          <span *ngIf="!isLoading">Iniciar Sesión</span>
-          <mat-spinner *ngIf="isLoading" diameter="20"></mat-spinner>
+          <span *ngIf="!(isLoading$ | async)">Iniciar Sesión</span>
+          <mat-spinner *ngIf="isLoading$ | async" diameter="20"></mat-spinner>
         </button>
       </form>
     </mat-card-content>

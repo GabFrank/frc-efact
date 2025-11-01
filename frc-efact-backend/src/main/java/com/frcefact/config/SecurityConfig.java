@@ -82,8 +82,37 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/actuator/info").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        
+                        // Endpoints de administración del sistema - solo ADMIN
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/usuarios/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/roles/**").hasRole("ADMIN")
+                        
+                        // Endpoints de gestión de empresas - requieren autenticación
+                        // La autorización específica se maneja con @PreAuthorize en los servicios
+                        .requestMatchers("/empresas/**").authenticated()
+                        
+                        // Endpoints de facturación - requieren autenticación
+                        // La autorización específica se maneja con @PreAuthorize en los servicios
+                        .requestMatchers("/facturas/**").authenticated()
+                        .requestMatchers("/timbrados/**").authenticated()
+                        .requestMatchers("/productos/**").authenticated()
+                        .requestMatchers("/clientes/**").authenticated()
+                        
+                        // Endpoints de documentos electrónicos - requieren autenticación
+                        .requestMatchers("/documentos-electronicos/**").authenticated()
+                        .requestMatchers("/lotes/**").authenticated()
+                        
+                        // Endpoints de reportes y dashboards - requieren autenticación
+                        .requestMatchers("/reportes/**").authenticated()
+                        .requestMatchers("/dashboard/**").authenticated()
+                        
+                        // Endpoints de auditoría - requieren autenticación
+                        .requestMatchers("/auditoria/**").authenticated()
+                        
                         // Endpoints de usuarios requieren autenticación
                         .requestMatchers("/usuarios/**").authenticated()
+                        
                         // Todos los demás endpoints requieren autenticación
                         .anyRequest().authenticated()
                 )
