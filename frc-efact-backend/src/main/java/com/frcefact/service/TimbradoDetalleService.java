@@ -77,10 +77,21 @@ public class TimbradoDetalleService {
         TimbradoDetalle detalle = timbradoDetalleMapper.toEntity(dto);
         detalle.setTimbrado(timbrado);
 
-        // Calcular cantidad y establecer número actual solo si hay rangos
-        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
-            detalle.setCantidad(dto.getRangoHasta() - dto.getRangoDesde() + 1);
+        // Para timbrados electrónicos, establecer valores NULL si los rangos no están presentes
+        if (timbrado.getIsElectronico() && (dto.getRangoDesde() == null || dto.getRangoHasta() == null)) {
+            // Para timbrados electrónicos, usar NULL en lugar de 0
+            detalle.setCantidad(null);
+            detalle.setRangoDesde(null);
+            detalle.setRangoHasta(null);
+            detalle.setNumeroActual(null);
+        } else if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            // Calcular cantidad y establecer número actual para timbrados no electrónicos
+            long cantidad = dto.getRangoHasta() - dto.getRangoDesde() + 1;
+            detalle.setCantidad(cantidad);
             detalle.setNumeroActual(dto.getRangoDesde());
+        } else {
+            // Si no hay rangos y no es electrónico, esto es un error
+            throw new IllegalArgumentException("Los rangos son requeridos para timbrados no electrónicos");
         }
 
         return timbradoDetalleRepository.save(detalle);
@@ -116,14 +127,34 @@ public class TimbradoDetalleService {
             }
         }
 
+        // Obtener el timbrado para verificar si es electrónico
+        Timbrado timbrado = detalleExistente.getTimbrado();
+        
         // Actualizar campos
         detalleExistente.setPuntoExpedicion(dto.getPuntoExpedicion());
         detalleExistente.setCodigoEstablecimientoFactura(dto.getCodigoEstablecimientoFactura());
         
-        // Actualizar rangos solo si se proporcionan
-        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+        // Actualizar rangos según el tipo de timbrado
+        if (timbrado.getIsElectronico() && (dto.getRangoDesde() == null || dto.getRangoHasta() == null)) {
+            // Para timbrados electrónicos sin rangos, establecer NULL
+            if (detalleExistente.getRangoDesde() == null || (detalleExistente.getRangoDesde() != null && detalleExistente.getRangoDesde() == 0)) {
+                detalleExistente.setCantidad(null);
+                detalleExistente.setRangoDesde(null);
+                detalleExistente.setRangoHasta(null);
+                detalleExistente.setNumeroActual(null);
+            }
+        } else if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            // Actualizar rangos para timbrados no electrónicos o electrónicos con rangos
             detalleExistente.setRangoDesde(dto.getRangoDesde());
             detalleExistente.setRangoHasta(dto.getRangoHasta());
+            detalleExistente.setCantidad(dto.getRangoHasta() - dto.getRangoDesde() + 1);
+
+            // Ajustar número actual si está fuera del nuevo rango
+            if (detalleExistente.getNumeroActual() < dto.getRangoDesde()) {
+                detalleExistente.setNumeroActual(dto.getRangoDesde());
+            } else if (detalleExistente.getNumeroActual() > dto.getRangoHasta()) {
+                detalleExistente.setNumeroActual(dto.getRangoHasta());
+            }
         }
         
         // Actualizar relaciones geográficas usando mapper
@@ -141,18 +172,6 @@ public class TimbradoDetalleService {
         detalleExistente.setDireccion(dto.getDireccion());
         detalleExistente.setTelefono(dto.getTelefono());
         detalleExistente.setActivo(dto.getActivo());
-
-        // Recalcular cantidad y ajustar número actual solo si hay rangos
-        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
-            detalleExistente.setCantidad(dto.getRangoHasta() - dto.getRangoDesde() + 1);
-
-            // Ajustar número actual si está fuera del nuevo rango
-            if (detalleExistente.getNumeroActual() < dto.getRangoDesde()) {
-                detalleExistente.setNumeroActual(dto.getRangoDesde());
-            } else if (detalleExistente.getNumeroActual() > dto.getRangoHasta()) {
-                detalleExistente.setNumeroActual(dto.getRangoHasta());
-            }
-        }
 
         return timbradoDetalleRepository.save(detalleExistente);
     }

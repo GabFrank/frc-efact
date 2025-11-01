@@ -23,7 +23,12 @@ public class TimbradoDetalleMapper {
 
         TimbradoDetalleDto dto = new TimbradoDetalleDto();
         dto.setId(detalle.getId());
-        dto.setTimbradoId(detalle.getTimbrado().getId());
+        
+        // Verificar que el timbrado existe antes de acceder a su ID
+        if (detalle.getTimbrado() != null) {
+            dto.setTimbradoId(detalle.getTimbrado().getId());
+        }
+        
         dto.setPuntoExpedicion(detalle.getPuntoExpedicion());
         dto.setCodigoEstablecimientoFactura(detalle.getCodigoEstablecimientoFactura());
         dto.setCantidad(detalle.getCantidad());
@@ -43,9 +48,18 @@ public class TimbradoDetalleMapper {
         dto.setTelefono(detalle.getTelefono());
         dto.setActivo(detalle.getActivo());
 
-        // Campos calculados
-        dto.setNumerosDisponibles(detalle.getNumerosDisponibles());
-        dto.setPorcentajeUtilizado(detalle.getPorcentajeUtilizado());
+        // Campos calculados - manejar posibles errores
+        try {
+            dto.setNumerosDisponibles(detalle.getNumerosDisponibles());
+        } catch (Exception e) {
+            dto.setNumerosDisponibles(0L);
+        }
+        
+        try {
+            dto.setPorcentajeUtilizado(detalle.getPorcentajeUtilizado());
+        } catch (Exception e) {
+            dto.setPorcentajeUtilizado(0.0);
+        }
 
         return dto;
     }
@@ -70,10 +84,21 @@ public class TimbradoDetalleMapper {
 
         detalle.setPuntoExpedicion(dto.getPuntoExpedicion());
         detalle.setCodigoEstablecimientoFactura(dto.getCodigoEstablecimientoFactura());
-        detalle.setCantidad(dto.getCantidad());
-        detalle.setRangoDesde(dto.getRangoDesde());
-        detalle.setRangoHasta(dto.getRangoHasta());
-        detalle.setNumeroActual(dto.getNumeroActual());
+        
+        // Solo establecer campos de rango si están presentes
+        // El servicio se encargará de establecer valores por defecto para timbrados electrónicos
+        if (dto.getCantidad() != null) {
+            detalle.setCantidad(dto.getCantidad());
+        }
+        if (dto.getRangoDesde() != null) {
+            detalle.setRangoDesde(dto.getRangoDesde());
+        }
+        if (dto.getRangoHasta() != null) {
+            detalle.setRangoHasta(dto.getRangoHasta());
+        }
+        if (dto.getNumeroActual() != null) {
+            detalle.setNumeroActual(dto.getNumeroActual());
+        }
         
         // Establecer relaciones geográficas usando IDs
         if (dto.getCiudadId() != null) {
