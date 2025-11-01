@@ -429,25 +429,15 @@ export class TimbradoDetalleDialogComponent implements OnInit {
   }
 
   onSave(): void {
-    console.log('=== onSave START ===');
-    console.log('Form valid:', this.detalleForm.valid);
-    console.log('Form errors:', this.detalleForm.errors);
-    console.log('Form value:', this.detalleForm.value);
-    console.log('Is electronico:', this.timbradoIsElectronico);
-
     // Para timbrados electrónicos, deshabilitar validadores de rangos antes de validar
     if (this.timbradoIsElectronico) {
-      console.log('Limpiando validadores de rangos para timbrado electrónico');
       this.detalleForm.get('rangoDesde')?.clearValidators();
       this.detalleForm.get('rangoDesde')?.updateValueAndValidity();
       this.detalleForm.get('rangoHasta')?.clearValidators();
       this.detalleForm.get('rangoHasta')?.updateValueAndValidity();
     }
 
-    console.log('Form valid after clearing validators:', this.detalleForm.valid);
-
     if (this.detalleForm.invalid) {
-      console.log('Form is invalid. Errors:', this.getFormErrors());
       this.detalleForm.markAllAsTouched();
       return;
     }
@@ -456,13 +446,14 @@ export class TimbradoDetalleDialogComponent implements OnInit {
     const formValue = this.detalleForm.value;
 
     const detalleData: Partial<TimbradoDetalle> = {
-      puntoExpedicion: formValue.puntoExpedicion,
-      codigoEstablecimientoFactura: formValue.codigoEstablecimientoFactura,
+      timbradoId: this.timbradoId,
+      puntoExpedicion: formValue.puntoExpedicion?.toUpperCase(),
+      codigoEstablecimientoFactura: formValue.codigoEstablecimientoFactura?.toUpperCase(),
       ciudadId: formValue.ciudadId,
-      barrioId: formValue.barrioId,
-      direccion: formValue.direccion,
-      telefono: formValue.telefono,
-      activo: formValue.activo
+      barrioId: formValue.barrioId || null,
+      direccion: formValue.direccion || null,
+      telefono: formValue.telefono || null,
+      activo: formValue.activo !== undefined ? formValue.activo : true
     };
 
     // Solo incluir campos de rango para timbrados no electrónicos
@@ -471,8 +462,6 @@ export class TimbradoDetalleDialogComponent implements OnInit {
       detalleData.rangoDesde = formValue.rangoDesde;
       detalleData.rangoHasta = formValue.rangoHasta;
     }
-
-    console.log('Sending detalleData:', detalleData);
 
     if (this.isEditMode && this.data.detalle) {
       this.store.dispatch(TimbradoDetallesActions.updateDetalle({

@@ -64,10 +64,6 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                 <mat-icon>arrow_back</mat-icon>
               </button>
               <h2>{{ getFormTitle() }}</h2>
-              <!-- Debug info -->
-              <div style="font-size: 12px; color: #666; margin-top: 8px;">
-                Debug: isViewMode={{ isViewMode }}, isEditMode={{ isEditMode }}, timbradoId={{ timbradoId }}
-              </div>
             </div>
           </mat-card-title>
         </mat-card-header>
@@ -662,28 +658,21 @@ export class TimbradoFormComponent implements OnInit {
     const urlSegments = this.route.snapshot.url;
     const url = urlSegments.map(segment => segment.path).join('/');
 
-    console.log('URL segments:', urlSegments);
-    console.log('URL:', url);
-
     if (url.includes('edit')) {
       this.isEditMode = true;
       this.isViewMode = false;
-      console.log('Modo: EDICIÓN');
     } else if (url.match(/^\d+$/)) {
       this.isEditMode = false;
       this.isViewMode = true;
-      console.log('Modo: VISTA');
     } else {
       this.isEditMode = false;
       this.isViewMode = false;
-      console.log('Modo: CREACIÓN');
     }
 
     // Extract timbrado ID from URL
     const idMatch = url.match(/(\d+)/);
     if (idMatch) {
       this.timbradoId = +idMatch[1];
-      console.log('Timbrado ID:', this.timbradoId);
       this.loadTimbrado(this.timbradoId);
       this.loadDetalles();
     }
@@ -691,7 +680,6 @@ export class TimbradoFormComponent implements OnInit {
     // Disable form in view mode
     if (this.isViewMode) {
       this.timbradoForm.disable();
-      console.log('Formulario DESHABILITADO');
     }
 
     // Check for empresaId from query params (when coming from empresa-timbrados)
@@ -876,13 +864,11 @@ export class TimbradoFormComponent implements OnInit {
       this.isViewMode = false;
       this.isEditMode = true;
       this.timbradoForm.enable();
-      console.log('Formulario HABILITADO para edición');
       this.router.navigate(['/timbrados', this.timbradoId, 'edit']);
     }
   }
 
   getFormTitle(): string {
-    console.log('getFormTitle - isViewMode:', this.isViewMode, 'isEditMode:', this.isEditMode);
     if (this.isViewMode) {
       return 'Ver Timbrado';
     } else if (this.isEditMode) {

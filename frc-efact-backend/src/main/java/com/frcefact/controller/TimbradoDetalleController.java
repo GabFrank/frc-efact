@@ -16,7 +16,7 @@ import java.util.List;
  * Controller REST para gestión de detalles de timbrados (puntos de expedición).
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping
 @CrossOrigin(origins = "*")
 public class TimbradoDetalleController {
 
@@ -39,7 +39,11 @@ public class TimbradoDetalleController {
             @PathVariable Long timbradoId,
             @Valid @RequestBody TimbradoDetalleDto dto) {
         
-        dto.setTimbradoId(timbradoId);
+        // Validar que el timbradoId del path coincide con el del body
+        if (!timbradoId.equals(dto.getTimbradoId())) {
+            throw new IllegalArgumentException("El ID de timbrado en la URL no coincide con el del cuerpo de la petición");
+        }
+        
         TimbradoDetalle detalle = timbradoDetalleService.crear(dto);
         TimbradoDetalleDto detalleDto = timbradoDetalleMapper.toDto(detalle);
         

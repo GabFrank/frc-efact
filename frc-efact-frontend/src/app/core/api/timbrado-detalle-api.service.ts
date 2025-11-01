@@ -9,7 +9,7 @@ import { TimbradoDetalle } from '../../models/timbrado.model';
 })
 export class TimbradoDetalleApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = `${environment.apiUrl}/api`;
+  private readonly baseUrl = `${environment.apiUrl}`;
 
   /**
    * Obtiene todos los detalles de un timbrado.
