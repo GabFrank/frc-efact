@@ -9,14 +9,21 @@ import com.roshka.sifen.core.SifenConfig.TipoAmbiente;
 import com.roshka.sifen.core.SifenConfig.TipoCertificadoCliente;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 /**
  * Servicio para gestión de certificados digitales por empresa.
@@ -33,13 +40,27 @@ public class CertificadoService {
 
     private final EmpresaRepository empresaRepository;
     private final EncryptionService encryptionService;
+    private final Path certificatesDir;
 
     // Lock para sincronizar acceso a Sifen.setSifenConfig() (es estático/global)
     private final Object sifenLock = new Object();
 
-    public CertificadoService(EmpresaRepository empresaRepository, EncryptionService encryptionService) {
+    public CertificadoService(
+            EmpresaRepository empresaRepository,
+            EncryptionService encryptionService,
+            @Value("${certificates.upload-dir:/var/certificates}") String uploadDir) {
         this.empresaRepository = empresaRepository;
         this.encryptionService = encryptionService;
+        this.certificatesDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+        
+        // Crear directorio si no existe
+        try {
+            Files.createDirectories(this.certificatesDir);
+            log.info("📁 Directorio de certificados: {}", this.certificatesDir);
+        } catch (IOException e) {
+            log.error("❌ Error al crear directorio de certificados: {}", this.certificatesDir, e);
+            throw new RuntimeException("No se pudo crear el directorio de certificados", e);
+        }
     }
 
     /**
@@ -90,13 +111,16 @@ public class CertificadoService {
             ambiente = TipoAmbiente.DEV;
         }
 
+        // Obtener path absoluto del certificado
+        Path certificadoPathAbsoluto = obtenerPathAbsoluto(empresa.getCertificadoPath());
+
         // Crear configuración temporal para esta empresa
         synchronized (sifenLock) {
             try {
                 SifenConfig config = new SifenConfig(
                         ambiente,
                         TipoCertificadoCliente.PFX,
-                        empresa.getCertificadoPath(),
+                        certificadoPathAbsoluto.toString(),
                         certificadoPassword);
 
                 // Configurar CSC (Código de Seguridad del Contribuyente)
@@ -128,8 +152,10 @@ public class CertificadoService {
     public void validarCertificadoVigente(Empresa empresa) {
         log.debug("🔍 Validando certificado para empresa ID: {}", empresa.getId());
 
+        // Obtener path absoluto
+        Path certificadoPath = obtenerPathAbsoluto(empresa.getCertificadoPath());
+        
         // Validar que el archivo existe
-        Path certificadoPath = Paths.get(empresa.getCertificadoPath());
         if (!Files.exists(certificadoPath)) {
             throw new BusinessException("El archivo de certificado no existe: " + empresa.getCertificadoPath());
         }
@@ -189,16 +215,12 @@ public class CertificadoService {
         // Intentar cargar el certificado con la contraseña
         try {
             // Crear configuración temporal solo para validación
-            SifenConfig testConfig = new SifenConfig(
+            // La construcción de SifenConfig valida automáticamente el certificado
+            new SifenConfig(
                     TipoAmbiente.DEV,
                     TipoCertificadoCliente.PFX,
                     path,
                     password);
-
-            // Configurar CSC de prueba
-            // NOTA: Para validación de certificado, no es necesario configurar CSC
-            // La validación se enfoca en la validez del archivo .pfx y la contraseña
-            log.debug("Validando certificado sin configuración CSC (solo validación de archivo)");
 
             // Si no lanza excepción, el certificado es válido
             log.info("✅ Certificado válido: {}", path);
@@ -234,6 +256,178 @@ public class CertificadoService {
                 log.error("❌ Error al ejecutar operación SIFEN para empresa {}", empresaId, e);
                 throw new BusinessException("Error en operación con SIFEN: " + e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Resultado del guardado de certificado.
+     */
+    public static class CertificadoGuardado {
+        private final String path;
+        private final LocalDate fechaExpiracion;
+
+        public CertificadoGuardado(String path, LocalDate fechaExpiracion) {
+            this.path = path;
+            this.fechaExpiracion = fechaExpiracion;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public LocalDate getFechaExpiracion() {
+            return fechaExpiracion;
+        }
+    }
+
+    /**
+     * Guarda un archivo de certificado PFX en el sistema de archivos.
+     * 
+     * @param empresaId ID de la empresa (para nombrar el archivo)
+     * @param file Archivo PFX a guardar
+     * @param password Contraseña del certificado (para validación)
+     * @return Resultado con la ruta y fecha de expiración
+     * @throws BusinessException si el archivo es inválido o hay error al guardarlo
+     */
+    @Transactional
+    public CertificadoGuardado guardarCertificado(Long empresaId, MultipartFile file, String password) {
+        log.info("💾 Guardando certificado para empresa ID: {}", empresaId);
+
+        // Validar archivo
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("El archivo de certificado está vacío");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.trim().isEmpty()) {
+            throw new BusinessException("El nombre del archivo es inválido");
+        }
+
+        // Validar extensión
+        String lowerFilename = originalFilename.toLowerCase();
+        if (!lowerFilename.endsWith(".pfx") && !lowerFilename.endsWith(".p12")) {
+            throw new BusinessException("El archivo debe ser un certificado .pfx o .p12");
+        }
+
+        // Validar tamaño (máximo 5MB)
+        long maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.getSize() > maxSize) {
+            throw new BusinessException("El archivo de certificado es demasiado grande. Máximo 5MB");
+        }
+
+        try {
+            // Generar nombre único para el archivo: empresa_{id}_{timestamp}.pfx
+            String extension = lowerFilename.endsWith(".pfx") ? ".pfx" : ".p12";
+            String uniqueFilename = String.format("empresa_%d_%d%s", empresaId, System.currentTimeMillis(), extension);
+            Path targetPath = certificatesDir.resolve(uniqueFilename);
+
+            // Guardar archivo
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+            log.debug("✅ Archivo guardado en: {}", targetPath);
+
+            // Validar certificado con la contraseña
+            validarCertificado(targetPath.toString(), password);
+
+            // Intentar extraer fecha de expiración del certificado
+            LocalDate fechaExpiracion = extraerFechaExpiracion(targetPath.toString(), password);
+            if (fechaExpiracion != null) {
+                log.info("📅 Fecha de expiración detectada: {}", fechaExpiracion);
+            } else {
+                log.warn("⚠️ No se pudo extraer la fecha de expiración del certificado");
+            }
+
+            // Retornar path relativo para almacenar en BD (formato: /certificates/empresa_123_...pfx)
+            // Pero el sistema usará el path absoluto para acceder al archivo
+            String relativePath = uniqueFilename; // Solo el nombre del archivo
+            log.info("✅ Certificado guardado exitosamente en: {}", targetPath);
+            log.info("📝 Path que se guardará en BD: {}", relativePath);
+            
+            return new CertificadoGuardado(relativePath, fechaExpiracion);
+
+        } catch (IOException e) {
+            log.error("❌ Error al guardar certificado", e);
+            throw new BusinessException("Error al guardar el archivo de certificado: " + e.getMessage());
+        } catch (BusinessException e) {
+            // Re-lanzar excepciones de negocio
+            throw e;
+        } catch (Exception e) {
+            log.error("❌ Error inesperado al guardar certificado", e);
+            throw new BusinessException("Error al procesar el certificado: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Extrae la fecha de expiración de un certificado PFX.
+     * 
+     * @param certificadoPath Ruta al archivo del certificado
+     * @param password Contraseña del certificado
+     * @return Fecha de expiración o null si no se puede extraer
+     */
+    private LocalDate extraerFechaExpiracion(String certificadoPath, String password) {
+        try {
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
+            try (java.io.FileInputStream fis = new java.io.FileInputStream(certificadoPath)) {
+                keyStore.load(fis, password.toCharArray());
+            }
+
+            String alias = keyStore.aliases().nextElement();
+            X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
+
+            if (cert != null && cert.getNotAfter() != null) {
+                return cert.getNotAfter().toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+            }
+
+        } catch (Exception e) {
+            log.debug("No se pudo extraer fecha de expiración: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Convierte un path relativo de certificado a path absoluto.
+     * 
+     * @param certificadoPath Path relativo almacenado en BD (solo nombre del archivo)
+     * @return Path absoluto al archivo
+     */
+    public Path obtenerPathAbsoluto(String certificadoPath) {
+        if (certificadoPath == null || certificadoPath.isBlank()) {
+            throw new BusinessException("El path del certificado está vacío");
+        }
+        
+        // Si ya es absoluto, usarlo directamente
+        if (Paths.get(certificadoPath).isAbsolute()) {
+            return Paths.get(certificadoPath);
+        }
+        
+        // Si es relativo, combinarlo con el directorio de certificados
+        return certificatesDir.resolve(certificadoPath).normalize();
+    }
+
+    /**
+     * Elimina el certificado anterior de una empresa si existe.
+     * 
+     * @param certificadoPath Ruta del certificado a eliminar (relativo o absoluto)
+     */
+    @Transactional
+    public void eliminarCertificado(String certificadoPath) {
+        if (certificadoPath == null || certificadoPath.isBlank()) {
+            return;
+        }
+
+        try {
+            Path filePath = obtenerPathAbsoluto(certificadoPath);
+            
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+                log.info("🗑️ Certificado eliminado: {}", filePath);
+            }
+        } catch (IOException e) {
+            log.warn("⚠️ No se pudo eliminar el certificado anterior: {}", certificadoPath, e);
+            // No lanzar excepción, solo loggear
+        } catch (BusinessException e) {
+            log.warn("⚠️ Path inválido al eliminar certificado: {}", certificadoPath);
         }
     }
 

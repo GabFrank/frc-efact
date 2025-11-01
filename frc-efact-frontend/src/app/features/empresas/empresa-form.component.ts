@@ -25,6 +25,8 @@ import { AutocompleteSelectComponent, AutocompleteOption } from '../../shared/co
 import { SifenService } from '../../services/sifen.service';
 import { RucValidationService } from '../../services/ruc-validation.service';
 import { rucAsyncValidator } from '../../validators/ruc-async.validator';
+import { EmpresaApiService } from '../../core/api/empresa-api.service';
+import { switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-empresa-form',
@@ -52,9 +54,9 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
         <mat-card-header>
           <mat-card-title>
             <div class="header-content">
-              <button 
-                mat-icon-button 
-                (click)="onGoBack()" 
+              <button
+                mat-icon-button
+                (click)="onGoBack()"
                 matTooltip="Volver a la lista"
                 class="back-button">
                 <mat-icon>arrow_back</mat-icon>
@@ -68,7 +70,7 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
           <app-loading-spinner *ngIf="loading$ | async"></app-loading-spinner>
 
           <form [formGroup]="empresaForm" (ngSubmit)="onSubmit()" *ngIf="!(loading$ | async)" [class.readonly-form]="isViewMode">
-            
+
             <!-- Datos Básicos Section -->
             <div class="form-section">
               <h3>Datos Básicos</h3>
@@ -99,18 +101,18 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
               <div class="form-row">
                 <mat-form-field appearance="outline" class="half-width">
                   <mat-label>RUC *</mat-label>
-                  <input matInput formControlName="ruc" placeholder="12345678-9" 
+                  <input matInput formControlName="ruc" placeholder="12345678-9"
                          [readonly]="isViewMode" (input)="onRucInput($event)">
-                  
+
                   <!-- Loading indicator -->
                   <mat-icon matSuffix *ngIf="rucValidationInProgress" class="ruc-loading">
                     <span class="loading-spinner"></span>
                   </mat-icon>
-                  
+
                   <!-- Success indicator -->
-                  <mat-icon matSuffix *ngIf="!rucValidationInProgress && empresaForm.get('ruc')?.valid && empresaForm.get('ruc')?.value" 
+                  <mat-icon matSuffix *ngIf="!rucValidationInProgress && empresaForm.get('ruc')?.valid && empresaForm.get('ruc')?.value"
                             class="ruc-valid" color="primary">check_circle</mat-icon>
-                  
+
                   <!-- Error messages -->
                   <mat-error *ngIf="empresaForm.get('ruc')?.hasError('required')">
                     El RUC es requerido
@@ -130,7 +132,7 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
                   <mat-error *ngIf="empresaForm.get('ruc')?.hasError('rucValidationError')">
                     {{ empresaForm.get('ruc')?.errors?.['rucValidationError'] }}
                   </mat-error>
-                  
+
                   <!-- Format hint -->
                   <mat-hint *ngIf="rucFormatHint && !empresaForm.get('ruc')?.errors">
                     {{ rucFormatHint }}
@@ -139,7 +141,7 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
 
                 <mat-form-field appearance="outline" class="half-width">
                   <mat-label>Tipo de Contribuyente *</mat-label>
-                  <mat-select formControlName="tipoContribuyente" [disabled]="isViewMode">
+                  <mat-select formControlName="tipoContribuyente">
                     <mat-option value="PF">PF - Persona Física</mat-option>
                     <mat-option value="PJ">PJ - Persona Jurídica</mat-option>
                   </mat-select>
@@ -195,7 +197,6 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
                   [options]="departamentoOptions"
                   [value]="selectedDepartamento"
                   [hasError]="false"
-                  [disabled]="isViewMode"
                   errorMessage="El departamento es requerido"
                   (optionSelected)="onDepartamentoSelected($event)">
                 </app-autocomplete-select>
@@ -210,7 +211,6 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
                   [options]="distritoOptions"
                   [value]="selectedDistrito"
                   [hasError]="false"
-                  [disabled]="isViewMode"
                   errorMessage="El distrito es requerido"
                   (optionSelected)="onDistritoSelected($event)">
                 </app-autocomplete-select>
@@ -225,7 +225,6 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
                   [options]="ciudadOptions"
                   [value]="selectedCiudad"
                   [hasError]="(empresaForm.get('ciudadId')?.invalid && empresaForm.get('ciudadId')?.touched) ?? false"
-                  [disabled]="isViewMode"
                   errorMessage="La ciudad es requerida"
                   (optionSelected)="onCiudadSelected($event)">
                 </app-autocomplete-select>
@@ -240,7 +239,6 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
                   [options]="barrioOptions"
                   [value]="selectedBarrio"
                   [hasError]="false"
-                  [disabled]="isViewMode"
                   errorMessage=""
                   (optionSelected)="onBarrioSelected($event)">
                 </app-autocomplete-select>
@@ -278,7 +276,7 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
 
                 <mat-form-field appearance="outline" class="descripcion-field">
                   <mat-label>Descripción *</mat-label>
-                  <input matInput formControlName="descripcionPrincipal" 
+                  <input matInput formControlName="descripcionPrincipal"
                          placeholder="Descripción de la actividad principal"
                          (input)="onUppercaseInput($event, 'descripcionPrincipal', 'actividadEconomica')" [readonly]="isViewMode">
                   <mat-error *ngIf="actividadEconomica.get('descripcionPrincipal')?.hasError('required')">
@@ -291,19 +289,18 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
               <div class="actividades-secundarias-section">
                 <div class="subsection-header">
                   <h4 class="subsection-title">Actividades Secundarias</h4>
-                  <button type="button" mat-mini-fab color="primary" 
+                  <button type="button" mat-mini-fab color="primary"
                           (click)="agregarActividadSecundaria()"
-                          matTooltip="Agregar actividad secundaria"
-                          [disabled]="isViewMode">
+                          matTooltip="Agregar actividad secundaria">
                     <mat-icon>add</mat-icon>
                   </button>
                 </div>
 
-                <div *ngFor="let actividad of actividadesSecundarias; let i = index" 
+                <div *ngFor="let actividad of actividadesSecundarias; let i = index"
                      class="form-row actividad-row actividad-secundaria">
                   <mat-form-field appearance="outline" class="codigo-field">
                     <mat-label>Código</mat-label>
-                    <input matInput [(ngModel)]="actividad.codigo" 
+                    <input matInput [(ngModel)]="actividad.codigo"
                            [ngModelOptions]="{standalone: true}"
                            placeholder="Ej: 4719"
                            (input)="onActividadSecundariaChange()" [readonly]="isViewMode">
@@ -311,16 +308,15 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
 
                   <mat-form-field appearance="outline" class="descripcion-field">
                     <mat-label>Descripción</mat-label>
-                    <input matInput [(ngModel)]="actividad.descripcion" 
+                    <input matInput [(ngModel)]="actividad.descripcion"
                            [ngModelOptions]="{standalone: true}"
                            placeholder="Descripción de la actividad"
                            (input)="onActividadSecundariaChange()" [readonly]="isViewMode">
                   </mat-form-field>
 
-                  <button type="button" mat-icon-button color="warn" 
+                  <button type="button" mat-icon-button color="warn"
                           (click)="eliminarActividadSecundaria(i)"
-                          matTooltip="Eliminar actividad"
-                          [disabled]="isViewMode">
+                          matTooltip="Eliminar actividad">
                     <mat-icon>delete</mat-icon>
                   </button>
                 </div>
@@ -338,26 +334,25 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
               <mat-divider></mat-divider>
 
               <div class="certificate-upload">
-                <input 
-                  type="file" 
-                  #fileInput 
-                  accept=".pfx,.p12" 
+                <input
+                  type="file"
+                  #fileInput
+                  accept=".pfx,.p12"
                   (change)="onFileSelected($event)"
                   style="display: none">
-                
-                <button 
-                  type="button" 
-                  mat-raised-button 
+
+                <button
+                  type="button"
+                  mat-raised-button
                   color="accent"
-                  (click)="fileInput.click()"
-                  [disabled]="isViewMode">
+                  (click)="fileInput.click()">
                   <mat-icon>upload_file</mat-icon>
                   {{ selectedFileName || 'Seleccionar Certificado .pfx' }}
                 </button>
 
                 <mat-form-field appearance="outline" class="password-field" *ngIf="selectedFileName">
                   <mat-label>Contraseña del Certificado</mat-label>
-                  <input matInput type="password" formControlName="certificadoPassword" 
+                  <input matInput type="password" formControlName="certificadoPassword"
                     placeholder="Contraseña del archivo .pfx" [readonly]="isViewMode">
                   <mat-error *ngIf="empresaForm.get('certificadoPassword')?.hasError('required')">
                     La contraseña es requerida cuando se carga un certificado
@@ -365,10 +360,36 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
                 </mat-form-field>
               </div>
 
-              <p class="certificate-info" *ngIf="isEditMode && !selectedFileName">
-                <mat-icon>info</mat-icon>
-                Certificado actual: {{ currentCertificatePath || 'No configurado' }}
-              </p>
+              <!-- Información del certificado existente -->
+              <div class="existing-certificate-info" *ngIf="isEditMode && hasExistingCertificate && !selectedFileName">
+                <mat-icon class="cert-icon">lock</mat-icon>
+                <div class="cert-details">
+                  <p class="cert-path">
+                    <strong>Certificado:</strong> {{ currentCertificatePath }}
+                  </p>
+                  <p class="cert-expiration" *ngIf="currentCertificateExpiration">
+                    <strong>Expira:</strong> {{ currentCertificateExpiration | date:'dd/MM/yyyy' }}
+                  </p>
+                  <button
+                    type="button"
+                    mat-stroked-button
+                    color="primary"
+                    (click)="showPasswordEdit = !showPasswordEdit">
+                    <mat-icon>{{ showPasswordEdit ? 'close' : 'edit' }}</mat-icon>
+                    {{ showPasswordEdit ? 'Cancelar' : 'Cambiar Contraseña' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Campo para editar solo la contraseña -->
+              <mat-form-field appearance="outline" class="password-field" *ngIf="showPasswordEdit && hasExistingCertificate && !selectedFileName">
+                <mat-label>Nueva Contraseña del Certificado</mat-label>
+                <input matInput type="password" formControlName="certificadoPasswordNueva"
+                  placeholder="Ingrese la nueva contraseña" [readonly]="isViewMode">
+                <mat-error *ngIf="empresaForm.get('certificadoPasswordNueva')?.hasError('required')">
+                  La contraseña es requerida
+                </mat-error>
+              </mat-form-field>
             </div>
 
             <!-- Form Actions -->
@@ -376,20 +397,20 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
               <button type="button" mat-button (click)="onCancel()">
                 {{ isViewMode ? 'Volver' : 'Cancelar' }}
               </button>
-              <button 
-                *ngIf="isViewMode" 
-                type="button" 
-                mat-raised-button 
-                color="accent" 
+              <button
+                *ngIf="isViewMode"
+                type="button"
+                mat-raised-button
+                color="accent"
                 (click)="onEdit()">
                 <mat-icon>edit</mat-icon>
                 Editar
               </button>
-              <button 
-                *ngIf="!isViewMode" 
-                type="submit" 
-                mat-raised-button 
-                color="primary" 
+              <button
+                *ngIf="!isViewMode"
+                type="submit"
+                mat-raised-button
+                color="primary"
                 [disabled]="!empresaForm.valid || submitting">
                 <mat-icon>save</mat-icon>
                 {{ isEditMode ? 'Actualizar' : 'Crear' }} Empresa
@@ -565,6 +586,47 @@ import { rucAsyncValidator } from '../../validators/ruc-async.validator';
       height: 20px;
     }
 
+    .existing-certificate-info {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      margin-top: 16px;
+    }
+
+    .cert-icon {
+      color: #4caf50;
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+      margin-top: 4px;
+    }
+
+    .cert-details {
+      flex: 1;
+    }
+
+    .cert-details p {
+      margin: 4px 0;
+      color: #333;
+      font-size: 14px;
+    }
+
+    .cert-path {
+      word-break: break-all;
+    }
+
+    .cert-expiration {
+      color: #666;
+    }
+
+    .cert-details button {
+      margin-top: 12px;
+    }
+
     .form-actions {
       display: flex;
       justify-content: flex-end;
@@ -643,6 +705,9 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
   selectedFileName: string | null = null;
   selectedFile: File | null = null;
   currentCertificatePath: string | null = null;
+  currentCertificateExpiration: string | null = null;
+  hasExistingCertificate = false;
+  showPasswordEdit = false;
 
   // SIFEN data - Orden correcto: País → Departamento → Distrito → Ciudad → Barrio
   departamentoOptions: AutocompleteOption[] = [];
@@ -672,7 +737,8 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
     private router: Router,
     private snackBar: MatSnackBar,
     private sifenService: SifenService,
-    private rucValidationService: RucValidationService
+    private rucValidationService: RucValidationService,
+    private empresaApiService: EmpresaApiService
   ) {
     this.loading$ = this.store.select(selectEmpresasLoading);
     this.empresaForm = this.createForm();
@@ -687,7 +753,7 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
 
     if (id && id !== 'new') {
       this.empresaId = parseInt(id, 10);
-      
+
       if (mode === 'edit') {
         this.isEditMode = true;
         this.isViewMode = false;
@@ -696,27 +762,30 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
         this.isEditMode = false;
         this.isViewMode = true;
       }
-      
+
       this.loadEmpresa();
     }
+
+    // Configurar estado inicial del formulario según el modo
+    this.updateFormDisabledState();
 
     // Suscribirse a los errores para mostrar feedback
     this.store.select(selectEmpresasError).pipe(takeUntil(this.destroy$)).subscribe(error => {
       if (error) {
         console.error('Error en operación de empresa:', error);
-        
+
         // Detectar error específico de RUC y ofrecer solución
         if (error.includes('Dígito verificador del RUC es incorrecto')) {
           this.snackBar.open(
-            '⚠️ Error de validación RUC en el servidor. El backend necesita actualización.', 
-            'Entendido', 
-            { 
+            '⚠️ Error de validación RUC en el servidor. El backend necesita actualización.',
+            'Entendido',
+            {
               duration: 8000,
               panelClass: ['warning-snackbar']
             }
           );
         } else {
-          this.snackBar.open(`Error: ${error}`, 'Cerrar', { 
+          this.snackBar.open(`Error: ${error}`, 'Cerrar', {
             duration: 5000,
             panelClass: ['error-snackbar']
           });
@@ -731,8 +800,8 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
         this.submitting = false;
         // Mostrar mensaje de éxito
         this.snackBar.open(
-          this.isEditMode ? 'Empresa actualizada correctamente' : 'Empresa creada correctamente', 
-          'Cerrar', 
+          this.isEditMode ? 'Empresa actualizada correctamente' : 'Empresa creada correctamente',
+          'Cerrar',
           { duration: 3000 }
         );
         // Redirigir después de un breve delay
@@ -815,12 +884,13 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
         codigosSecundarios: [''],
         descripcionesSecundarias: ['']
       }),
-      certificadoPassword: ['']
+      certificadoPassword: [''],
+      certificadoPasswordNueva: ['']
     });
 
     // Configurar validación asíncrona del RUC después de crear el formulario
     this.setupRucValidation(form);
-    
+
     return form;
   }
 
@@ -854,10 +924,16 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
       this.store.select(selectEmpresaById(this.empresaId)).subscribe(empresa => {
         if (empresa && empresa.id) {
           this.patchFormValues(empresa);
-          this.currentCertificatePath = empresa.certificado?.path || null;
+          // El backend devuelve certificadoPath directamente, no dentro de certificado
+          this.currentCertificatePath = empresa.certificadoPath || empresa.certificado?.path || null;
+          this.currentCertificateExpiration = empresa.certificadoFechaExpiracion || empresa.certificado?.fechaExpiracion || null;
+          this.hasExistingCertificate = !!this.currentCertificatePath;
 
           // Reconfigurar validación del RUC para excluir la empresa actual
           this.setupRucValidation(this.empresaForm);
+
+          // Actualizar estado del formulario después de cargar datos
+          this.updateFormDisabledState();
 
           // Cargar datos de geografía en cascada
           this.loadGeografiaDataForEdit(empresa);
@@ -976,6 +1052,7 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
     if (input.files && input.files.length > 0) {
       this.selectedFile = input.files[0];
       this.selectedFileName = this.selectedFile.name;
+      this.showPasswordEdit = false; // Ocultar edición de contraseña cuando se selecciona nuevo archivo
 
       // Hacer la contraseña obligatoria cuando se selecciona un archivo
       this.empresaForm.get('certificadoPassword')?.setValidators([Validators.required]);
@@ -1022,23 +1099,40 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
         activo: true
       };
 
-      // Manejar certificado si está presente
-      if (this.selectedFile && formValue.certificadoPassword) {
-        empresaData.certificadoPath = `/certificates/${this.selectedFile.name}`;
-        empresaData.certificadoPassword = formValue.certificadoPassword;
-        empresaData.certificadoFechaExpiracion = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // Formato YYYY-MM-DD
-      }
+      // Obtener certificado si hay uno seleccionado
+      const certificadoFile = this.selectedFile;
+      const certificadoPassword = formValue.certificadoPassword;
+      const certificadoPasswordNueva = formValue.certificadoPasswordNueva;
 
       if (this.isEditMode && this.empresaId) {
-        this.store.dispatch(EmpresasActions.updateEmpresa({
-          id: this.empresaId,
-          empresa: empresaData
-        }));
+        // Si hay un nuevo archivo, subirlo junto con la empresa
+        if (certificadoFile && certificadoPassword) {
+          this.store.dispatch(EmpresasActions.updateEmpresa({
+            id: this.empresaId,
+            empresa: empresaData,
+            certificadoFile: certificadoFile,
+            certificadoPassword: certificadoPassword
+          }));
+        } else if (certificadoPasswordNueva && this.hasExistingCertificate) {
+          // Si solo se cambia la contraseña sin archivo nuevo
+          this.actualizarSoloPassword(certificadoPasswordNueva);
+        } else {
+          // Actualizar empresa sin tocar el certificado
+          this.store.dispatch(EmpresasActions.updateEmpresa({
+            id: this.empresaId,
+            empresa: empresaData
+          }));
+        }
       } else {
-        this.store.dispatch(EmpresasActions.createEmpresa({ empresa: empresaData as Empresa }));
+        // Modo creación: crear empresa con certificado opcional en el mismo request
+        this.store.dispatch(EmpresasActions.createEmpresa({
+          empresa: empresaData as Empresa,
+          certificadoFile: certificadoFile || undefined,
+          certificadoPassword: certificadoPassword || undefined
+        }));
       }
 
-      // La redirección se maneja en el subscriber de loading state
+      // La redirección se maneja en el subscriber de loading state existente
     } else {
       // Marcar todos los campos como touched para mostrar errores
       Object.keys(this.empresaForm.controls).forEach(key => {
@@ -1069,8 +1163,43 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
 
   onEdit(): void {
     if (this.empresaId) {
+      this.isViewMode = false;
+      this.isEditMode = true;
+      this.updateFormDisabledState();
       this.router.navigate(['/empresas', this.empresaId, 'edit']);
     }
+  }
+
+  /**
+   * Actualiza el estado disabled/enabled de todos los controles del formulario
+   * según el modo de vista actual
+   */
+  private updateFormDisabledState(): void {
+    Object.keys(this.empresaForm.controls).forEach(key => {
+      const control = this.empresaForm.get(key);
+      if (control) {
+        if (control instanceof FormGroup) {
+          // Si es un FormGroup, actualizar sus controles
+          Object.keys(control.controls).forEach(subKey => {
+            const subControl = control.get(subKey);
+            if (subControl) {
+              if (this.isViewMode) {
+                subControl.disable({ emitEvent: false });
+              } else {
+                subControl.enable({ emitEvent: false });
+              }
+            }
+          });
+        } else {
+          // Si es un FormControl simple
+          if (this.isViewMode) {
+            control.disable({ emitEvent: false });
+          } else {
+            control.enable({ emitEvent: false });
+          }
+        }
+      }
+    });
   }
 
   getPageTitle(): string {
@@ -1091,7 +1220,7 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
   onRucInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const formattedValue = this.rucValidationService.formatRucInput(input.value);
-    
+
     // Actualizar el valor del input y del formulario
     input.value = formattedValue;
     this.empresaForm.get('ruc')?.setValue(formattedValue);
@@ -1253,4 +1382,66 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
     this.actividadEconomica.get('codigosSecundarios')?.setValue(codigos.join(', '));
     this.actividadEconomica.get('descripcionesSecundarias')?.setValue(descripciones.join(', '));
   }
+
+  /**
+   * Actualiza solo la contraseña del certificado existente sin cambiar el archivo
+   */
+  private actualizarSoloPassword(nuevaPassword: string): void {
+    if (!this.empresaId || !nuevaPassword) {
+      return;
+    }
+
+    this.empresaApiService.actualizarPasswordCertificado(this.empresaId, nuevaPassword).subscribe({
+      next: () => {
+        this.snackBar.open('Contraseña del certificado actualizada correctamente', 'Cerrar', {
+          duration: 3000
+        });
+        this.store.dispatch(EmpresasActions.loadEmpresas());
+        this.showPasswordEdit = false;
+        this.empresaForm.get('certificadoPasswordNueva')?.reset();
+
+        // También actualizar la empresa si se está editando
+        if (this.isEditMode && this.empresaId) {
+          const formValue = this.empresaForm.value;
+          const empresaData: any = {
+            razonSocial: formValue.razonSocial,
+            ruc: formValue.ruc,
+            tipoContribuyente: formValue.tipoContribuyente || 'PF',
+            nombreFantasia: formValue.nombreFantasia || null,
+            email: formValue.email || null,
+            telefono: formValue.telefono || null,
+            direccion: formValue.direccion || null,
+            tipoSociedad: null,
+            ciudadId: formValue.ciudadId,
+            barrioId: formValue.barrioId || null,
+            domicilioFiscalDireccion: formValue.domicilioFiscalDireccion,
+            actividadEconomica: {
+              ...formValue.actividadEconomica,
+              codigosSecundarios: formValue.actividadEconomica.codigosSecundarios
+                ? formValue.actividadEconomica.codigosSecundarios.split(',').map((s: string) => s.trim()).filter((s: string) => s)
+                : [],
+              descripcionesSecundarias: formValue.actividadEconomica.descripcionesSecundarias
+                ? formValue.actividadEconomica.descripcionesSecundarias.split(',').map((s: string) => s.trim()).filter((s: string) => s)
+                : []
+            },
+            activo: true
+          };
+
+          this.store.dispatch(EmpresasActions.updateEmpresa({
+            id: this.empresaId!,
+            empresa: empresaData
+          }));
+        }
+      },
+      error: (error) => {
+        console.error('Error al actualizar contraseña del certificado:', error);
+        this.snackBar.open(`Error al actualizar contraseña: ${error.error?.message || error.message}`, 'Cerrar', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+        this.submitting = false;
+      }
+    });
+  }
+
 }

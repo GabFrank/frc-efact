@@ -41,8 +41,8 @@ export class EmpresasEffects {
   createEmpresa$ = createEffect(() =>
     this.actions$.pipe(
       ofType(EmpresasActions.createEmpresa),
-      exhaustMap(({ empresa }) =>
-        this.empresaApi.create(empresa).pipe(
+      exhaustMap(({ empresa, certificadoFile, certificadoPassword }) =>
+        this.empresaApi.create(empresa, certificadoFile, certificadoPassword).pipe(
           map((empresa) => EmpresasActions.createEmpresaSuccess({ empresa })),
           catchError((error) =>
             of(EmpresasActions.createEmpresaFailure({ error: error.message }))
@@ -55,8 +55,8 @@ export class EmpresasEffects {
   updateEmpresa$ = createEffect(() =>
     this.actions$.pipe(
       ofType(EmpresasActions.updateEmpresa),
-      exhaustMap(({ id, empresa }) =>
-        this.empresaApi.update(id, empresa).pipe(
+      exhaustMap(({ id, empresa, certificadoFile, certificadoPassword }) =>
+        this.empresaApi.update(id, empresa, certificadoFile, certificadoPassword).pipe(
           map((empresa) => EmpresasActions.updateEmpresaSuccess({ empresa })),
           catchError((error) =>
             of(EmpresasActions.updateEmpresaFailure({ error: error.message }))

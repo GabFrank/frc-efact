@@ -12,7 +12,9 @@ export interface Empresa {
   barrioId?: number;
   domicilioFiscalDireccion: string;
   actividadEconomica: ActividadEconomica;
-  certificado?: CertificadoInfo;
+  certificadoPath?: string;
+  certificadoFechaExpiracion?: string;
+  certificado?: CertificadoInfo; // Mantener por compatibilidad
   activo: boolean;
   creadoEn: string;
 }

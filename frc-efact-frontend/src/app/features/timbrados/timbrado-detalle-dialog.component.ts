@@ -367,15 +367,26 @@ export class TimbradoDetalleDialogComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Cargar datos de SIFEN
-    this.loadSifenData().then(() => {
-      if (this.isEditMode && this.data.detalle) {
-        this.loadGeografiaDataForEdit(this.data.detalle);
-      }
-    });
-
     // Agregar validador personalizado para rangos
     this.detalleForm.setValidators(this.rangoValidator.bind(this));
+
+    // Si estamos en modo edición, cargar los datos del detalle primero
+    if (this.isEditMode && this.data.detalle) {
+      const detalle = this.data.detalle;
+
+      // Cargar datos básicos primero
+      this.loadDetalleData(detalle);
+
+      // Luego cargar datos de SIFEN y geografía
+      this.loadSifenData().then(() => {
+        if (detalle) {
+          this.loadGeografiaDataForEdit(detalle);
+        }
+      });
+    } else {
+      // Solo cargar datos de SIFEN para nuevo detalle
+      this.loadSifenData();
+    }
   }
 
   get cantidadCalculada(): number {
@@ -409,6 +420,31 @@ export class TimbradoDetalleDialogComponent implements OnInit {
       telefono: ['', [Validators.maxLength(50)]],
       activo: [true]
     });
+  }
+
+  /**
+   * Carga los datos del detalle en el formulario cuando está en modo edición
+   */
+  private loadDetalleData(detalle: TimbradoDetalle): void {
+    this.detalleForm.patchValue({
+      puntoExpedicion: detalle.puntoExpedicion || '',
+      codigoEstablecimientoFactura: detalle.codigoEstablecimientoFactura || '',
+      rangoDesde: detalle.rangoDesde || null,
+      rangoHasta: detalle.rangoHasta || null,
+      numeroActual: detalle.numeroActual || null,
+      direccion: detalle.direccion || '',
+      telefono: detalle.telefono || '',
+      activo: detalle.activo !== undefined ? detalle.activo : true,
+      ciudadId: detalle.ciudadId || null,
+      barrioId: detalle.barrioId || null
+    });
+
+    // Habilitar numeroActual si existe (está disabled por defecto)
+    if (detalle.numeroActual !== null && detalle.numeroActual !== undefined) {
+      this.detalleForm.get('numeroActual')?.enable();
+      this.detalleForm.patchValue({ numeroActual: detalle.numeroActual });
+      this.detalleForm.get('numeroActual')?.disable(); // Volver a deshabilitar después de setear el valor
+    }
   }
 
   private rangoValidator(control: AbstractControl): { [key: string]: boolean } | null {

@@ -19,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -453,6 +454,47 @@ public class EmpresaService {
     public List<Empresa> obtenerEmpresasConCertificadoPorVencer() {
         logger.debug("Obteniendo empresas con certificado por vencer");
         return empresaRepository.findEmpresasConCertificadoPorVencer();
+    }
+
+    /**
+     * Actualiza solo los datos del certificado de una empresa.
+     *
+     * @param id ID de la empresa
+     * @param certificadoPath Path del certificado
+     * @param certificadoPasswordEncrypted Password del certificado ya encriptado
+     * @param fechaExpiracion Fecha de expiración del certificado
+     * @throws ResourceNotFoundException si la empresa no existe
+     * @throws AccessDeniedException   si el usuario no tiene permisos
+     */
+    @Transactional
+    public void actualizarCertificado(Long id, String certificadoPath, String certificadoPasswordEncrypted, LocalDate fechaExpiracion) {
+        logger.info("Actualizando certificado para empresa ID: {}", id);
+
+        // Verificar permisos
+        if (!empresaSecurityService.hasAccess(id, "WRITE")) {
+            throw new AccessDeniedException("No tiene permisos para modificar esta empresa");
+        }
+
+        Empresa empresa = empresaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa", "ID", id));
+
+        logger.info("📝 Path recibido para guardar en BD: {}", certificadoPath);
+        logger.info("📝 Path anterior en BD: {}", empresa.getCertificadoPath());
+
+        empresa.setCertificadoPath(certificadoPath);
+        empresa.setCertificadoPasswordEncrypted(certificadoPasswordEncrypted);
+        empresa.setCertificadoFechaExpiracion(fechaExpiracion);
+
+        Empresa empresaGuardada = empresaRepository.save(empresa);
+        
+        // Verificar que se guardó correctamente
+        Empresa empresaVerificada = empresaRepository.findById(id).orElse(null);
+        if (empresaVerificada != null) {
+            logger.info("✅ Certificado actualizado exitosamente - Path guardado en BD: {}", empresaVerificada.getCertificadoPath());
+            logger.info("✅ Password guardado: {}", empresaVerificada.getCertificadoPasswordEncrypted() != null ? "Sí" : "No");
+            logger.info("✅ Fecha expiración guardada: {}", empresaVerificada.getCertificadoFechaExpiracion());
+        }
+        logger.info("✅ Certificado actualizado para empresa ID: {}", id);
     }
 
     /**

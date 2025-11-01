@@ -292,24 +292,26 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                   <!-- Actions Column -->
                   <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef>Acciones</th>
-                    <td mat-cell *matCellDef="let detalle">
+                    <td mat-cell *matCellDef="let detalle" (click)="$event.stopPropagation()">
                       <button
+                        type="button"
                         mat-icon-button
                         [matMenuTriggerFor]="detalleActionsMenu"
                         matTooltip="Acciones"
-                        [disabled]="isViewMode">
+                        [disabled]="isViewMode"
+                        (click)="$event.stopPropagation(); $event.preventDefault()">
                         <mat-icon>more_vert</mat-icon>
                       </button>
 
                       <mat-menu #detalleActionsMenu="matMenu">
-                        <button mat-menu-item (click)="onEditDetalle(detalle)">
+                        <button type="button" mat-menu-item (click)="$event.stopPropagation(); onEditDetalle(detalle); $event.preventDefault()">
                           <mat-icon>edit</mat-icon>
                           <span>Editar</span>
                         </button>
-                        <mat-divider></mat-divider>
                         <button
+                          type="button"
                           mat-menu-item
-                          (click)="onDeleteDetalle(detalle)"
+                          (click)="$event.stopPropagation(); onDeleteDetalle(detalle); $event.preventDefault()"
                           class="delete-option">
                           <mat-icon>delete</mat-icon>
                           <span>Desactivar</span>

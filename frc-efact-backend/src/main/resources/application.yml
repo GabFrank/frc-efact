@@ -60,6 +60,10 @@ jwt:
 encryption:
   secret-key: ${ENCRYPTION_SECRET_KEY:<REDACTADO-ENCRYPTION-KEY-ROTADA>}  # MUST be exactly 32 characters (256 bits)
 
+# Certificates Configuration
+certificates:
+  upload-dir: ${CERTIFICATES_DIR:/var/certificates}  # Directorio para almacenar certificados PFX
+
 # Rate Limiting Configuration for Development
 rate:
   limit:
