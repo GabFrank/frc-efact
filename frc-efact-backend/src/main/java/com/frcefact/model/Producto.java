@@ -6,7 +6,6 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Objects;
@@ -15,6 +14,7 @@ import java.util.Set;
 /**
  * Entidad Producto que representa un producto o servicio de una empresa.
  * Mapea a la tabla productos.producto.
+ * Soporta tipos de transacción según Manual Técnico SIFEN v1.50.
  */
 @Entity
 @Table(name = "producto", schema = "productos", 
@@ -24,7 +24,8 @@ import java.util.Set;
     indexes = {
         @Index(name = "idx_producto_empresa", columnList = "empresa_id"),
         @Index(name = "idx_producto_descripcion", columnList = "descripcion"),
-        @Index(name = "idx_producto_activo", columnList = "activo")
+        @Index(name = "idx_producto_activo", columnList = "activo"),
+        @Index(name = "idx_producto_tipo_transaccion", columnList = "tipo_transaccion")
     }
 )
 public class Producto extends AuditableEntity {
@@ -62,6 +63,24 @@ public class Producto extends AuditableEntity {
     @Column(nullable = false)
     private Boolean activo = true;
 
+    /**
+     * Tipo de transacción según Manual Técnico SIFEN v1.50.
+     * Campo D011 (iTipTra): código del tipo de transacción u operación comercial.
+     */
+    @NotNull(message = "Tipo de transacción es requerido")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_transaccion", nullable = false, length = 50)
+    private TipoTransaccionProducto tipoTransaccion = TipoTransaccionProducto.VENTA_MERCADERIA;
+
+    /**
+     * Unidad de medida del producto o servicio.
+     * Ejemplos: "UNI" (unidad), "KG" (kilogramo), "L" (litro), "H" (hora), "SERV" (servicio).
+     */
+    @NotBlank(message = "Unidad de medida es requerida")
+    @Size(max = 10, message = "Unidad de medida no debe exceder 10 caracteres")
+    @Column(name = "unidad_medida", nullable = false, length = 10)
+    private String unidadMedida = "UNI";
+
     // Relaciones
     @OneToMany(mappedBy = "producto", cascade = CascadeType.ALL)
     private Set<FacturaLegalItem> facturaItems = new HashSet<>();
@@ -77,11 +96,60 @@ public class Producto extends AuditableEntity {
         this.iva = iva;
         this.balanza = false;
         this.activo = true;
+        this.tipoTransaccion = TipoTransaccionProducto.VENTA_MERCADERIA;
+        this.unidadMedida = "UNI";
+    }
+
+    public Producto(Empresa empresa, String descripcion, BigDecimal precio, Integer iva, 
+                    TipoTransaccionProducto tipoTransaccion, String unidadMedida) {
+        this.empresa = empresa;
+        this.descripcion = descripcion;
+        this.precio = precio;
+        this.iva = iva;
+        this.balanza = false;
+        this.activo = true;
+        this.tipoTransaccion = tipoTransaccion;
+        this.unidadMedida = unidadMedida;
     }
 
     // Métodos de negocio
     public boolean isIvaValido() {
         return iva != null && (iva == 0 || iva == 5 || iva == 10);
+    }
+
+    /**
+     * Obtiene el código numérico del tipo de transacción según SIFEN (D011 iTipTra).
+     */
+    public Integer getCodigoTipoTransaccion() {
+        return tipoTransaccion != null ? tipoTransaccion.getCodigo() : null;
+    }
+
+    /**
+     * Obtiene la descripción del tipo de transacción según SIFEN (D012 dDesTipTra).
+     */
+    public String getDescripcionTipoTransaccion() {
+        return tipoTransaccion != null ? tipoTransaccion.getDescripcion() : null;
+    }
+
+    /**
+     * Indica si este producto es un bien físico.
+     */
+    public boolean esBienFisico() {
+        return tipoTransaccion != null && tipoTransaccion.esBienFisico();
+    }
+
+    /**
+     * Indica si este producto es un servicio.
+     */
+    public boolean esServicio() {
+        return tipoTransaccion != null && tipoTransaccion.esServicio();
+    }
+
+    /**
+     * Indica si este producto requiere precio cero o simbólico (promociones/donaciones).
+     */
+    public boolean requierePrecioCero() {
+        return tipoTransaccion != null && tipoTransaccion.requierePrecioCero();
     }
 
     public BigDecimal calcularPrecioConIva() {
@@ -166,6 +234,22 @@ public class Producto extends AuditableEntity {
         this.activo = activo;
     }
 
+    public TipoTransaccionProducto getTipoTransaccion() {
+        return tipoTransaccion;
+    }
+
+    public void setTipoTransaccion(TipoTransaccionProducto tipoTransaccion) {
+        this.tipoTransaccion = tipoTransaccion;
+    }
+
+    public String getUnidadMedida() {
+        return unidadMedida;
+    }
+
+    public void setUnidadMedida(String unidadMedida) {
+        this.unidadMedida = unidadMedida;
+    }
+
     public Set<FacturaLegalItem> getFacturaItems() {
         return facturaItems;
     }
@@ -195,6 +279,8 @@ public class Producto extends AuditableEntity {
                 ", descripcion='" + descripcion + '\'' +
                 ", precio=" + precio +
                 ", iva=" + iva +
+                ", tipoTransaccion=" + tipoTransaccion +
+                ", unidadMedida='" + unidadMedida + '\'' +
                 ", activo=" + activo +
                 '}';
     }

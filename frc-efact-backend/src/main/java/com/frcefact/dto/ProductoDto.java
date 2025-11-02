@@ -1,5 +1,6 @@
 package com.frcefact.dto;
 
+import com.frcefact.model.TipoTransaccionProducto;
 import com.frcefact.validation.ValidIva;
 import jakarta.validation.constraints.*;
 
@@ -35,6 +36,19 @@ public class ProductoDto {
 
     private Boolean activo = true;
 
+    /**
+     * Tipo de transacción según Manual Técnico SIFEN v1.50.
+     */
+    @NotNull(message = "Tipo de transacción es requerido")
+    private TipoTransaccionProducto tipoTransaccion;
+
+    /**
+     * Unidad de medida del producto o servicio.
+     */
+    @NotBlank(message = "Unidad de medida es requerida")
+    @Size(max = 10, message = "Unidad de medida no debe exceder 10 caracteres")
+    private String unidadMedida;
+
     private String creadoEn;
     private String creadoPor;
     private String actualizadoEn;
@@ -45,7 +59,8 @@ public class ProductoDto {
     }
 
     public ProductoDto(Long id, Long empresaId, String codigo, String descripcion, 
-                      BigDecimal precio, Integer iva, Boolean balanza, Boolean activo) {
+                      BigDecimal precio, Integer iva, Boolean balanza, Boolean activo,
+                      TipoTransaccionProducto tipoTransaccion, String unidadMedida) {
         this.id = id;
         this.empresaId = empresaId;
         this.codigo = codigo;
@@ -54,6 +69,8 @@ public class ProductoDto {
         this.iva = iva;
         this.balanza = balanza;
         this.activo = activo;
+        this.tipoTransaccion = tipoTransaccion;
+        this.unidadMedida = unidadMedida;
     }
 
     // Getters y Setters
@@ -121,6 +138,22 @@ public class ProductoDto {
         this.activo = activo;
     }
 
+    public TipoTransaccionProducto getTipoTransaccion() {
+        return tipoTransaccion;
+    }
+
+    public void setTipoTransaccion(TipoTransaccionProducto tipoTransaccion) {
+        this.tipoTransaccion = tipoTransaccion;
+    }
+
+    public String getUnidadMedida() {
+        return unidadMedida;
+    }
+
+    public void setUnidadMedida(String unidadMedida) {
+        this.unidadMedida = unidadMedida;
+    }
+
     public String getCreadoEn() {
         return creadoEn;
     }
@@ -162,6 +195,8 @@ public class ProductoDto {
                 ", descripcion='" + descripcion + '\'' +
                 ", precio=" + precio +
                 ", iva=" + iva +
+                ", tipoTransaccion=" + tipoTransaccion +
+                ", unidadMedida='" + unidadMedida + '\'' +
                 ", balanza=" + balanza +
                 ", activo=" + activo +
                 '}';

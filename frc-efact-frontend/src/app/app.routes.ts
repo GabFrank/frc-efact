@@ -31,10 +31,6 @@ export const routes: Routes = [
         loadChildren: () => import('./features/timbrados/timbrados.routes').then(m => m.TIMBRADOS_ROUTES)
       },
       {
-        path: 'productos',
-        loadComponent: () => import('./features/productos/productos-list.component').then(m => m.ProductosListComponent)
-      },
-      {
         path: 'clientes',
         loadComponent: () => import('./features/clientes/clientes-list.component').then(m => m.ClientesListComponent)
       },

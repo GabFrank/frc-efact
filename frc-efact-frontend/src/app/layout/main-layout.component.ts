@@ -93,14 +93,6 @@ import { AuthService } from '../services/auth.service';
                 </a>
               </li>
 
-
-              <li class="nav-item" *ngIf="canAccessProductos">
-                <a routerLink="/productos" routerLinkActive="active" class="nav-link">
-                  <i class="fas fa-box"></i>
-                  <span>Productos</span>
-                </a>
-              </li>
-
               <li class="nav-item" *ngIf="canAccessClientes">
                 <a routerLink="/clientes" routerLinkActive="active" class="nav-link">
                   <i class="fas fa-users"></i>
@@ -514,10 +506,6 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   // Métodos de acceso basados en roles
   get canAccessEmpresas(): boolean {
     return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN']);
-  }
-
-  get canAccessProductos(): boolean {
-    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
   }
 
   get canAccessClientes(): boolean {

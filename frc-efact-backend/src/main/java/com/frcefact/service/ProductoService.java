@@ -4,6 +4,7 @@ import com.frcefact.annotation.Auditable;
 import com.frcefact.model.AccionEnum;
 import com.frcefact.model.Empresa;
 import com.frcefact.model.Producto;
+import com.frcefact.model.TipoTransaccionProducto;
 import com.frcefact.repository.EmpresaRepository;
 import com.frcefact.repository.ProductoRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -115,6 +116,12 @@ public class ProductoService {
         productoExistente.setPrecio(productoActualizado.getPrecio());
         productoExistente.setIva(productoActualizado.getIva());
         productoExistente.setBalanza(productoActualizado.getBalanza());
+        if (productoActualizado.getTipoTransaccion() != null) {
+            productoExistente.setTipoTransaccion(productoActualizado.getTipoTransaccion());
+        }
+        if (productoActualizado.getUnidadMedida() != null) {
+            productoExistente.setUnidadMedida(productoActualizado.getUnidadMedida());
+        }
         
         Producto productoGuardado = productoRepository.save(productoExistente);
         logger.info("Producto actualizado con ID: {}", productoGuardado.getId());
@@ -154,6 +161,45 @@ public class ProductoService {
         empresaSecurityService.verificarAccesoLectura(empresaId);
         
         return productoRepository.findByEmpresaIdAndActivoTrue(empresaId, pageable);
+    }
+
+    /**
+     * Lista productos con filtros opcionales.
+     */
+    @Transactional(readOnly = true)
+    public Page<Producto> listarProductosConFiltros(Long empresaId, 
+                                                     Boolean activo,
+                                                     String busqueda,
+                                                     String tipoTransaccion,
+                                                     Integer iva,
+                                                     Pageable pageable) {
+        logger.debug("Listando productos con filtros - empresa: {}, activo: {}, busqueda: {}, tipoTransaccion: {}, iva: {}", 
+                     empresaId, activo, busqueda, tipoTransaccion, iva);
+        
+        // Verificar acceso
+        empresaSecurityService.verificarAccesoLectura(empresaId);
+        
+        // Normalizar búsqueda
+        String busquedaNormalizada = (busqueda != null && !busqueda.trim().isEmpty()) 
+            ? busqueda.trim().toUpperCase() 
+            : null;
+        
+        // Validar y convertir tipoTransaccion si está presente
+        TipoTransaccionProducto tipoTransaccionEnum = null;
+        if (tipoTransaccion != null && !tipoTransaccion.trim().isEmpty()) {
+            try {
+                tipoTransaccionEnum = TipoTransaccionProducto.valueOf(tipoTransaccion.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                logger.warn("Tipo de transacción inválido: {}", tipoTransaccion);
+                // Si el tipo es inválido, no aplicar el filtro (null)
+            }
+        }
+        
+        // Usar String para la query (la query manejará la comparación)
+        String tipoTransaccionStr = (tipoTransaccionEnum != null) ? tipoTransaccionEnum.name() : null;
+        
+        return productoRepository.buscarConFiltros(empresaId, activo, busquedaNormalizada, 
+                                                   tipoTransaccionStr, iva, pageable);
     }
 
     /**
@@ -215,7 +261,8 @@ public class ProductoService {
 
     /**
      * Importa productos masivamente desde un archivo Excel.
-     * Formato esperado: Código | Descripción | Precio | IVA | Balanza
+     * Formato esperado: Código | Descripción | Precio | IVA | Tipo Transacción | Unidad Medida | Balanza
+     * Columnas opcionales: Código, Tipo Transacción (default: VENTA_MERCADERIA), Unidad Medida (default: UNI), Balanza (default: false)
      */
     public List<Producto> importarProductosDesdeExcel(Long empresaId, MultipartFile archivo) throws IOException {
         logger.info("Importando productos desde Excel para empresa ID: {}", empresaId);
@@ -278,15 +325,19 @@ public class ProductoService {
 
     /**
      * Procesa una fila del Excel y crea un objeto Producto.
+     * Formato esperado: Código | Descripción | Precio | IVA | Tipo Transacción | Unidad Medida | Balanza
+     * Columnas opcionales: Código, Tipo Transacción (default: VENTA_MERCADERIA), Unidad Medida (default: UNI), Balanza (default: false)
      */
     private Producto procesarFilaExcel(Row row, Empresa empresa) {
-        // Columnas: 0=Código, 1=Descripción, 2=Precio, 3=IVA, 4=Balanza
+        // Columnas: 0=Código, 1=Descripción, 2=Precio, 3=IVA, 4=Tipo Transacción, 5=Unidad Medida, 6=Balanza
         
         Cell codigoCell = row.getCell(0);
         Cell descripcionCell = row.getCell(1);
         Cell precioCell = row.getCell(2);
         Cell ivaCell = row.getCell(3);
-        Cell balanzaCell = row.getCell(4);
+        Cell tipoTransaccionCell = row.getCell(4);
+        Cell unidadMedidaCell = row.getCell(5);
+        Cell balanzaCell = row.getCell(6);
         
         // Descripción es obligatoria
         if (descripcionCell == null || descripcionCell.getStringCellValue().trim().isEmpty()) {
@@ -309,7 +360,9 @@ public class ProductoService {
         // Código (opcional)
         if (codigoCell != null) {
             String codigo = obtenerValorCeldaComoString(codigoCell);
-            producto.setCodigo(codigo);
+            if (codigo != null && !codigo.trim().isEmpty()) {
+                producto.setCodigo(codigo);
+            }
         }
         
         // Descripción
@@ -317,14 +370,46 @@ public class ProductoService {
         
         // Precio
         BigDecimal precio = obtenerValorCeldaComoBigDecimal(precioCell);
-        if (precio.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Precio debe ser mayor a 0");
+        if (precio.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Precio no puede ser negativo");
         }
         producto.setPrecio(precio);
         
         // IVA
         Integer iva = obtenerValorCeldaComoInteger(ivaCell);
         producto.setIva(iva);
+        
+        // Tipo de Transacción (opcional, default: VENTA_MERCADERIA)
+        if (tipoTransaccionCell != null) {
+            String tipoTransaccionStr = obtenerValorCeldaComoString(tipoTransaccionCell);
+            if (tipoTransaccionStr != null && !tipoTransaccionStr.trim().isEmpty()) {
+                try {
+                    // Intentar parsear como enum
+                    TipoTransaccionProducto tipo = 
+                        TipoTransaccionProducto.valueOf(tipoTransaccionStr.trim().toUpperCase());
+                    producto.setTipoTransaccion(tipo);
+                } catch (IllegalArgumentException e) {
+                    logger.warn("Tipo de transacción inválido '{}', usando VENTA_MERCADERIA por defecto", tipoTransaccionStr);
+                    producto.setTipoTransaccion(TipoTransaccionProducto.VENTA_MERCADERIA);
+                }
+            } else {
+                producto.setTipoTransaccion(TipoTransaccionProducto.VENTA_MERCADERIA);
+            }
+        } else {
+            producto.setTipoTransaccion(TipoTransaccionProducto.VENTA_MERCADERIA);
+        }
+        
+        // Unidad de Medida (opcional, default: UNI)
+        if (unidadMedidaCell != null) {
+            String unidadMedida = obtenerValorCeldaComoString(unidadMedidaCell);
+            if (unidadMedida != null && !unidadMedida.trim().isEmpty()) {
+                producto.setUnidadMedida(unidadMedida.trim().toUpperCase());
+            } else {
+                producto.setUnidadMedida("UNI");
+            }
+        } else {
+            producto.setUnidadMedida("UNI");
+        }
         
         // Balanza (opcional, por defecto false)
         Boolean balanza = false;
@@ -417,6 +502,43 @@ public class ProductoService {
                 return cell.getNumericCellValue() != 0;
             default:
                 return false;
+        }
+    }
+
+    /**
+     * Verifica si existe un producto con el código dado en la empresa.
+     * Excluye el producto actual si se proporciona productoId.
+     */
+    public boolean existeCodigo(Long empresaId, String codigo, Long productoId) {
+        if (codigo == null || codigo.trim().isEmpty()) {
+            return false;
+        }
+        
+        if (productoId != null) {
+            return productoRepository.existsByEmpresaIdAndCodigoAndActivoTrueExcludingId(
+                empresaId, codigo.trim().toUpperCase(), productoId);
+        } else {
+            return productoRepository.existsByEmpresaIdAndCodigoAndActivoTrue(
+                empresaId, codigo.trim().toUpperCase());
+        }
+    }
+
+    /**
+     * Verifica si existe un producto con la descripción dada en la empresa.
+     * Excluye el producto actual si se proporciona productoId.
+     * Comparación case-insensitive.
+     */
+    public boolean existeDescripcion(Long empresaId, String descripcion, Long productoId) {
+        if (descripcion == null || descripcion.trim().isEmpty()) {
+            return false;
+        }
+        
+        if (productoId != null) {
+            return productoRepository.existsByEmpresaIdAndDescripcionIgnoreCaseAndActivoTrueExcludingId(
+                empresaId, descripcion.trim(), productoId);
+        } else {
+            return productoRepository.existsByEmpresaIdAndDescripcionIgnoreCaseAndActivoTrue(
+                empresaId, descripcion.trim());
         }
     }
 

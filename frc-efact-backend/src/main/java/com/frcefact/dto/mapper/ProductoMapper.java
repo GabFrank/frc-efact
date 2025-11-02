@@ -2,6 +2,7 @@ package com.frcefact.dto.mapper;
 
 import com.frcefact.dto.ProductoDto;
 import com.frcefact.model.Producto;
+import com.frcefact.model.TipoTransaccionProducto;
 import org.springframework.stereotype.Component;
 
 import java.time.format.DateTimeFormatter;
@@ -31,6 +32,8 @@ public class ProductoMapper {
         dto.setIva(producto.getIva());
         dto.setBalanza(producto.getBalanza());
         dto.setActivo(producto.getActivo());
+        dto.setTipoTransaccion(producto.getTipoTransaccion());
+        dto.setUnidadMedida(producto.getUnidadMedida());
 
         // Campos de auditoría
         if (producto.getCreadoEn() != null) {
@@ -62,6 +65,8 @@ public class ProductoMapper {
         producto.setIva(dto.getIva());
         producto.setBalanza(dto.getBalanza() != null ? dto.getBalanza() : false);
         producto.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
+        producto.setTipoTransaccion(dto.getTipoTransaccion() != null ? dto.getTipoTransaccion() : TipoTransaccionProducto.VENTA_MERCADERIA);
+        producto.setUnidadMedida(dto.getUnidadMedida() != null ? dto.getUnidadMedida() : "UNI");
 
         return producto;
     }
@@ -80,6 +85,13 @@ public class ProductoMapper {
         producto.setPrecio(dto.getPrecio());
         producto.setIva(dto.getIva());
         producto.setBalanza(dto.getBalanza() != null ? dto.getBalanza() : false);
+        
+        if (dto.getTipoTransaccion() != null) {
+            producto.setTipoTransaccion(dto.getTipoTransaccion());
+        }
+        if (dto.getUnidadMedida() != null) {
+            producto.setUnidadMedida(dto.getUnidadMedida());
+        }
         
         // No actualizamos activo aquí, se maneja con endpoint específico
     }

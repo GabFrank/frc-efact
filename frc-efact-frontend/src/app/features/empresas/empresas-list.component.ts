@@ -154,6 +154,10 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                       <mat-icon>receipt</mat-icon>
                       <span>Gestionar timbrados</span>
                     </button>
+                    <button mat-menu-item (click)="onManageProductos(empresa)">
+                      <mat-icon>inventory_2</mat-icon>
+                      <span>Gestionar productos</span>
+                    </button>
                     <mat-divider></mat-divider>
                     <button
                       mat-menu-item
@@ -434,6 +438,10 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
 
   onManageTimbrados(empresa: Empresa): void {
     this.router.navigate(['/empresas', empresa.id, 'timbrados']);
+  }
+
+  onManageProductos(empresa: Empresa): void {
+    this.router.navigate(['/empresas', empresa.id, 'productos']);
   }
 
   onToggleActive(empresa: Empresa): void {

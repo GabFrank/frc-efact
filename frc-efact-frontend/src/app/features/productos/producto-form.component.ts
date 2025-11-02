@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, AsyncValidatorFn, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,8 +8,14 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Observable, of } from 'rxjs';
+import { debounceTime, map, switchMap, take } from 'rxjs/operators';
 import { ProductoApiService } from '../../core/api/producto-api.service';
-import { Producto } from '../../models/producto.model';
+import {
+  Producto,
+  TipoTransaccionProducto,
+  TIPO_TRANSACCION_DESCRIPCIONES
+} from '../../models/producto.model';
 import { ErrorMessageComponent } from '../../shared/components/error-message/error-message.component';
 
 @Component({
@@ -29,26 +35,32 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
   ],
   template: `
     <h2 mat-dialog-title>{{ isEdit ? 'Editar Producto' : 'Nuevo Producto' }}</h2>
-    
+
     <mat-dialog-content>
       <form [formGroup]="form" class="producto-form">
         <mat-form-field appearance="outline">
           <mat-label>Código</mat-label>
-          <input matInput formControlName="codigo" placeholder="Código del producto">
+          <input matInput formControlName="codigo" placeholder="Código del producto" (input)="onStringInput($event, 'codigo')">
+          <mat-error *ngIf="form.get('codigo')?.hasError('codigoDuplicado')">
+            Ya existe un producto con este código en la empresa
+          </mat-error>
           <app-error-message [control]="form.get('codigo')" />
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Descripción</mat-label>
-          <input matInput formControlName="descripcion" placeholder="Descripción del producto">
+          <input matInput formControlName="descripcion" placeholder="Descripción del producto" (input)="onStringInput($event, 'descripcion')">
+          <mat-error *ngIf="form.get('descripcion')?.hasError('descripcionDuplicada')">
+            Ya existe un producto con esta descripción en la empresa
+          </mat-error>
           <app-error-message [control]="form.get('descripcion')" />
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Precio</mat-label>
-          <input matInput 
-                 type="number" 
-                 formControlName="precio" 
+          <input matInput
+                 type="number"
+                 formControlName="precio"
                  placeholder="0.00"
                  min="0"
                  step="0.01">
@@ -64,6 +76,32 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
             <mat-option [value]="10">10%</mat-option>
           </mat-select>
           <app-error-message [control]="form.get('iva')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Tipo de Transacción</mat-label>
+          <mat-select formControlName="tipoTransaccion">
+            <mat-option
+              *ngFor="let tipo of tipoTransaccionOpciones"
+              [value]="tipo">
+              {{ tipoTransaccionDescripciones[tipo] }}
+            </mat-option>
+          </mat-select>
+          <mat-hint>Según Manual Técnico SIFEN v1.50</mat-hint>
+          <app-error-message [control]="form.get('tipoTransaccion')" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Unidad de Medida</mat-label>
+          <mat-select formControlName="unidadMedida">
+            <mat-option
+              *ngFor="let unidad of unidadesMedidaComunes"
+              [value]="unidad.value">
+              {{ unidad.label }}
+            </mat-option>
+          </mat-select>
+          <mat-hint>Ejemplos: UNI (unidad), KG (kilogramo), L (litro), H (hora), SERV (servicio)</mat-hint>
+          <app-error-message [control]="form.get('unidadMedida')" />
         </mat-form-field>
 
         <div class="checkbox-field">
@@ -82,8 +120,8 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
 
     <mat-dialog-actions align="end">
       <button mat-button (click)="onCancel()">Cancelar</button>
-      <button mat-raised-button 
-              color="primary" 
+      <button mat-raised-button
+              color="primary"
               (click)="onSubmit()"
               [disabled]="form.invalid || saving">
         {{ saving ? 'Guardando...' : 'Guardar' }}
@@ -118,12 +156,35 @@ export class ProductoFormComponent implements OnInit {
   isEdit = false;
   saving = false;
 
+  // Enums y opciones para el template
+  TipoTransaccionProducto = TipoTransaccionProducto;
+  tipoTransaccionOpciones = Object.values(TipoTransaccionProducto);
+  tipoTransaccionDescripciones = TIPO_TRANSACCION_DESCRIPCIONES;
+
+  // Unidades de medida comunes según SIFEN
+  unidadesMedidaComunes = [
+    { value: 'UNI', label: 'UNI - Unidad' },
+    { value: 'KG', label: 'KG - Kilogramo' },
+    { value: 'G', label: 'G - Gramo' },
+    { value: 'L', label: 'L - Litro' },
+    { value: 'ML', label: 'ML - Mililitro' },
+    { value: 'M', label: 'M - Metro' },
+    { value: 'M2', label: 'M² - Metro cuadrado' },
+    { value: 'M3', label: 'M³ - Metro cúbico' },
+    { value: 'H', label: 'H - Hora' },
+    { value: 'SERV', label: 'SERV - Servicio' },
+    { value: 'PAR', label: 'PAR - Par' },
+    { value: 'CAJ', label: 'CAJ - Caja' },
+    { value: 'BOL', label: 'BOL - Bolsa' },
+    { value: 'TUB', label: 'TUB - Tubo' }
+  ];
+
   constructor(
     private fb: FormBuilder,
     private productoApi: ProductoApiService,
     private snackBar: MatSnackBar,
     private dialogRef: MatDialogRef<ProductoFormComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { producto: Producto | null }
+    @Inject(MAT_DIALOG_DATA) public data: { producto: Producto | null; empresaId?: number }
   ) {}
 
   ngOnInit(): void {
@@ -132,22 +193,64 @@ export class ProductoFormComponent implements OnInit {
   }
 
   initForm(): void {
+    // Convertir valores existentes a mayúsculas si están presentes
+    const codigoInicial = this.data.producto?.codigo ? this.data.producto.codigo.toUpperCase() : '';
+    const descripcionInicial = this.data.producto?.descripcion ? this.data.producto.descripcion.toUpperCase() : '';
+    const unidadMedidaInicial = this.data.producto?.unidadMedida ? this.data.producto.unidadMedida.toUpperCase() : 'UNI';
+
+    const productoId = this.data.producto?.id;
+
     this.form = this.fb.group({
-      codigo: [this.data.producto?.codigo || '', [Validators.maxLength(50)]],
+      codigo: [
+        codigoInicial,
+        [Validators.maxLength(50)],
+        [this.codigoValidator()]
+      ],
       descripcion: [
-        this.data.producto?.descripcion || '', 
-        [Validators.required, Validators.maxLength(500)]
+        descripcionInicial,
+        [Validators.required, Validators.maxLength(500)],
+        [this.descripcionValidator()]
       ],
       precio: [
-        this.data.producto?.precio || 0, 
-        [Validators.required, Validators.min(0)]
+        this.data.producto?.precio || 0,
+        [Validators.required, Validators.min(0.01)]
       ],
       iva: [
-        this.data.producto?.iva ?? 10, 
+        this.data.producto?.iva ?? 10,
         [Validators.required, this.ivaValidator]
+      ],
+      tipoTransaccion: [
+        this.data.producto?.tipoTransaccion || TipoTransaccionProducto.VENTA_MERCADERIA,
+        [Validators.required]
+      ],
+      unidadMedida: [
+        unidadMedidaInicial,
+        [Validators.required, Validators.maxLength(10)]
       ],
       balanza: [this.data.producto?.balanza || false],
       activo: [this.data.producto?.activo ?? true]
+    });
+
+    // Asegurar que unidadMedida siempre esté en mayúsculas
+    this.form.get('unidadMedida')?.valueChanges.subscribe(value => {
+      if (value && typeof value === 'string') {
+        const upperValue = value.toUpperCase().trim();
+        if (value !== upperValue) {
+          this.form.get('unidadMedida')?.setValue(upperValue, { emitEvent: false });
+        }
+      }
+    });
+
+    // Validación dinámica: si es promoción o donación, el precio puede ser 0
+    this.form.get('tipoTransaccion')?.valueChanges.subscribe(tipo => {
+      const precioControl = this.form.get('precio');
+      if (tipo === TipoTransaccionProducto.PROMOCION_MUESTRAS ||
+          tipo === TipoTransaccionProducto.DONACION) {
+        precioControl?.setValidators([Validators.required, Validators.min(0)]);
+      } else {
+        precioControl?.setValidators([Validators.required, Validators.min(0.01)]);
+      }
+      precioControl?.updateValueAndValidity();
     });
   }
 
@@ -159,16 +262,103 @@ export class ProductoFormComponent implements OnInit {
     return null;
   }
 
+  onStringInput(event: Event, controlName: string): void {
+    const input = event.target as HTMLInputElement;
+    const upperValue = input.value.toUpperCase();
+    if (input.value !== upperValue) {
+      this.form.get(controlName)?.setValue(upperValue, { emitEvent: false });
+      // Actualizar el valor del input directamente para que se vea en mayúsculas
+      input.value = upperValue;
+    }
+
+    // Si es código o descripción, agregar validador asíncrono después de escribir
+    if ((controlName === 'codigo' || controlName === 'descripcion') && upperValue.trim()) {
+      const control = this.form.get(controlName);
+      if (control) {
+        // Remover validadores asíncronos anteriores y agregar nuevos
+        if (controlName === 'codigo' && upperValue.trim()) {
+          control.clearAsyncValidators();
+          control.setAsyncValidators([this.codigoValidator()]);
+        } else if (controlName === 'descripcion' && upperValue.trim()) {
+          control.clearAsyncValidators();
+          control.setAsyncValidators([this.descripcionValidator()]);
+        }
+        control.updateValueAndValidity({ emitEvent: true });
+      }
+    }
+  }
+
+  codigoValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value || !control.value.trim() || !this.data.empresaId) {
+        return of(null);
+      }
+
+      const codigo = control.value.toUpperCase().trim();
+      const productoId = this.data.producto?.id;
+
+      return of(null).pipe(
+        debounceTime(500),
+        switchMap(() => {
+          return this.productoApi.verificarCodigo(this.data.empresaId!, codigo, productoId).pipe(
+            map(response => {
+              return response.existe ? { codigoDuplicado: true } : null;
+            })
+          );
+        }),
+        take(1)
+      );
+    };
+  }
+
+  descripcionValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value || !control.value.trim() || !this.data.empresaId) {
+        return of(null);
+      }
+
+      const descripcion = control.value.toUpperCase().trim();
+      const productoId = this.data.producto?.id;
+
+      return of(null).pipe(
+        debounceTime(500),
+        switchMap(() => {
+          return this.productoApi.verificarDescripcion(this.data.empresaId!, descripcion, productoId).pipe(
+            map(response => {
+              return response.existe ? { descripcionDuplicada: true } : null;
+            })
+          );
+        }),
+        take(1)
+      );
+    };
+  }
+
   onSubmit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
+    if (!this.data.empresaId) {
+      this.snackBar.open('Error: empresa no identificada', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
     this.saving = true;
+    const formValue = this.form.value;
+
+    // Convertir todos los strings a mayúsculas antes de guardar
     const productoData: Partial<Producto> = {
-      ...this.form.value,
-      empresaId: 1 // TODO: Obtener del state
+      codigo: formValue.codigo ? formValue.codigo.toUpperCase().trim() : undefined,
+      descripcion: formValue.descripcion.toUpperCase().trim(),
+      unidadMedida: formValue.unidadMedida.toUpperCase().trim(),
+      precio: formValue.precio,
+      iva: formValue.iva,
+      tipoTransaccion: formValue.tipoTransaccion,
+      balanza: formValue.balanza,
+      activo: formValue.activo,
+      empresaId: this.data.empresaId
     };
 
     const request = this.isEdit

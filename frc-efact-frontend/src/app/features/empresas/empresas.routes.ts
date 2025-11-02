@@ -30,6 +30,10 @@ export const EMPRESAS_ROUTES: Routes = [
       {
         path: ':id/timbrados',
         loadComponent: () => import('./empresa-timbrados.component').then(m => m.EmpresaTimbradosComponent)
+      },
+      {
+        path: ':id/productos',
+        loadComponent: () => import('../productos/productos-list.component').then(m => m.ProductosListComponent)
       }
     ]
   }
