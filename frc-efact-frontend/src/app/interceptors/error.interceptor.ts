@@ -16,25 +16,47 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         // Client-side error
         errorMessage = `Error: ${error.error.message}`;
       } else {
-        // Server-side error
-        switch (error.status) {
-          case 401:
-            errorMessage = 'Unauthorized. Please login again.';
-            authService.logout();
-            // Reiniciar la aplicación para limpiar completamente el estado
-            window.location.href = '/login';
-            break;
-          case 403:
-            errorMessage = 'Access forbidden.';
-            break;
-          case 404:
-            errorMessage = 'Resource not found.';
-            break;
-          case 500:
-            errorMessage = 'Internal server error.';
-            break;
-          default:
-            errorMessage = error.error?.message || `Error Code: ${error.status}`;
+        // Server-side error - Intentar extraer mensaje detallado del backend
+        if (error.error) {
+          // Si hay un mensaje directo en error.error.message
+          if (error.error.message) {
+            errorMessage = error.error.message;
+          }
+          // Si hay errores de validación (objeto errors)
+          else if (error.error.errors) {
+            const validationErrors = error.error.errors;
+            const errorMessages = Object.keys(validationErrors)
+              .map(key => `${key}: ${Array.isArray(validationErrors[key]) ? validationErrors[key].join(', ') : validationErrors[key]}`)
+              .join('; ');
+            errorMessage = `Errores de validación: ${errorMessages}`;
+          }
+          // Si error.error es un string directamente
+          else if (typeof error.error === 'string') {
+            errorMessage = error.error;
+          }
+        }
+
+        // Fallback a mensajes genéricos por código de estado si no hay mensaje específico
+        if (errorMessage === 'An error occurred') {
+          switch (error.status) {
+            case 401:
+              errorMessage = 'Unauthorized. Please login again.';
+              authService.logout();
+              // Reiniciar la aplicación para limpiar completamente el estado
+              window.location.href = '/login';
+              break;
+            case 403:
+              errorMessage = 'Access forbidden.';
+              break;
+            case 404:
+              errorMessage = 'Resource not found.';
+              break;
+            case 500:
+              errorMessage = 'Internal server error.';
+              break;
+            default:
+              errorMessage = `Error Code: ${error.status}`;
+          }
         }
       }
 

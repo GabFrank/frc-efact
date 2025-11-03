@@ -16,8 +16,8 @@ import java.util.regex.Pattern;
  */
 public class RucValidator implements ConstraintValidator<ValidRuc, String> {
 
-    // Patrón para RUC con guion y dígito verificador: 7 u 8 dígitos + guion + 1 dígito
-    private static final Pattern RUC_CON_GUION = Pattern.compile("^\\d{7,8}-\\d$");
+    // Patrón para RUC con guion y dígito verificador: 6, 7 u 8 dígitos + guion + 1 dígito
+    private static final Pattern RUC_CON_GUION = Pattern.compile("^\\d{6,8}-\\d$");
     // Patrón para RUC sin guion: solo números (para no contribuyentes)
     private static final Pattern RUC_SIN_GUION = Pattern.compile("^\\d+$");
 
@@ -35,7 +35,7 @@ public class RucValidator implements ConstraintValidator<ValidRuc, String> {
 
         String rucTrimmed = ruc.trim();
 
-        // Caso 1: Formato con guion y dígito verificador (ej: "4043581-4" o "80016875-5")
+        // Caso 1: Formato con guion y dígito verificador (ej: "123456-7", "4043581-4" o "80016875-5")
         if (RUC_CON_GUION.matcher(rucTrimmed).matches()) {
             // Extraer partes del RUC
             String[] partes = rucTrimmed.split("-");
@@ -82,7 +82,7 @@ public class RucValidator implements ConstraintValidator<ValidRuc, String> {
         // Formato no reconocido
         if (context != null) {
             context.disableDefaultConstraintViolation();
-            var builder = context.buildConstraintViolationWithTemplate("Formato inválido. Use formato: XXXXXXX-X (con DV) o solo números (sin DV)");
+            var builder = context.buildConstraintViolationWithTemplate("Formato inválido. Use formato: XXXXXX-X, XXXXXXX-X o XXXXXXXX-X (6-8 dígitos con guión y DV) o solo números (sin DV)");
             if (builder != null) {
                 builder.addConstraintViolation();
             }

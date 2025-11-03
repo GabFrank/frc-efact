@@ -43,10 +43,41 @@ export class EmpresasEffects {
       ofType(EmpresasActions.createEmpresa),
       exhaustMap(({ empresa, certificadoFile, certificadoPassword }) =>
         this.empresaApi.create(empresa, certificadoFile, certificadoPassword).pipe(
-          map((empresa) => EmpresasActions.createEmpresaSuccess({ empresa })),
-          catchError((error) =>
-            of(EmpresasActions.createEmpresaFailure({ error: error.message }))
-          )
+          map((empresaCreada) => EmpresasActions.createEmpresaSuccess({ empresa: empresaCreada })),
+          catchError((error) => {
+            // Extraer mensaje de error más detallado
+            let errorMessage = error.message || 'Error desconocido al crear empresa';
+
+            // Si es un HttpErrorResponse con error.error
+            if (error.error) {
+              if (error.error.message) {
+                errorMessage = error.error.message;
+              } else if (error.error.errors) {
+                // Errores de validación
+                const validationErrors = error.error.errors;
+                errorMessage = Object.keys(validationErrors)
+                  .map(key => `${key}: ${Array.isArray(validationErrors[key]) ? validationErrors[key].join(', ') : validationErrors[key]}`)
+                  .join('; ');
+              } else if (typeof error.error === 'string') {
+                errorMessage = error.error;
+              }
+            }
+
+            // Si hay un originalError, intentar extraer de ahí también
+            if (error.originalError?.error) {
+              const original = error.originalError.error;
+              if (original.message && errorMessage === 'Error desconocido al crear empresa') {
+                errorMessage = original.message;
+              } else if (original.errors) {
+                const validationErrors = original.errors;
+                errorMessage = Object.keys(validationErrors)
+                  .map(key => `${key}: ${Array.isArray(validationErrors[key]) ? validationErrors[key].join(', ') : validationErrors[key]}`)
+                  .join('; ');
+              }
+            }
+
+            return of(EmpresasActions.createEmpresaFailure({ error: errorMessage }));
+          })
         )
       )
     )

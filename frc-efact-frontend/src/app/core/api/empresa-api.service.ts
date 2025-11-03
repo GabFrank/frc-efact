@@ -29,12 +29,14 @@ export class EmpresaApiService {
     // Si hay certificado, usar FormData (multipart)
     if (certificadoFile && certificadoPassword) {
       const formData = new FormData();
-      formData.append('empresa', new Blob([JSON.stringify(empresa)], { type: 'application/json' }));
+      const empresaBlob = new Blob([JSON.stringify(empresa)], { type: 'application/json' });
+      formData.append('empresa', empresaBlob);
       formData.append('certificadoFile', certificadoFile);
       formData.append('certificadoPassword', certificadoPassword);
 
       return this.http.post<Empresa>(this.baseUrl, formData);
     }
+
     // Si no hay certificado, enviar JSON normal (Spring detectará automáticamente el Content-Type)
     return this.http.post<Empresa>(this.baseUrl, empresa, {
       headers: { 'Content-Type': 'application/json' }

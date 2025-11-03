@@ -35,9 +35,9 @@ public class EmpresaService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmpresaService.class);
 
-    // Patrón para validar RUC paraguayo: formato XXXXXXXX-X (8 dígitos, guión, 1
-    // dígito verificador)
-    private static final Pattern RUC_PATTERN = Pattern.compile("^\\d{8}-\\d$");
+    // Patrón para validar RUC paraguayo: formato XXXXXX-X, XXXXXXX-X o XXXXXXXX-X 
+    // (6-8 dígitos, guión, 1 dígito verificador)
+    private static final Pattern RUC_PATTERN = Pattern.compile("^\\d{6,8}-\\d$");
 
     private final EmpresaRepository empresaRepository;
     private final UsuarioRepository usuarioRepository;
@@ -413,24 +413,38 @@ public class EmpresaService {
             throw new IllegalArgumentException("RUC no puede estar vacío");
         }
 
-        // Validar formato
-        if (!RUC_PATTERN.matcher(ruc).matches()) {
-            throw new IllegalArgumentException("Formato de RUC inválido");
+        String rucTrimmed = ruc.trim();
+        
+        // Validar formato: debe tener guión y dígito verificador (6-8 dígitos)
+        if (!RUC_PATTERN.matcher(rucTrimmed).matches()) {
+            throw new IllegalArgumentException("Formato de RUC inválido. Debe tener formato: 6-8 dígitos, guión y dígito verificador (ej: 123456-7, 4043581-4, 80016875-5)");
         }
 
         // Extraer partes del RUC
-        String[] partes = ruc.split("-");
+        String[] partes = rucTrimmed.split("-");
+        if (partes.length != 2) {
+            throw new IllegalArgumentException("Formato de RUC inválido. Debe incluir guión y dígito verificador");
+        }
+        
         String numeroBase = partes[0];
-        int digitoVerificador = Integer.parseInt(partes[1]);
+        int digitoVerificador;
+        
+        try {
+            digitoVerificador = Integer.parseInt(partes[1]);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Dígito verificador inválido");
+        }
 
         // Calcular dígito verificador usando la nueva utilidad
         Integer digitoCalculado = CalcularVerificadorRuc.getDigitoVerificador(numeroBase);
 
-        if (digitoCalculado == null || digitoCalculado != digitoVerificador) {
-            throw new IllegalArgumentException("Dígito verificador inválido");
+        if (digitoCalculado == null) {
+            throw new IllegalArgumentException("Error al calcular dígito verificador");
         }
 
-        logger.debug("RUC validado correctamente: {}", ruc);
+        if (digitoCalculado != digitoVerificador) {
+            throw new IllegalArgumentException("Dígito verificador del RUC es incorrecto. Dígito esperado: " + digitoCalculado);
+        }
     }
 
     /**

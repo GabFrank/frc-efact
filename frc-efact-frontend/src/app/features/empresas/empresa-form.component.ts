@@ -101,7 +101,7 @@ import { switchMap } from 'rxjs/operators';
               <div class="form-row">
                 <mat-form-field appearance="outline" class="half-width">
                   <mat-label>RUC *</mat-label>
-                  <input matInput formControlName="ruc" placeholder="12345678-9"
+                  <input matInput formControlName="ruc" placeholder="12345678-9 (con guión y dígito verificador)"
                          [readonly]="isViewMode" (input)="onRucInput($event)">
 
                   <!-- Loading indicator -->
@@ -118,13 +118,13 @@ import { switchMap } from 'rxjs/operators';
                     El RUC es requerido
                   </mat-error>
                   <mat-error *ngIf="empresaForm.get('ruc')?.hasError('pattern')">
-                    Formato inválido
+                    Formato inválido. Debe tener guión y dígito verificador (ej: 12345678-9)
                   </mat-error>
                   <mat-error *ngIf="empresaForm.get('ruc')?.hasError('rucInvalidFormat')">
-                    Formato inválido o dígito verificador incorrecto
+                    El RUC debe tener formato: 6-8 dígitos, guión (-) y dígito verificador (ej: 12345678-9)
                   </mat-error>
                   <mat-error *ngIf="empresaForm.get('ruc')?.hasError('rucExists')">
-                    Este RUC ya está registrado
+                    Este RUC ya está registrado en otra empresa
                     <span *ngIf="empresaForm.get('ruc')?.errors?.['existingRazonSocial']">
                       ({{ empresaForm.get('ruc')?.errors?.['existingRazonSocial'] }})
                     </span>
@@ -772,21 +772,40 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
     // Suscribirse a los errores para mostrar feedback
     this.store.select(selectEmpresasError).pipe(takeUntil(this.destroy$)).subscribe(error => {
       if (error) {
-        console.error('Error en operación de empresa:', error);
+        // Detectar errores específicos
+        const errorStr = typeof error === 'string' ? error : JSON.stringify(error);
 
-        // Detectar error específico de RUC y ofrecer solución
-        if (error.includes('Dígito verificador del RUC es incorrecto')) {
+        if (errorStr.includes('Dígito verificador del RUC es incorrecto') ||
+            errorStr.includes('RUC inválido') ||
+            errorStr.includes('formato')) {
           this.snackBar.open(
-            '⚠️ Error de validación RUC en el servidor. El backend necesita actualización.',
+            '⚠️ El RUC debe tener formato válido: 6-8 dígitos, guión (-) y dígito verificador (ej: 12345678-9)',
             'Entendido',
             {
               duration: 8000,
               panelClass: ['warning-snackbar']
             }
           );
+        } else if (errorStr.includes('duplicado') ||
+                   errorStr.includes('ya existe') ||
+                   errorStr.includes('Duplicate') ||
+                   errorStr.includes('RUC')) {
+          // Error de RUC duplicado
+          this.snackBar.open(
+            '❌ Este RUC ya está registrado en otra empresa. Verifique que no esté duplicado.',
+            'Cerrar',
+            {
+              duration: 8000,
+              panelClass: ['error-snackbar']
+            }
+          );
+          // Marcar el campo RUC como inválido
+          this.empresaForm.get('ruc')?.setErrors({ rucExists: true });
+          this.empresaForm.get('ruc')?.markAsTouched();
         } else {
-          this.snackBar.open(`Error: ${error}`, 'Cerrar', {
-            duration: 5000,
+          // Mostrar el error completo al usuario
+          this.snackBar.open(`Error: ${errorStr}`, 'Cerrar', {
+            duration: 8000, // Aumentar duración para que el usuario pueda leer el mensaje completo
             panelClass: ['error-snackbar']
           });
         }
@@ -868,7 +887,11 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
   private createForm(): FormGroup {
     const form = this.fb.group({
       razonSocial: ['', [Validators.required, Validators.maxLength(200)]],
-      ruc: ['', [Validators.required, Validators.pattern(/^\d{6,8}-\d$/)]],
+      // RUC debe tener formato: 6-8 dígitos, guión obligatorio, y 1 dígito verificador
+      ruc: ['', [
+        Validators.required,
+        Validators.pattern(/^\d{6,8}-\d$/)
+      ]],
       tipoContribuyente: ['PF', [Validators.required]], // PF por defecto
       nombreFantasia: [''],
       email: ['', [Validators.email]],
@@ -1072,32 +1095,68 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
       const formValue = this.empresaForm.value;
 
       // Parse comma-separated values for secondary activities
+      const actividadesSec = this.procesarActividadesSecundarias(formValue);
+
       const actividadEconomica = {
-        ...formValue.actividadEconomica,
-        codigosSecundarios: formValue.actividadEconomica.codigosSecundarios
-          ? formValue.actividadEconomica.codigosSecundarios.split(',').map((s: string) => s.trim()).filter((s: string) => s)
-          : [],
-        descripcionesSecundarias: formValue.actividadEconomica.descripcionesSecundarias
-          ? formValue.actividadEconomica.descripcionesSecundarias.split(',').map((s: string) => s.trim()).filter((s: string) => s)
-          : []
+        codigoPrincipal: formValue.actividadEconomica.codigoPrincipal,
+        descripcionPrincipal: formValue.actividadEconomica.descripcionPrincipal,
+        codigosSecundarios: actividadesSec.codigosSecundarios,
+        descripcionesSecundarias: actividadesSec.descripcionesSecundarias
       };
 
       // Preparar datos para el backend (estructura simplificada)
+      // Asegurar que los campos opcionales sean null en lugar de strings vacíos
+
+      // Normalizar RUC: debe tener formato con guión y dígito verificador
+      let rucNormalized = formValue.ruc?.trim() || '';
+      if (rucNormalized && !rucNormalized.includes('-')) {
+        // Si no tiene guión, agregarlo antes del último dígito (asumiendo que es el DV)
+        // Esto es un fallback, idealmente el usuario ya ingresó con guión
+        const digitsOnly = rucNormalized.replace(/\D/g, '');
+        if (digitsOnly.length >= 7) {
+          const base = digitsOnly.slice(0, -1);
+          const dv = digitsOnly.slice(-1);
+          rucNormalized = `${base}-${dv}`;
+        }
+      }
+
+      // Validar que el RUC tenga el formato correcto antes de enviar
+      if (rucNormalized && !/^\d{6,8}-\d$/.test(rucNormalized)) {
+        this.snackBar.open('El RUC debe tener formato válido con guión y dígito verificador (ej: 12345678-9)', 'Cerrar', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+        this.submitting = false;
+        this.empresaForm.get('ruc')?.markAsTouched();
+        return;
+      }
+
       const empresaData: any = {
-        razonSocial: formValue.razonSocial,
-        ruc: formValue.ruc,
+        razonSocial: formValue.razonSocial?.trim() || '',
+        ruc: rucNormalized,
         tipoContribuyente: formValue.tipoContribuyente || 'PF',
-        nombreFantasia: formValue.nombreFantasia || null,
-        email: formValue.email || null,
-        telefono: formValue.telefono || null,
-        direccion: formValue.direccion || null,
+        nombreFantasia: formValue.nombreFantasia?.trim() || null,
+        email: formValue.email?.trim() || null,
+        telefono: formValue.telefono?.trim() || null,
+        direccion: formValue.direccion?.trim() || null,
         tipoSociedad: null,
         ciudadId: formValue.ciudadId,
         barrioId: formValue.barrioId || null,
-        domicilioFiscalDireccion: formValue.domicilioFiscalDireccion,
+        domicilioFiscalDireccion: formValue.domicilioFiscalDireccion?.trim() || '',
         actividadEconomica: actividadEconomica,
         activo: true
       };
+
+      // Validación adicional: asegurar que ciudadId está presente
+      if (!empresaData.ciudadId) {
+        this.snackBar.open('La ciudad es requerida para el domicilio fiscal', 'Cerrar', {
+          duration: 5000,
+          panelClass: ['error-snackbar']
+        });
+        this.submitting = false;
+        this.empresaForm.get('ciudadId')?.markAsTouched();
+        return;
+      }
 
       // Obtener certificado si hay uno seleccionado
       const certificadoFile = this.selectedFile;
@@ -1219,11 +1278,18 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
 
   onRucInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const formattedValue = this.rucValidationService.formatRucInput(input.value);
+    let formattedValue = this.rucValidationService.formatRucInput(input.value);
+
+    // Asegurar que si el usuario está escribiendo dígitos, se formatee correctamente
+    // Si tiene 6-8 dígitos sin guión, sugerir agregar guión
+    const cleaned = formattedValue.replace(/[^\d]/g, '');
+    if (cleaned.length >= 6 && cleaned.length <= 8 && !formattedValue.includes('-')) {
+      // No agregar guión automáticamente, solo formatear lo que el usuario escriba
+    }
 
     // Actualizar el valor del input y del formulario
     input.value = formattedValue;
-    this.empresaForm.get('ruc')?.setValue(formattedValue);
+    this.empresaForm.get('ruc')?.setValue(formattedValue, { emitEvent: true });
   }
 
   // Uppercase input handler
@@ -1384,6 +1450,25 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Helper para procesar actividades económicas secundarias desde el formulario
+   * Convierte strings separados por comas a arrays, asegurando que siempre sean arrays
+   */
+  private procesarActividadesSecundarias(formValue: any): { codigosSecundarios: string[], descripcionesSecundarias: string[] } {
+    const codigosSecStr = formValue.actividadEconomica?.codigosSecundarios || '';
+    const descripcionesSecStr = formValue.actividadEconomica?.descripcionesSecundarias || '';
+
+    const codigosSecundarios = codigosSecStr.trim()
+      ? codigosSecStr.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+      : [];
+
+    const descripcionesSecundarias = descripcionesSecStr.trim()
+      ? descripcionesSecStr.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+      : [];
+
+    return { codigosSecundarios, descripcionesSecundarias };
+  }
+
+  /**
    * Actualiza solo la contraseña del certificado existente sin cambiar el archivo
    */
   private actualizarSoloPassword(nuevaPassword: string): void {
@@ -1403,26 +1488,25 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
         // También actualizar la empresa si se está editando
         if (this.isEditMode && this.empresaId) {
           const formValue = this.empresaForm.value;
+          const actividadesSec = this.procesarActividadesSecundarias(formValue);
+
           const empresaData: any = {
-            razonSocial: formValue.razonSocial,
-            ruc: formValue.ruc,
+            razonSocial: formValue.razonSocial?.trim() || '',
+            ruc: formValue.ruc?.trim() || '',
             tipoContribuyente: formValue.tipoContribuyente || 'PF',
-            nombreFantasia: formValue.nombreFantasia || null,
-            email: formValue.email || null,
-            telefono: formValue.telefono || null,
-            direccion: formValue.direccion || null,
+            nombreFantasia: formValue.nombreFantasia?.trim() || null,
+            email: formValue.email?.trim() || null,
+            telefono: formValue.telefono?.trim() || null,
+            direccion: formValue.direccion?.trim() || null,
             tipoSociedad: null,
             ciudadId: formValue.ciudadId,
             barrioId: formValue.barrioId || null,
-            domicilioFiscalDireccion: formValue.domicilioFiscalDireccion,
+            domicilioFiscalDireccion: formValue.domicilioFiscalDireccion?.trim() || '',
             actividadEconomica: {
-              ...formValue.actividadEconomica,
-              codigosSecundarios: formValue.actividadEconomica.codigosSecundarios
-                ? formValue.actividadEconomica.codigosSecundarios.split(',').map((s: string) => s.trim()).filter((s: string) => s)
-                : [],
-              descripcionesSecundarias: formValue.actividadEconomica.descripcionesSecundarias
-                ? formValue.actividadEconomica.descripcionesSecundarias.split(',').map((s: string) => s.trim()).filter((s: string) => s)
-                : []
+              codigoPrincipal: formValue.actividadEconomica.codigoPrincipal,
+              descripcionPrincipal: formValue.actividadEconomica.descripcionPrincipal,
+              codigosSecundarios: actividadesSec.codigosSecundarios,
+              descripcionesSecundarias: actividadesSec.descripcionesSecundarias
             },
             activo: true
           };
