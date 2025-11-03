@@ -125,7 +125,7 @@ export class AuthEffects {
         if (token && refreshToken && userJson) {
           try {
             const user = JSON.parse(userJson);
-            console.log('Inicializando auth desde localStorage:', { user, token: !!token, refreshToken: !!refreshToken });
+            // console.log('Inicializando auth desde localStorage:', { user, token: !!token, refreshToken: !!refreshToken });
             return AuthActions.initializeAuthSuccess({
               user,
               token,

@@ -93,4 +93,32 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
      * Verifica si existe un cliente con el RUC dado en la empresa.
      */
     boolean existsByEmpresaIdAndRucAndActivoTrue(Long empresaId, String ruc);
+
+    /**
+     * Busca clientes por tipo de cliente SIFEN.
+     */
+    List<Cliente> findByEmpresaIdAndTipoClienteSifenAndActivoTrue(Long empresaId, com.frcefact.model.TipoClienteSifen tipoClienteSifen);
+
+    /**
+     * Busca clientes por tipo de cliente SIFEN con paginación.
+     */
+    Page<Cliente> findByEmpresaIdAndTipoClienteSifenAndActivoTrue(Long empresaId, com.frcefact.model.TipoClienteSifen tipoClienteSifen, Pageable pageable);
+
+    /**
+     * Búsqueda avanzada con filtros múltiples.
+     * Soporta filtros por: búsqueda de texto, tipoClienteSifen, y activo.
+     * Nota: Los parámetros opcionales deben pasarse como null cuando no se aplican.
+     */
+    @Query("SELECT c FROM Cliente c WHERE c.empresa.id = :empresaId " +
+           "AND (:busqueda IS NULL OR :busqueda = '' OR " +
+           "     LOWER(c.nombre) LIKE LOWER(CONCAT('%', :busqueda, '%')) OR " +
+           "     LOWER(c.razonSocial) LIKE LOWER(CONCAT('%', :busqueda, '%')) OR " +
+           "     c.ruc LIKE CONCAT(:busqueda, '%')) " +
+           "AND (:tipoClienteSifen IS NULL OR c.tipoClienteSifen = :tipoClienteSifen) " +
+           "AND (:activo IS NULL OR c.activo = :activo)")
+    Page<Cliente> buscarClientesConFiltros(@Param("empresaId") Long empresaId,
+                                            @Param("busqueda") String busqueda,
+                                            @Param("tipoClienteSifen") com.frcefact.model.TipoClienteSifen tipoClienteSifen,
+                                            @Param("activo") Boolean activo,
+                                            Pageable pageable);
 }

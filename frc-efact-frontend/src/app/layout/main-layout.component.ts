@@ -17,8 +17,7 @@ import { AuthService } from '../services/auth.service';
       <!-- Top Navigation Bar -->
       <nav class="navbar">
         <div class="navbar-brand">
-          <img src="assets/logo.png" alt="FRC eFact" class="logo" />
-          <span class="brand-text">FRC eFact</span>
+          <!-- <span class="brand-text">FRC eFact</span> -->
         </div>
 
         <div class="navbar-user">
@@ -70,6 +69,10 @@ import { AuthService } from '../services/auth.service';
       <div class="layout-content">
         <!-- Side Navigation Menu -->
         <aside class="sidebar">
+          <!-- Logo en la parte superior de la sidebar -->
+          <div class="sidebar-logo">
+            <img src="assets/logo.svg" alt="FRC eFact" class="sidebar-logo-img" />
+          </div>
           <nav class="sidebar-nav">
             <ul class="nav-menu">
               <li class="nav-item">
@@ -356,10 +359,30 @@ import { AuthService } from '../services/auth.service';
       color: white;
       overflow-y: auto;
       box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Logo en la sidebar */
+    .sidebar-logo {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 0.5rem;
+    }
+
+    .sidebar-logo-img {
+      height: 80px;
+      width: auto;
+      max-width: 200px;
+      object-fit: contain;
     }
 
     .sidebar-nav {
       padding: 1rem 0;
+      flex: 1;
     }
 
     .nav-menu {
@@ -415,6 +438,11 @@ import { AuthService } from '../services/auth.service';
         width: 200px;
       }
 
+      .sidebar-logo-img {
+        height: 60px;
+        max-width: 160px;
+      }
+
       .main-content {
         padding: 1rem;
       }
@@ -439,6 +467,11 @@ import { AuthService } from '../services/auth.service';
 
       .sidebar.open {
         left: 0;
+      }
+
+      .sidebar-logo-img {
+        height: 50px;
+        max-width: 140px;
       }
 
       .main-content {

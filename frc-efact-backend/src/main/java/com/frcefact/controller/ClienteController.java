@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  * Proporciona endpoints CRUD con búsqueda y paginación.
  */
 @RestController
-@RequestMapping("/api/clientes")
+@RequestMapping("/clientes")
 @Tag(name = "Clientes", description = "API para gestión de clientes")
 public class ClienteController {
 
@@ -59,8 +59,6 @@ public class ClienteController {
             @Parameter(description = "ID de la empresa") @PathVariable Long empresaId,
             @Valid @RequestBody ClienteDto clienteDto) {
         
-        logger.info("POST /api/clientes/empresa/{} - Creando cliente", empresaId);
-
         Cliente cliente = clienteMapper.toEntity(clienteDto);
         Cliente clienteCreado = clienteService.crearCliente(empresaId, cliente);
         ClienteDto responseDto = clienteMapper.toDto(clienteCreado);
@@ -85,8 +83,6 @@ public class ClienteController {
             @Parameter(description = "ID del cliente") @PathVariable Long clienteId,
             @Valid @RequestBody ClienteDto clienteDto) {
         
-        logger.info("PUT /api/clientes/empresa/{}/{} - Actualizando cliente", empresaId, clienteId);
-
         Cliente cliente = clienteMapper.toEntity(clienteDto);
         Cliente clienteActualizado = clienteService.actualizarCliente(empresaId, clienteId, cliente);
         ClienteDto responseDto = clienteMapper.toDto(clienteActualizado);
@@ -109,8 +105,6 @@ public class ClienteController {
             @Parameter(description = "ID de la empresa") @PathVariable Long empresaId,
             @Parameter(description = "ID del cliente") @PathVariable Long clienteId) {
         
-        logger.info("GET /api/clientes/empresa/{}/{} - Obteniendo cliente", empresaId, clienteId);
-
         return clienteService.obtenerClientePorId(empresaId, clienteId)
                 .map(clienteMapper::toDto)
                 .map(ResponseEntity::ok)
@@ -130,8 +124,6 @@ public class ClienteController {
     public ResponseEntity<List<ClienteDto>> listarClientes(
             @Parameter(description = "ID de la empresa") @PathVariable Long empresaId) {
         
-        logger.info("GET /api/clientes/empresa/{} - Listando clientes", empresaId);
-
         List<Cliente> clientes = clienteService.listarClientesPorEmpresa(empresaId);
         List<ClienteDto> clientesDto = clientes.stream()
                 .map(clienteMapper::toDto)
@@ -157,8 +149,6 @@ public class ClienteController {
             @Parameter(description = "Campo de ordenamiento") @RequestParam(defaultValue = "nombre") String sortBy,
             @Parameter(description = "Dirección de ordenamiento") @RequestParam(defaultValue = "ASC") String sortDir) {
         
-        logger.info("GET /api/clientes/empresa/{}/paginado - Listando clientes paginados", empresaId);
-
         Sort sort = sortDir.equalsIgnoreCase("DESC") 
                 ? Sort.by(sortBy).descending() 
                 : Sort.by(sortBy).ascending();
@@ -184,8 +174,6 @@ public class ClienteController {
             @Parameter(description = "ID de la empresa") @PathVariable Long empresaId,
             @Parameter(description = "Término de búsqueda") @RequestParam(required = false) String q) {
         
-        logger.info("GET /api/clientes/empresa/{}/buscar?q={} - Buscando clientes", empresaId, q);
-
         List<Cliente> clientes = clienteService.buscarClientes(empresaId, q);
         List<ClienteDto> clientesDto = clientes.stream()
                 .map(clienteMapper::toDto)
@@ -212,14 +200,54 @@ public class ClienteController {
             @Parameter(description = "Campo de ordenamiento") @RequestParam(defaultValue = "nombre") String sortBy,
             @Parameter(description = "Dirección de ordenamiento") @RequestParam(defaultValue = "ASC") String sortDir) {
         
-        logger.info("GET /api/clientes/empresa/{}/buscar/paginado?q={} - Buscando clientes paginados", empresaId, q);
-
         Sort sort = sortDir.equalsIgnoreCase("DESC") 
                 ? Sort.by(sortBy).descending() 
                 : Sort.by(sortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
         Page<Cliente> clientesPage = clienteService.buscarClientesPaginados(empresaId, q, pageable);
+        Page<ClienteDto> clientesDtoPage = clientesPage.map(clienteMapper::toDto);
+
+        return ResponseEntity.ok(clientesDtoPage);
+    }
+
+    /**
+     * Busca clientes con filtros múltiples y paginación.
+     */
+    @GetMapping("/empresa/{empresaId}/filtrar")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    @Operation(summary = "Buscar clientes con filtros", description = "Busca clientes con múltiples filtros y paginación")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Página de clientes encontrados"),
+        @ApiResponse(responseCode = "403", description = "Sin permisos para esta operación")
+    })
+    public ResponseEntity<Page<ClienteDto>> buscarClientesConFiltros(
+            @Parameter(description = "ID de la empresa") @PathVariable Long empresaId,
+            @Parameter(description = "Término de búsqueda") @RequestParam(required = false) String q,
+            @Parameter(description = "Tipo de cliente SIFEN") @RequestParam(required = false) String tipoClienteSifen,
+            @Parameter(description = "Estado activo") @RequestParam(required = false) Boolean activo,
+            @Parameter(description = "Número de página (0-indexed)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamaño de página") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Campo de ordenamiento") @RequestParam(defaultValue = "razonSocial") String sortBy,
+            @Parameter(description = "Dirección de ordenamiento") @RequestParam(defaultValue = "ASC") String sortDir) {
+        
+        Sort sort = sortDir.equalsIgnoreCase("DESC") 
+                ? Sort.by(sortBy).descending() 
+                : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        // Convertir String a Enum si se proporciona
+        com.frcefact.model.TipoClienteSifen tipoClienteEnum = null;
+        if (tipoClienteSifen != null && !tipoClienteSifen.trim().isEmpty()) {
+            try {
+                tipoClienteEnum = com.frcefact.model.TipoClienteSifen.valueOf(tipoClienteSifen);
+            } catch (IllegalArgumentException e) {
+                // Tipo de cliente SIFEN inválido, se ignorará el filtro
+            }
+        }
+
+        Page<Cliente> clientesPage = clienteService.buscarClientesConFiltros(
+                empresaId, q, tipoClienteEnum, activo, pageable);
         Page<ClienteDto> clientesDtoPage = clientesPage.map(clienteMapper::toDto);
 
         return ResponseEntity.ok(clientesDtoPage);
@@ -240,12 +268,30 @@ public class ClienteController {
             @Parameter(description = "ID de la empresa") @PathVariable Long empresaId,
             @Parameter(description = "RUC del cliente") @PathVariable String ruc) {
         
-        logger.info("GET /api/clientes/empresa/{}/ruc/{} - Buscando cliente por RUC", empresaId, ruc);
-
         return clienteService.buscarPorRuc(empresaId, ruc)
                 .map(clienteMapper::toDto)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Verifica si existe un cliente con el RUC especificado para la empresa.
+     * Útil para validación en tiempo real desde el frontend.
+     */
+    @GetMapping("/empresa/{empresaId}/ruc/{ruc}/existe")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    @Operation(summary = "Verificar existencia de RUC", description = "Verifica si existe un cliente activo con el RUC especificado")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Respuesta con información de existencia"),
+        @ApiResponse(responseCode = "403", description = "Sin permisos para esta operación")
+    })
+    public ResponseEntity<Boolean> verificarRucExiste(
+            @Parameter(description = "ID de la empresa") @PathVariable Long empresaId,
+            @Parameter(description = "RUC a verificar") @PathVariable String ruc,
+            @Parameter(description = "ID del cliente a excluir (para edición)") @RequestParam(required = false) Long excluirClienteId) {
+        
+        boolean existe = clienteService.existeRucEnEmpresa(empresaId, ruc, excluirClienteId);
+        return ResponseEntity.ok(existe);
     }
 
     /**
@@ -263,8 +309,6 @@ public class ClienteController {
             @Parameter(description = "ID de la empresa") @PathVariable Long empresaId,
             @Parameter(description = "ID del cliente") @PathVariable Long clienteId) {
         
-        logger.info("DELETE /api/clientes/empresa/{}/{} - Desactivando cliente", empresaId, clienteId);
-
         clienteService.desactivarCliente(empresaId, clienteId);
         return ResponseEntity.noContent().build();
     }
@@ -284,8 +328,6 @@ public class ClienteController {
             @Parameter(description = "ID de la empresa") @PathVariable Long empresaId,
             @Parameter(description = "ID del cliente") @PathVariable Long clienteId) {
         
-        logger.info("PATCH /api/clientes/empresa/{}/{}/reactivar - Reactivando cliente", empresaId, clienteId);
-
         clienteService.reactivarCliente(empresaId, clienteId);
         return ResponseEntity.noContent().build();
     }
@@ -303,8 +345,6 @@ public class ClienteController {
     public ResponseEntity<Long> contarClientes(
             @Parameter(description = "ID de la empresa") @PathVariable Long empresaId) {
         
-        logger.info("GET /api/clientes/empresa/{}/count - Contando clientes", empresaId);
-
         long count = clienteService.contarClientesActivos(empresaId);
         return ResponseEntity.ok(count);
     }

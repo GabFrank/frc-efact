@@ -158,6 +158,10 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                       <mat-icon>inventory_2</mat-icon>
                       <span>Gestionar productos</span>
                     </button>
+                    <button mat-menu-item (click)="onManageClientes(empresa)">
+                      <mat-icon>people</mat-icon>
+                      <span>Gestionar clientes</span>
+                    </button>
                     <mat-divider></mat-divider>
                     <button
                       mat-menu-item
@@ -442,6 +446,11 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
 
   onManageProductos(empresa: Empresa): void {
     this.router.navigate(['/empresas', empresa.id, 'productos']);
+  }
+
+  onManageClientes(empresa: Empresa): void {
+    // Navegar a la lista de clientes con el empresaId como query param
+    this.router.navigate(['/clientes'], { queryParams: { empresaId: empresa.id } });
   }
 
   onToggleActive(empresa: Empresa): void {

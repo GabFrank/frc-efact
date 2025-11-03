@@ -7,7 +7,7 @@ import java.lang.annotation.*;
 
 /**
  * Anotación de validación personalizada para validar que el RUC sea requerido
- * cuando tributa=true en un cliente.
+ * según el tipo de cliente SIFEN (o tributa=true como fallback).
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

@@ -38,8 +38,21 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         }
       }
 
-      console.error(errorMessage);
-      return throwError(() => new Error(errorMessage));
+      // Para errores 400 (validación), preservar el error original para que los componentes puedan acceder a los detalles
+      if (error.status === 400 && error.error) {
+        // Mantener el HttpErrorResponse para que los componentes puedan acceder a error.error.errors
+        return throwError(() => error);
+      }
+
+      // Para otros errores, usar el mensaje simplificado pero preservar el error original si es necesario
+      return throwError(() => {
+        const newError: any = new Error(errorMessage);
+        newError.originalError = error;
+        newError.status = error.status;
+        newError.statusText = error.statusText;
+        newError.error = error.error;
+        return newError;
+      });
     })
   );
 };

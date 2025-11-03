@@ -56,10 +56,15 @@ import { ProductoFormComponent } from './producto-form.component';
         <mat-card-header>
           <mat-card-title>
             <div class="header-content">
-              <button mat-icon-button (click)="goBack()" matTooltip="Volver a empresas">
-                <mat-icon>arrow_back</mat-icon>
-              </button>
-              <h2>Gestión de Productos{{ empresaNombre ? ' - ' + empresaNombre : '' }}</h2>
+              <div class="header-title-section">
+                <button mat-icon-button (click)="goBack()" matTooltip="Volver a empresas">
+                  <mat-icon>arrow_back</mat-icon>
+                </button>
+                <div class="title-wrapper">
+                  <h2>Gestión de Productos</h2>
+                  <p class="empresa-subtitle" *ngIf="empresaNombre">{{ empresaNombre }}</p>
+                </div>
+              </div>
               <div class="header-actions">
                 <button mat-raised-button color="accent" (click)="importarExcel()">
                   <mat-icon>upload_file</mat-icon>
@@ -244,13 +249,33 @@ import { ProductoFormComponent } from './producto-form.component';
       gap: 16px;
     }
 
-    .header-content h2 {
+    .header-title-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       flex: 1;
-      margin: 0;
     }
 
-    .header-content button {
+    .header-title-section button {
       margin-right: 8px;
+    }
+
+    .title-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .title-wrapper h2 {
+      margin: 0;
+      flex: 1;
+    }
+
+    .empresa-subtitle {
+      margin: 0;
+      font-size: 14px;
+      color: rgba(0, 0, 0, 0.6);
+      font-weight: normal;
     }
 
     .header-actions {
