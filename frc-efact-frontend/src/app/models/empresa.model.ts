@@ -15,6 +15,7 @@ export interface Empresa {
   certificadoPath?: string;
   certificadoFechaExpiracion?: string;
   certificado?: CertificadoInfo; // Mantener por compatibilidad
+  sifenAmbiente?: 'DEV' | 'PROD'; // Ambiente SIFEN (DEV = Desarrollo, PROD = Producción)
   activo: boolean;
   creadoEn: string;
 }

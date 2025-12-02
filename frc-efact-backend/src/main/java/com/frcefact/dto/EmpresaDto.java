@@ -58,6 +58,10 @@ public class EmpresaDto {
     private String certificadoPassword; // Se encriptará antes de guardar
     private LocalDate certificadoFechaExpiracion;
 
+    // Configuración SIFEN
+    @Size(max = 20, message = "Ambiente SIFEN no debe exceder 20 caracteres")
+    private String sifenAmbiente = "DEV"; // DEV, TEST, PRODUCTION
+
     private Boolean activo;
 
     // Constructores
@@ -191,6 +195,14 @@ public class EmpresaDto {
 
     public void setCertificadoFechaExpiracion(LocalDate certificadoFechaExpiracion) {
         this.certificadoFechaExpiracion = certificadoFechaExpiracion;
+    }
+
+    public String getSifenAmbiente() {
+        return sifenAmbiente;
+    }
+
+    public void setSifenAmbiente(String sifenAmbiente) {
+        this.sifenAmbiente = sifenAmbiente;
     }
 
     public Boolean getActivo() {

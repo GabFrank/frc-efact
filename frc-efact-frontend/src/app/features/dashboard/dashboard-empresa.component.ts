@@ -10,12 +10,18 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatDividerModule } from '@angular/material/divider';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { EmpresaApiService } from '../../core/api/empresa-api.service';
 import { Empresa } from '../../models/empresa.model';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { ErrorMessageComponent } from '../../shared/components/error-message/error-message.component';
+import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { Store } from '@ngrx/store';
+import { EmpresasActions } from '../../core/state/empresas/empresas.actions';
 
 @Component({
   selector: 'app-dashboard-empresa',
@@ -32,6 +38,9 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
     MatPaginatorModule,
     MatChipsModule,
     MatTooltipModule,
+    MatMenuModule,
+    MatDialogModule,
+    MatDividerModule,
     LoadingSpinnerComponent,
     ErrorMessageComponent
   ],
@@ -94,22 +103,52 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
               <ng-container matColumnDef="acciones">
                 <th mat-header-cell *matHeaderCellDef>Acciones</th>
                 <td mat-cell *matCellDef="let empresa">
-                  <div class="actions-container">
-                    <button
-                      mat-icon-button
-                      color="primary"
-                      [matTooltip]="'Gestionar ' + empresa.razonSocial"
-                      (click)="goToEmpresaManagement(empresa.id)">
-                      <mat-icon>settings</mat-icon>
-                    </button>
-                    <button
-                      mat-icon-button
-                      color="accent"
-                      [matTooltip]="'Ver detalles de ' + empresa.razonSocial"
-                      (click)="goToEmpresaDetails(empresa.id)">
+                  <button
+                    mat-icon-button
+                    [matMenuTriggerFor]="actionsMenu"
+                    matTooltip="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+
+                  <mat-menu #actionsMenu="matMenu">
+                    <button mat-menu-item (click)="onViewEmpresa(empresa)">
                       <mat-icon>visibility</mat-icon>
+                      <span>Ver detalles</span>
                     </button>
-                  </div>
+                    <button mat-menu-item (click)="onEditEmpresa(empresa)">
+                      <mat-icon>edit</mat-icon>
+                      <span>Editar</span>
+                    </button>
+                    <button mat-menu-item (click)="onManageUsers(empresa)">
+                      <mat-icon>people</mat-icon>
+                      <span>Gestionar usuarios</span>
+                    </button>
+                    <button mat-menu-item (click)="onManageTimbrados(empresa)">
+                      <mat-icon>receipt</mat-icon>
+                      <span>Gestionar timbrados</span>
+                    </button>
+                    <button mat-menu-item (click)="onManageProductos(empresa)">
+                      <mat-icon>inventory_2</mat-icon>
+                      <span>Gestionar productos</span>
+                    </button>
+                    <button mat-menu-item (click)="onManageClientes(empresa)">
+                      <mat-icon>people</mat-icon>
+                      <span>Gestionar clientes</span>
+                    </button>
+                    <button mat-menu-item (click)="onManageFacturas(empresa)">
+                      <mat-icon>receipt_long</mat-icon>
+                      <span>Gestionar facturas</span>
+                    </button>
+                    <mat-divider></mat-divider>
+                    <button
+                      mat-menu-item
+                      (click)="onToggleActive(empresa)"
+                      [class.deactivate-option]="empresa.activo"
+                      [class.activate-option]="!empresa.activo">
+                      <mat-icon>{{ empresa.activo ? 'block' : 'check_circle' }}</mat-icon>
+                      <span>{{ empresa.activo ? 'Desactivar' : 'Activar' }}</span>
+                    </button>
+                  </mat-menu>
                 </td>
               </ng-container>
 
@@ -227,10 +266,26 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
       color: white !important;
     }
 
-    .actions-container {
+    /* Menu styles */
+    .mat-mdc-menu-item {
       display: flex;
-      gap: 8px;
       align-items: center;
+      gap: 12px;
+    }
+
+    .mat-mdc-menu-item mat-icon {
+      margin-right: 0;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    .deactivate-option {
+      color: #f44336;
+    }
+
+    .activate-option {
+      color: #4caf50;
     }
 
     .no-data {
@@ -294,7 +349,9 @@ export class DashboardEmpresaComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private empresaApi: EmpresaApiService
+    private empresaApi: EmpresaApiService,
+    private dialog: MatDialog,
+    private store: Store
   ) {}
 
   ngOnInit(): void {
@@ -366,11 +423,58 @@ export class DashboardEmpresaComponent implements OnInit {
     this.loadEmpresas();
   }
 
-  goToEmpresaManagement(empresaId: number): void {
-    this.router.navigate(['/empresas', empresaId]);
+  onViewEmpresa(empresa: Empresa): void {
+    this.router.navigate(['/empresas', empresa.id]);
   }
 
-  goToEmpresaDetails(empresaId: number): void {
-    this.router.navigate(['/empresas', empresaId, 'edit']);
+  onEditEmpresa(empresa: Empresa): void {
+    this.router.navigate(['/empresas', empresa.id, 'edit']);
+  }
+
+  onManageUsers(empresa: Empresa): void {
+    this.router.navigate(['/empresas', empresa.id, 'usuarios']);
+  }
+
+  onManageTimbrados(empresa: Empresa): void {
+    this.router.navigate(['/empresas', empresa.id, 'timbrados']);
+  }
+
+  onManageProductos(empresa: Empresa): void {
+    this.router.navigate(['/empresas', empresa.id, 'productos']);
+  }
+
+  onManageClientes(empresa: Empresa): void {
+    // Navegar a la lista de clientes con el empresaId como query param
+    this.router.navigate(['/clientes'], { queryParams: { empresaId: empresa.id } });
+  }
+
+  onManageFacturas(empresa: Empresa): void {
+    // Navegar a la lista de facturas con el empresaId como query param
+    this.router.navigate(['/facturacion'], { queryParams: { empresaId: empresa.id } });
+  }
+
+  onToggleActive(empresa: Empresa): void {
+    const action = empresa.activo ? 'desactivar' : 'activar';
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: `${action.charAt(0).toUpperCase() + action.slice(1)} Empresa`,
+        message: `¿Está seguro que desea ${action} la empresa "${empresa.razonSocial}"?`,
+        confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+        cancelText: 'Cancelar'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.store.dispatch(EmpresasActions.updateEmpresa({
+          id: empresa.id,
+          empresa: { activo: !empresa.activo }
+        }));
+        // Recargar empresas después de actualizar
+        setTimeout(() => {
+          this.loadEmpresas();
+        }, 500);
+      }
+    });
   }
 }

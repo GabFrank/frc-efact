@@ -104,9 +104,23 @@ public class FacturaLegal extends AuditableEntity {
     @Column(nullable = false)
     private Boolean activo = true;
 
+    // Moneda extranjera
+    @Size(max = 3)
+    @Column(name = "moneda_extranjera", length = 3)
+    private String monedaExtranjera;
+
+    @Column(name = "cambio", precision = 10, scale = 4)
+    private BigDecimal cambio;
+
     // Relaciones
     @OneToMany(mappedBy = "facturaLegal", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FacturaLegalItem> items = new ArrayList<>();
+
+    /**
+     * Documento electrónico asociado a la factura.
+     */
+    @OneToOne(mappedBy = "facturaLegal", fetch = FetchType.LAZY)
+    private DocumentoElectronico documentoElectronico;
 
     // Constructores
     public FacturaLegal() {
@@ -144,6 +158,10 @@ public class FacturaLegal extends AuditableEntity {
         ivaParcial10 = BigDecimal.ZERO;
 
         // Calcular totales por tasa de IVA
+        // Nota: El total del item ya incluye el IVA, por lo que:
+        // - Para IVA 5%: el IVA es total / 21
+        // - Para IVA 10%: el IVA es total / 11
+        // - El total parcial es simplemente el total del item (no se suma el IVA)
         for (FacturaLegalItem item : items) {
             BigDecimal subtotal = item.getTotal();
             Integer ivaProducto = item.getProducto() != null ? item.getProducto().getIva() : 0;
@@ -151,13 +169,17 @@ public class FacturaLegal extends AuditableEntity {
             if (ivaProducto == 0) {
                 totalParcial0 = totalParcial0.add(subtotal);
             } else if (ivaProducto == 5) {
-                BigDecimal iva = subtotal.multiply(BigDecimal.valueOf(0.05));
+                // IVA 5%: iva = total / 21
+                BigDecimal iva = subtotal.divide(BigDecimal.valueOf(21), 2, java.math.RoundingMode.HALF_UP);
                 ivaParcial5 = ivaParcial5.add(iva);
-                totalParcial5 = totalParcial5.add(subtotal.add(iva));
+                // El total parcial 5 es el total del item (ya incluye IVA)
+                totalParcial5 = totalParcial5.add(subtotal);
             } else if (ivaProducto == 10) {
-                BigDecimal iva = subtotal.multiply(BigDecimal.valueOf(0.10));
+                // IVA 10%: iva = total / 11
+                BigDecimal iva = subtotal.divide(BigDecimal.valueOf(11), 2, java.math.RoundingMode.HALF_UP);
                 ivaParcial10 = ivaParcial10.add(iva);
-                totalParcial10 = totalParcial10.add(subtotal.add(iva));
+                // El total parcial 10 es el total del item (ya incluye IVA)
+                totalParcial10 = totalParcial10.add(subtotal);
             }
         }
 
@@ -354,6 +376,30 @@ public class FacturaLegal extends AuditableEntity {
 
     public void setItems(List<FacturaLegalItem> items) {
         this.items = items;
+    }
+
+    public DocumentoElectronico getDocumentoElectronico() {
+        return documentoElectronico;
+    }
+
+    public void setDocumentoElectronico(DocumentoElectronico documentoElectronico) {
+        this.documentoElectronico = documentoElectronico;
+    }
+
+    public String getMonedaExtranjera() {
+        return monedaExtranjera;
+    }
+
+    public void setMonedaExtranjera(String monedaExtranjera) {
+        this.monedaExtranjera = monedaExtranjera;
+    }
+
+    public BigDecimal getCambio() {
+        return cambio;
+    }
+
+    public void setCambio(BigDecimal cambio) {
+        this.cambio = cambio;
     }
 
     @Override

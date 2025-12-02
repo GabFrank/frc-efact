@@ -45,9 +45,20 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
               <mat-icon>edit</mat-icon>
               Editar
             </button>
-            <button mat-raised-button color="accent" (click)="generarDE()" [disabled]="tieneDE()">
+            <button *ngIf="!tieneDE() || !puedeDesvincularDE()"
+                    mat-raised-button
+                    color="accent"
+                    (click)="generarDE()"
+                    [disabled]="tieneDE() && !puedeDesvincularDE()">
               <mat-icon>description</mat-icon>
               Generar DE
+            </button>
+            <button *ngIf="tieneDE() && puedeDesvincularDE()"
+                    mat-raised-button
+                    color="warn"
+                    (click)="desvincularDE()">
+              <mat-icon>link_off</mat-icon>
+              Desvincular DE
             </button>
             <button mat-raised-button (click)="imprimir()">
               <mat-icon>print</mat-icon>
@@ -67,7 +78,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                     {{ factura()?.credito ? 'Crédito' : 'Contado' }}
                   </mat-chip>
                   <mat-chip *ngIf="tieneDE()" class="chip-de">
-                    ✅ Con DE
+                    {{ estadoDELabel() }}
                   </mat-chip>
                 </mat-chip-set>
               </div>
@@ -434,7 +445,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 export class FacturaViewComponent implements OnInit {
   loading = signal(false);
   factura = signal<FacturaLegal | null>(null);
-  
+
   displayedColumns = ['numero', 'descripcion', 'cantidad', 'precioUnitario', 'total'];
 
   constructor(
@@ -476,8 +487,31 @@ export class FacturaViewComponent implements OnInit {
   }
 
   tieneDE(): boolean {
-    // TODO: Implementar lógica real cuando tengamos la relación con DE
-    return false;
+    return !!this.factura()?.documentoElectronicoId;
+  }
+
+  puedeDesvincularDE(): boolean {
+    const estado = this.factura()?.estadoDocumentoElectronico;
+    // Solo se puede desvincular si el DE tiene error permanente (ERROR o RECHAZADO)
+    return estado === 'ERROR' || estado === 'RECHAZADO';
+  }
+
+  estadoDELabel(): string {
+    const estado = this.factura()?.estadoDocumentoElectronico;
+    if (!estado) {
+      return '✅ Con DE';
+    }
+
+    const labels: Record<string, string> = {
+      PENDIENTE: '⏳ Pendiente',
+      EN_PROCESO: '🔄 En Proceso',
+      APROBADO: '✅ Aprobado',
+      RECHAZADO: '❌ Rechazado',
+      CANCELADO: '🚫 Cancelado',
+      ERROR: '⚠️ Error'
+    };
+
+    return labels[estado] || estado;
   }
 
   volver(): void {
@@ -508,13 +542,57 @@ export class FacturaViewComponent implements OnInit {
       if (confirmed && factura.id) {
         this.loading.set(true);
         this.facturaApi.generarDE(factura.id).subscribe({
-          next: (de) => {
-            this.snackBar.open('Documento electrónico generado correctamente', 'Cerrar', { duration: 3000 });
+          next: (response) => {
+            const estado = response.documento.estado;
+            this.snackBar.open(
+              `Documento electrónico enviado (estado: ${estado})`,
+              'Cerrar',
+              { duration: 4000 }
+            );
             this.cargarFactura(factura.id!);
           },
           error: (error) => {
             this.snackBar.open(
               error.error?.message || 'Error al generar documento electrónico',
+              'Cerrar',
+              { duration: 5000 }
+            );
+            this.loading.set(false);
+          }
+        });
+      }
+    });
+  }
+
+  desvincularDE(): void {
+    const factura = this.factura();
+    if (!factura?.id) return;
+
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Desvincular Documento Electrónico',
+        message: `¿Está seguro de desvincular el documento electrónico de la factura N° ${factura.numeroFactura}? ` +
+                 `Esta acción eliminará el DE y permitirá generar uno nuevo.`,
+        confirmText: 'Desvincular',
+        cancelText: 'Cancelar'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      if (confirmed && factura.id) {
+        this.loading.set(true);
+        this.facturaApi.desvincularDE(factura.id).subscribe({
+          next: () => {
+            this.snackBar.open(
+              'Documento electrónico desvinculado exitosamente',
+              'Cerrar',
+              { duration: 4000 }
+            );
+            this.cargarFactura(factura.id!);
+          },
+          error: (error) => {
+            this.snackBar.open(
+              error.error?.message || 'Error al desvincular documento electrónico',
               'Cerrar',
               { duration: 5000 }
             );

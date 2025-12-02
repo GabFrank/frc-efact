@@ -217,9 +217,10 @@ public class DashboardService {
 
     /**
      * Calcula los totales por tasa de IVA para un período.
+     * Excluye facturas con documentos electrónicos cancelados o rechazados.
      */
     private TotalesPorIvaDto calcularTotalesPorIva(Long empresaId, LocalDateTime fechaDesde, LocalDateTime fechaHasta) {
-        List<com.frcefact.model.FacturaLegal> facturas = facturaLegalRepository.findByFechaRange(
+        List<com.frcefact.model.FacturaLegal> facturas = facturaLegalRepository.findByFechaRangeParaCalculos(
                 empresaId, fechaDesde, fechaHasta
         );
 
@@ -240,9 +241,10 @@ public class DashboardService {
 
     /**
      * Obtiene el ranking de los 10 clientes con mayor monto facturado.
+     * Excluye facturas con documentos electrónicos cancelados o rechazados.
      */
     private List<ClienteRankingDto> obtenerTop10Clientes(Long empresaId, LocalDateTime fechaDesde, LocalDateTime fechaHasta) {
-        List<com.frcefact.model.FacturaLegal> facturas = facturaLegalRepository.findByFechaRange(
+        List<com.frcefact.model.FacturaLegal> facturas = facturaLegalRepository.findByFechaRangeParaCalculos(
                 empresaId, fechaDesde, fechaHasta
         );
 

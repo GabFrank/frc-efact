@@ -17,8 +17,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
-import { MatSortModule, MatSort } from '@angular/material/sort';
-import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatSortModule, MatSort, Sort } from '@angular/material/sort';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { ProductoApiService } from '../../core/api/producto-api.service';
 import { EmpresaApiService } from '../../core/api/empresa-api.service';
 import { Producto, TIPO_TRANSACCION_DESCRIPCIONES, TipoTransaccionProducto } from '../../models/producto.model';
@@ -132,7 +132,7 @@ import { ProductoFormComponent } from './producto-form.component';
           <app-loading-spinner *ngIf="loading()" />
 
           <div *ngIf="!loading()" class="table-wrapper">
-            <table mat-table [dataSource]="dataSource" matSort class="productos-table">
+            <table mat-table [dataSource]="dataSource" matSort (matSortChange)="onSortChange($event)" class="productos-table">
               <!-- Código Column -->
               <ng-container matColumnDef="codigo">
                 <th mat-header-cell *matHeaderCellDef mat-sort-header>Código</th>
@@ -224,6 +224,15 @@ import { ProductoFormComponent } from './producto-form.component';
                 </td>
               </tr>
             </table>
+
+            <mat-paginator
+              [length]="totalElements"
+              [pageSize]="pageSize"
+              [pageSizeOptions]="[10, 20, 50, 100]"
+              [pageIndex]="currentPage"
+              (page)="onPageChange($event)"
+              showFirstLastButtons>
+            </mat-paginator>
           </div>
         </mat-card-content>
       </mat-card>
@@ -317,6 +326,10 @@ import { ProductoFormComponent } from './producto-form.component';
       background: white;
     }
 
+    mat-paginator {
+      border-top: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
     .productos-table th {
       font-weight: 600;
       background-color: #f5f5f5;
@@ -373,6 +386,13 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
   ivaFilter: number | null = null;
   estadoFilter: boolean | null = true; // Por defecto mostrar solo activos
   tipoTransaccionFilter: TipoTransaccionProducto | null = null;
+
+  // Paginación
+  currentPage = 0;
+  pageSize = 20;
+  totalElements = 0;
+  sortBy = 'descripcion';
+  sortDir: 'asc' | 'desc' = 'asc';
 
   displayedColumns: string[] = ['codigo', 'descripcion', 'tipoTransaccion', 'unidadMedida', 'precio', 'iva', 'balanza', 'activo', 'actions'];
 
@@ -454,7 +474,9 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
   }
 
   ngAfterViewInit(): void {
-    this.dataSource.sort = this.sort;
+    if (this.sort) {
+      this.dataSource.sort = this.sort;
+    }
   }
 
   ngOnDestroy(): void {
@@ -480,24 +502,25 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
 
     this.loading.set(true);
 
-    // Enviar filtros al backend
+    // Enviar filtros al backend con paginación
     this.productoApi.getByEmpresa(
       this.empresaId,
-      0, // page
-      1000, // size - usar un tamaño grande para obtener todos los resultados filtrados
-      'descripcion', // sortBy
-      'asc', // sortDir
+      this.currentPage, // page
+      this.pageSize, // size
+      this.sortBy, // sortBy
+      this.sortDir, // sortDir
       this.estadoFilter,
       this.searchTerm || null,
       this.tipoTransaccionFilter || null,
       this.ivaFilter
     ).subscribe({
       next: (response) => {
-        console.log('Productos cargados desde backend con filtros:', response);
+        console.log('Productos cargados desde backend con filtros y paginación:', response);
         const productos = response.content || [];
         this.productos.set(productos);
         this.productosFiltrados.set(productos);
         this.dataSource.data = productos;
+        this.totalElements = response.totalElements || 0;
         this.loading.set(false);
       },
       error: (error) => {
@@ -507,6 +530,7 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
         this.productos.set([]);
         this.productosFiltrados.set([]);
         this.dataSource.data = [];
+        this.totalElements = 0;
         this.loading.set(false);
       }
     });
@@ -528,11 +552,15 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
   }
 
   onSearchChange(): void {
+    // Resetear a primera página al buscar
+    this.currentPage = 0;
     // Recargar productos con filtros desde backend
     this.cargarProductos();
   }
 
   onFilterChange(): void {
+    // Resetear a primera página al cambiar filtros
+    this.currentPage = 0;
     // Recargar productos con filtros desde backend
     this.cargarProductos();
   }
@@ -542,8 +570,26 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
     this.tipoTransaccionFilter = null;
     this.ivaFilter = null;
     this.estadoFilter = true;
+    // Resetear a primera página al limpiar filtros
+    this.currentPage = 0;
     // Recargar productos sin filtros desde backend
     this.cargarProductos();
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.currentPage = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.cargarProductos();
+  }
+
+  onSortChange(sort: Sort): void {
+    if (sort.active && sort.direction) {
+      this.sortBy = sort.active;
+      this.sortDir = sort.direction === 'asc' ? 'asc' : 'desc';
+      // Resetear a primera página al ordenar
+      this.currentPage = 0;
+      this.cargarProductos();
+    }
   }
 
   crearProducto(): void {

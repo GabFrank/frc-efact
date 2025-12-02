@@ -390,6 +390,21 @@ import { switchMap } from 'rxjs/operators';
                   La contraseña es requerida
                 </mat-error>
               </mat-form-field>
+
+              <!-- Configuración SIFEN -->
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="half-width">
+                  <mat-label>Ambiente SIFEN *</mat-label>
+                  <mat-select formControlName="sifenAmbiente" [disabled]="isViewMode">
+                    <mat-option value="DEV">DEV - Desarrollo/Pruebas</mat-option>
+                    <mat-option value="PROD">PROD - Producción</mat-option>
+                  </mat-select>
+                  <mat-hint>Seleccione el ambiente donde se realizarán las operaciones SIFEN</mat-hint>
+                  <mat-error *ngIf="empresaForm.get('sifenAmbiente')?.hasError('required')">
+                    El ambiente SIFEN es requerido
+                  </mat-error>
+                </mat-form-field>
+              </div>
             </div>
 
             <!-- Form Actions -->
@@ -908,7 +923,8 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
         descripcionesSecundarias: ['']
       }),
       certificadoPassword: [''],
-      certificadoPasswordNueva: ['']
+      certificadoPasswordNueva: [''],
+      sifenAmbiente: ['DEV'] // Ambiente SIFEN por defecto DEV
     });
 
     // Configurar validación asíncrona del RUC después de crear el formulario
@@ -1055,7 +1071,8 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
         descripcionPrincipal: actividadEconomica.descripcionPrincipal || '',
         codigosSecundarios: actividadEconomica.codigosSecundarios?.join(', ') || '',
         descripcionesSecundarias: actividadEconomica.descripcionesSecundarias?.join(', ') || ''
-      }
+      },
+      sifenAmbiente: empresa.sifenAmbiente || 'DEV'
     });
 
     // Cargar actividades secundarias en el array
@@ -1144,6 +1161,7 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
         barrioId: formValue.barrioId || null,
         domicilioFiscalDireccion: formValue.domicilioFiscalDireccion?.trim() || '',
         actividadEconomica: actividadEconomica,
+        sifenAmbiente: formValue.sifenAmbiente || 'DEV',
         activo: true
       };
 

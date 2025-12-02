@@ -44,6 +44,10 @@ public class Timbrado extends AuditableEntity {
     @Column(name = "csc_encrypted", columnDefinition = "TEXT")
     private String cscEncrypted;
 
+    @Size(max = 50)
+    @Column(name = "csc_id", length = 50)
+    private String cscId;
+
     @NotNull(message = "Fecha de inicio es requerida")
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;
@@ -128,6 +132,14 @@ public class Timbrado extends AuditableEntity {
 
     public void setCscEncrypted(String cscEncrypted) {
         this.cscEncrypted = cscEncrypted;
+    }
+
+    public String getCscId() {
+        return cscId;
+    }
+
+    public void setCscId(String cscId) {
+        this.cscId = cscId;
     }
 
     public LocalDate getFechaInicio() {

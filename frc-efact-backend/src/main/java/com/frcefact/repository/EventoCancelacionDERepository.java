@@ -51,6 +51,11 @@ public interface EventoCancelacionDERepository extends JpaRepository<EventoCance
     List<EventoCancelacionDE> findByCdcDocumento(String cdcDocumento);
 
     /**
+     * Busca eventos activos por CDC del documento
+     */
+    List<EventoCancelacionDE> findByCdcDocumentoAndActivoTrue(String cdcDocumento);
+
+    /**
      * Busca eventos de cancelación por empresa
      */
     @Query("SELECT e FROM EventoCancelacionDE e " +

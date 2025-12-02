@@ -107,7 +107,6 @@ public class TimbradoDetalle extends AuditableEntity {
     }
 
     public boolean tieneNumerosDisponibles() {
-        // Para timbrados electrónicos sin rangos (NULL), no hay números disponibles
         if (rangoHasta == null || numeroActual == null) {
             return false;
         }

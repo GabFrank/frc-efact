@@ -61,4 +61,12 @@ public interface TimbradoDetalleRepository extends JpaRepository<TimbradoDetalle
                                    @Param("rangoDesde") Long rangoDesde,
                                    @Param("rangoHasta") Long rangoHasta,
                                    @Param("excludeId") Long excludeId);
+
+    /**
+     * Busca todos los detalles activos de una empresa.
+     */
+    @Query("SELECT td FROM TimbradoDetalle td WHERE td.timbrado.empresa.id = :empresaId " +
+           "AND td.activo = true " +
+           "ORDER BY td.puntoExpedicion ASC")
+    List<TimbradoDetalle> findByEmpresaIdAndActivoTrue(@Param("empresaId") Long empresaId);
 }

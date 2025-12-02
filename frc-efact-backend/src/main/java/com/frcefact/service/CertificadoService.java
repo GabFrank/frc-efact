@@ -51,7 +51,21 @@ public class CertificadoService {
             @Value("${certificates.upload-dir:/var/certificates}") String uploadDir) {
         this.empresaRepository = empresaRepository;
         this.encryptionService = encryptionService;
-        this.certificatesDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+        
+        // Resolver path: si es relativo, resolverlo desde el directorio del proyecto backend
+        // Esto asegura consistencia independientemente del directorio de trabajo actual
+        Path baseDir;
+        if (Paths.get(uploadDir).isAbsolute()) {
+            // Path absoluto: usarlo directamente
+            baseDir = Paths.get(uploadDir);
+        } else {
+            // Path relativo: resolverlo desde el directorio del proyecto backend
+            // Buscar el directorio del proyecto backend de forma confiable
+            Path backendDir = encontrarDirectorioBackend();
+            baseDir = backendDir.resolve(uploadDir);
+        }
+        
+        this.certificatesDir = baseDir.toAbsolutePath().normalize();
         
         // Crear directorio si no existe
         try {
@@ -152,12 +166,32 @@ public class CertificadoService {
     public void validarCertificadoVigente(Empresa empresa) {
         log.debug("🔍 Validando certificado para empresa ID: {}", empresa.getId());
 
+        // Validar que la empresa tiene certificado configurado
+        if (empresa.getCertificadoPath() == null || empresa.getCertificadoPath().isBlank()) {
+            throw new BusinessException(
+                String.format("La empresa ID %d (RUC: %s) no tiene certificado digital configurado. " +
+                    "Por favor, sube un certificado .pfx desde la configuración de la empresa.",
+                    empresa.getId(), empresa.getRuc() != null ? empresa.getRuc() : "N/A"));
+        }
+
         // Obtener path absoluto
         Path certificadoPath = obtenerPathAbsoluto(empresa.getCertificadoPath());
         
         // Validar que el archivo existe
         if (!Files.exists(certificadoPath)) {
-            throw new BusinessException("El archivo de certificado no existe: " + empresa.getCertificadoPath());
+            String mensajeError = String.format(
+                "El archivo de certificado no existe para la empresa ID %d (RUC: %s).\n" +
+                "  - Path configurado en BD: %s\n" +
+                "  - Path absoluto buscado: %s\n" +
+                "  - Directorio de certificados: %s\n" +
+                "Por favor, verifica que el certificado existe o sube uno nuevo desde la configuración de la empresa.",
+                empresa.getId(),
+                empresa.getRuc() != null ? empresa.getRuc() : "N/A",
+                empresa.getCertificadoPath(),
+                certificadoPath,
+                certificatesDir);
+            log.error("❌ {}", mensajeError);
+            throw new BusinessException(mensajeError);
         }
 
         if (!Files.isReadable(certificadoPath)) {
@@ -353,6 +387,65 @@ public class CertificadoService {
         } catch (Exception e) {
             log.error("❌ Error inesperado al guardar certificado", e);
             throw new BusinessException("Error al procesar el certificado: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Encuentra el directorio del proyecto backend de forma confiable.
+     * Busca el directorio que contiene application.yml o el directorio actual si no se encuentra.
+     */
+    private Path encontrarDirectorioBackend() {
+        try {
+            // Obtener el directorio de trabajo actual
+            String currentDir = System.getProperty("user.dir");
+            Path currentPath = Paths.get(currentDir);
+            
+            // Si el nombre del directorio actual es "frc-efact-backend", estamos en el backend
+            if (currentPath.getFileName().toString().equals("frc-efact-backend")) {
+                return currentPath;
+            }
+            
+            // Si estamos en la raíz "frc-efact", buscar el subdirectorio backend
+            if (currentPath.getFileName().toString().equals("frc-efact")) {
+                Path backendPath = currentPath.resolve("frc-efact-backend");
+                if (Files.exists(backendPath) && Files.isDirectory(backendPath)) {
+                    return backendPath;
+                }
+            }
+            
+            // Buscar hacia arriba en la jerarquía hasta encontrar el directorio backend
+            Path searchPath = currentPath;
+            for (int i = 0; i < 5; i++) { // Máximo 5 niveles hacia arriba
+                Path backendPath = searchPath.resolve("frc-efact-backend");
+                if (Files.exists(backendPath) && Files.isDirectory(backendPath)) {
+                    // Verificar que contiene application.yml
+                    Path appYml = backendPath.resolve("src/main/resources/application.yml");
+                    if (Files.exists(appYml)) {
+                        return backendPath;
+                    }
+                }
+                
+                // Si estamos en la raíz del proyecto, buscar directamente
+                if (searchPath.getFileName().toString().equals("frc-efact")) {
+                    backendPath = searchPath.resolve("frc-efact-backend");
+                    if (Files.exists(backendPath) && Files.isDirectory(backendPath)) {
+                        return backendPath;
+                    }
+                }
+                
+                searchPath = searchPath.getParent();
+                if (searchPath == null) {
+                    break;
+                }
+            }
+            
+            // Fallback: usar el directorio actual
+            log.warn("⚠️ No se pudo encontrar el directorio del proyecto backend, usando directorio actual: {}", currentPath);
+            return currentPath;
+            
+        } catch (Exception e) {
+            log.warn("⚠️ Error al buscar directorio del proyecto backend: {}", e.getMessage());
+            return Paths.get(System.getProperty("user.dir"));
         }
     }
 

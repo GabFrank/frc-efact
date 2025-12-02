@@ -8,7 +8,9 @@ export interface FacturacionState extends EntityState<FacturaLegal> {
   error: string | null;
 }
 
-export const adapter: EntityAdapter<FacturaLegal> = createEntityAdapter<FacturaLegal>();
+export const adapter: EntityAdapter<FacturaLegal> = createEntityAdapter<FacturaLegal>({
+  selectId: (factura: FacturaLegal) => factura.id!
+});
 
 export const initialState: FacturacionState = adapter.getInitialState({
   loading: false,
@@ -17,14 +19,14 @@ export const initialState: FacturacionState = adapter.getInitialState({
 
 export const facturacionReducer = createReducer(
   initialState,
-  
+
   // Load facturas
   on(FacturacionActions.loadFacturas, (state) => ({
     ...state,
     loading: true,
     error: null
   })),
-  
+
   on(FacturacionActions.loadFacturasSuccess, (state, { facturas }) =>
     adapter.setAll(facturas, {
       ...state,
@@ -32,20 +34,20 @@ export const facturacionReducer = createReducer(
       error: null
     })
   ),
-  
+
   on(FacturacionActions.loadFacturasFailure, (state, { error }) => ({
     ...state,
     loading: false,
     error
   })),
-  
+
   // Create factura
   on(FacturacionActions.createFactura, (state) => ({
     ...state,
     loading: true,
     error: null
   })),
-  
+
   on(FacturacionActions.createFacturaSuccess, (state, { factura }) =>
     adapter.addOne(factura, {
       ...state,
@@ -53,20 +55,20 @@ export const facturacionReducer = createReducer(
       error: null
     })
   ),
-  
+
   on(FacturacionActions.createFacturaFailure, (state, { error }) => ({
     ...state,
     loading: false,
     error
   })),
-  
+
   // Update factura
   on(FacturacionActions.updateFactura, (state) => ({
     ...state,
     loading: true,
     error: null
   })),
-  
+
   on(FacturacionActions.updateFacturaSuccess, (state, { factura }) =>
     adapter.updateOne(
       { id: factura.id!, changes: factura },
@@ -77,20 +79,20 @@ export const facturacionReducer = createReducer(
       }
     )
   ),
-  
+
   on(FacturacionActions.updateFacturaFailure, (state, { error }) => ({
     ...state,
     loading: false,
     error
   })),
-  
+
   // Delete factura
   on(FacturacionActions.deleteFactura, (state) => ({
     ...state,
     loading: true,
     error: null
   })),
-  
+
   on(FacturacionActions.deleteFacturaSuccess, (state, { id }) =>
     adapter.removeOne(id, {
       ...state,
@@ -98,7 +100,7 @@ export const facturacionReducer = createReducer(
       error: null
     })
   ),
-  
+
   on(FacturacionActions.deleteFacturaFailure, (state, { error }) => ({
     ...state,
     loading: false,

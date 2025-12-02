@@ -497,16 +497,19 @@ export class ClienteFormComponent implements OnInit, OnDestroy {
         let errorMessage = `Error al ${this.isEdit ? 'actualizar' : 'crear'} cliente`;
         if (error && typeof error === 'object') {
           if ('error' in error && error.error) {
-            if (error.error.message) {
-              errorMessage = error.error.message;
-            } else if (error.error.errors) {
-              const validationErrors = error.error.errors;
-              const errorMessages = Object.keys(validationErrors)
-                .map(key => `${key}: ${Array.isArray(validationErrors[key]) ? validationErrors[key].join(', ') : validationErrors[key]}`)
-                .join('; ');
-              errorMessage = errorMessages || errorMessage;
+            const backendError = error.error as { message?: string; errors?: Record<string, unknown> };
+            const validationMessages = backendError.errors
+              ? this.processBackendValidationErrors(backendError.errors)
+              : [];
+
+            if (backendError.message && validationMessages.length > 0) {
+              errorMessage = `${backendError.message}: ${validationMessages.join('; ')}`;
+            } else if (backendError.message) {
+              errorMessage = backendError.message;
+            } else if (validationMessages.length > 0) {
+              errorMessage = validationMessages.join('; ');
             }
-          } else if ('message' in error) {
+          } else if ('message' in error && typeof error.message === 'string') {
             errorMessage = error.message;
           }
         }
@@ -635,5 +638,45 @@ export class ClienteFormComponent implements OnInit, OnDestroy {
       emailControl?.setValidators([Validators.maxLength(100)]);
     }
     emailControl?.updateValueAndValidity();
+  }
+
+  private processBackendValidationErrors(backendErrors: Record<string, unknown>): string[] {
+    const messages: string[] = [];
+
+    Object.keys(backendErrors || {}).forEach(key => {
+      const controlKey = this.normalizeControlKey(key);
+      const control = this.form.get(controlKey);
+      const rawValue = backendErrors[key];
+      const message = Array.isArray(rawValue) ? rawValue.join(', ') : String(rawValue);
+
+      messages.push(`${this.formatFieldLabel(controlKey)}: ${message}`);
+
+      if (control) {
+        const existingErrors = control.errors || {};
+        control.setErrors({ ...existingErrors, backend: message });
+        control.markAsTouched();
+      }
+    });
+
+    return messages;
+  }
+
+  private normalizeControlKey(key: string): string {
+    const lowerKey = key.charAt(0).toLowerCase() + key.slice(1);
+    if (this.form.get(lowerKey)) {
+      return lowerKey;
+    }
+    return key;
+  }
+
+  private formatFieldLabel(key: string): string {
+    if (!key) {
+      return 'Campo';
+    }
+    return key
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/_/g, ' ')
+      .trim()
+      .replace(/^\w/, c => c.toUpperCase());
   }
 }

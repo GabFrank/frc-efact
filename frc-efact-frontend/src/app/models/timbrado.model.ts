@@ -35,4 +35,7 @@ export interface TimbradoDetalle {
   // Campos calculados (solo lectura)
   numerosDisponibles?: number;
   porcentajeUtilizado?: number;
+
+  // Información del timbrado para mostrar (solo lectura)
+  timbradoNumero?: string;
 }

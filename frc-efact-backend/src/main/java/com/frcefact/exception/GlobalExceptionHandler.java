@@ -36,8 +36,18 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
+            Object rejectedValue = ((FieldError) error).getRejectedValue();
             errors.put(fieldName, errorMessage);
+            
+            // Log detallado de cada error de validación
+            logger.error("Error de validación en campo '{}': {} | Valor rechazado: {}", 
+                    fieldName, errorMessage, rejectedValue);
         });
+
+        // Log del objeto completo que causó el error
+        if (ex.getBindingResult().getTarget() != null) {
+            logger.error("Objeto que falló la validación: {}", ex.getBindingResult().getTarget());
+        }
 
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
@@ -45,6 +55,8 @@ public class GlobalExceptionHandler {
                 errors,
                 LocalDateTime.now()
         );
+
+        logger.error("Errores de validación totales: {}", errors);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }

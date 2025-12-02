@@ -80,7 +80,7 @@ public class TimbradoService {
         // Validar fechas
         validarFechas(timbradoActualizado.getFechaInicio(), timbradoActualizado.getFechaFin());
 
-        // Actualizar campos específicos del timbrado
+        // Actualizar campos
         timbradoExistente.setNumero(timbradoActualizado.getNumero());
         timbradoExistente.setIsElectronico(timbradoActualizado.getIsElectronico());
         timbradoExistente.setFechaInicio(timbradoActualizado.getFechaInicio());

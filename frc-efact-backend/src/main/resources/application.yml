@@ -23,6 +23,20 @@ spring:
     locations: classpath:db/migration
     schemas: public
 
+  # Mail Configuration (Gmail SMTP)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: frcsistemasinformaticos@gmail.com
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+    default-encoding: UTF-8
+
 # Server Configuration
 server:
   port: 8080
@@ -63,6 +77,19 @@ encryption:
 # Certificates Configuration
 certificates:
   upload-dir: ${CERTIFICATES_DIR:/var/certificates}  # Directorio para almacenar certificados PFX
+
+# SIFEN global configuration (multi-empresa compatible)
+sifen:
+  enabled: true                    # true para habilitar integración (por defecto deshabilitado en dev)
+  ambiente: PROD                    # TEST o PROD; se usa como valor por defecto
+  habilitar-nota-tecnica-13: true
+  tipo-contribuyente-emisor: 2      # 1=Persona Física, 2=Persona Jurídica (default emisor)
+  scheduler:
+    enabled: false                  # Scheduler deshabilitado inicialmente (multi-empresa requiere validación)
+    fixed-delay: 300000             # 5 minutos
+  lote:
+    max-size: 50                    # Tamaño máximo por lote
+    max-retries: 5                  # Reintentos antes de marcar ERROR_PERMANENTE
 
 # Rate Limiting Configuration for Development
 rate:

@@ -7,13 +7,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatMenuModule } from '@angular/material/menu';
 import { SelectionModel } from '@angular/cdk/collections';
 
 export interface TableColumn {
     key: string;
     label: string;
     sortable?: boolean;
-    format?: (value: any) => string;
+    format?: (value: any, row?: any) => string;
 }
 
 export interface TableAction {
@@ -36,7 +37,8 @@ export interface TableAction {
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
-        MatCheckboxModule
+        MatCheckboxModule,
+        MatMenuModule
     ],
     template: `
     <div class="table-container">
@@ -64,7 +66,7 @@ export interface TableAction {
           <th mat-header-cell *matHeaderCellDef [mat-sort-header]="column.sortable ? column.key : ''">
             {{ column.label }}
           </th>
-          <td mat-cell *matCellDef="let row" [innerHTML]="column.format ? column.format(row[column.key]) : row[column.key]">
+          <td mat-cell *matCellDef="let row" [innerHTML]="column.format ? column.format(row[column.key], row) : row[column.key]">
           </td>
         </ng-container>
 
@@ -72,16 +74,28 @@ export interface TableAction {
         <ng-container matColumnDef="actions" *ngIf="actions && actions.length > 0">
           <th mat-header-cell *matHeaderCellDef>Acciones</th>
           <td mat-cell *matCellDef="let row">
-            <button
-              *ngFor="let action of actions"
-              mat-icon-button
-              [color]="action.color || 'primary'"
-              [matTooltip]="action.tooltip || action.label || ''"
-              (click)="onActionClick(action, row)"
-              [hidden]="action.visible && !action.visible(row)"
-            >
-              <mat-icon>{{ action.icon }}</mat-icon>
-            </button>
+            <ng-container *ngIf="hasVisibleActions(row)">
+              <button
+                mat-icon-button
+                [matMenuTriggerFor]="actionMenu"
+                aria-label="Acciones"
+              >
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #actionMenu="matMenu">
+                <ng-container *ngFor="let action of actions">
+                  <button
+                    mat-menu-item
+                    type="button"
+                    *ngIf="!action.visible || action.visible(row)"
+                    (click)="onActionClick(action, row, $event)"
+                  >
+                    <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
+                    <span>{{ action.label || action.tooltip || action.icon }}</span>
+                  </button>
+                </ng-container>
+              </mat-menu>
+            </ng-container>
           </td>
         </ng-container>
 
@@ -154,13 +168,13 @@ export class DataTableComponent implements OnInit {
 
     ngOnInit(): void {
         this.displayedColumns = [];
-        
+
         if (this.selectable) {
             this.displayedColumns.push('select');
         }
-        
+
         this.displayedColumns.push(...this.columns.map(col => col.key));
-        
+
         if (this.actions && this.actions.length > 0) {
             this.displayedColumns.push('actions');
         }
@@ -179,7 +193,8 @@ export class DataTableComponent implements OnInit {
         this.sortChange.emit(sort);
     }
 
-    onActionClick(action: TableAction, row: any): void {
+    onActionClick(action: TableAction, row: any, event?: Event): void {
+        // No detener la propagación para que el menú se cierre correctamente
         if (action.handler) {
             action.handler(row);
         }
@@ -187,6 +202,13 @@ export class DataTableComponent implements OnInit {
         const actionId = action.label || action.icon;
         this.actionClick.emit({ action: actionId, row });
     }
+
+  hasVisibleActions(row: any): boolean {
+    if (!this.actions || this.actions.length === 0) {
+      return false;
+    }
+    return this.actions.some(action => !action.visible || action.visible(row));
+  }
 
     // Selection methods
     isAllSelected(): boolean {

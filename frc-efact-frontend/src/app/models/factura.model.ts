@@ -6,15 +6,15 @@ export interface FacturaLegal {
   numeroFactura?: number;
   fecha: string;
   credito: boolean;
-  
+
   // Datos cliente
   nombre: string;
   ruc?: string;
   direccion?: string;
-  
+
   // Items
   items: FacturaLegalItem[];
-  
+
   // Totales
   ivaParcial0: number;
   ivaParcial5: number;
@@ -25,6 +25,17 @@ export interface FacturaLegal {
   descuentoFinal: number;
   totalParcial: number;
   totalFinal: number;
+
+  // Moneda extranjera
+  monedaExtranjera?: string;
+  cambio?: number;
+
+  // Información de documento electrónico asociada
+  documentoElectronicoId?: number;
+  estadoDocumentoElectronico?: string;
+  cdcDocumentoElectronico?: string;
+  urlQrDocumentoElectronico?: string;
+  loteDeId?: number;
 }
 
 export interface FacturaLegalItem {

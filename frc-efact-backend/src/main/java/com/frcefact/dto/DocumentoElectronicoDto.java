@@ -33,6 +33,10 @@ public class DocumentoElectronicoDto {
 
     private String mensajeRespuestaSifen;
 
+    private String respuestaSifen;
+
+    private String protocoloAutorizacion;
+
     private LocalDateTime fechaEmision;
 
     private LocalDateTime fechaRecepcionSifen;
@@ -128,6 +132,22 @@ public class DocumentoElectronicoDto {
 
     public void setMensajeRespuestaSifen(String mensajeRespuestaSifen) {
         this.mensajeRespuestaSifen = mensajeRespuestaSifen;
+    }
+
+    public String getRespuestaSifen() {
+        return respuestaSifen;
+    }
+
+    public void setRespuestaSifen(String respuestaSifen) {
+        this.respuestaSifen = respuestaSifen;
+    }
+
+    public String getProtocoloAutorizacion() {
+        return protocoloAutorizacion;
+    }
+
+    public void setProtocoloAutorizacion(String protocoloAutorizacion) {
+        this.protocoloAutorizacion = protocoloAutorizacion;
     }
 
     public LocalDateTime getFechaEmision() {

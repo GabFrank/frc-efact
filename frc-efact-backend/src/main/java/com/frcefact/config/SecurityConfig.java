@@ -103,6 +103,9 @@ public class SecurityConfig {
                         .requestMatchers("/documentos-electronicos/**").authenticated()
                         .requestMatchers("/lotes/**").authenticated()
                         
+                        // Endpoints de SIFEN - requieren autenticación
+                        .requestMatchers("/sifen/**").authenticated()
+                        
                         // Endpoints de reportes y dashboards - requieren autenticación
                         .requestMatchers("/reportes/**").authenticated()
                         .requestMatchers("/dashboard/**").authenticated()

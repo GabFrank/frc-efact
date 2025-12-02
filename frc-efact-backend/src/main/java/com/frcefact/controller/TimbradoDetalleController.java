@@ -135,4 +135,20 @@ public class TimbradoDetalleController {
         
         return ResponseEntity.ok(detallesDto);
     }
+
+    /**
+     * Lista todos los detalles activos de una empresa.
+     */
+    @GetMapping("/timbrado-detalles/empresa/{empresaId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    public ResponseEntity<List<TimbradoDetalleDto>> listarDetallesActivosPorEmpresa(
+            @PathVariable Long empresaId) {
+        
+        List<TimbradoDetalle> detalles = timbradoDetalleService.listarActivosPorEmpresa(empresaId);
+        List<TimbradoDetalleDto> detallesDto = detalles.stream()
+                .map(timbradoDetalleMapper::toDto)
+                .toList();
+        
+        return ResponseEntity.ok(detallesDto);
+    }
 }

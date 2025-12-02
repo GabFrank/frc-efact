@@ -4,15 +4,20 @@ import com.frcefact.annotation.Auditable;
 import com.frcefact.model.*;
 import com.frcefact.repository.*;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Servicio para gestión de facturas legales.
@@ -115,9 +120,21 @@ public class FacturaLegalService {
             factura.setDireccion(cliente.getDireccion());
         }
 
+        // LOG: Verificar valores antes de procesar items
+        logger.info("=== SERVICIO: Antes de procesar items ===");
+        logger.info("Moneda: {}, Cambio: {}", factura.getMonedaExtranjera(), factura.getCambio());
+        logger.info("Total Parcial (del DTO): {}, Total Final (del DTO): {}", 
+                factura.getTotalParcial(), factura.getTotalFinal());
+        logger.info("IVA Parcial 5% (del DTO): {}, IVA Parcial 10% (del DTO): {}", 
+                factura.getIvaParcial5(), factura.getIvaParcial10());
+        
         // Procesar items y asociarlos a la factura
         for (FacturaLegalItem item : factura.getItems()) {
             item.setFacturaLegal(factura);
+            
+            // LOG: Verificar valores del item antes de procesar
+            logger.info("Item antes de procesar: precioUnitario={}, total={}", 
+                    item.getPrecioUnitario(), item.getTotal());
             
             // Cargar producto si está especificado
             if (item.getProducto() != null && item.getProducto().getId() != null) {
@@ -132,16 +149,83 @@ public class FacturaLegalService {
                 }
             }
             
-            // Calcular total del item
-            item.calcularTotal();
+            // IMPORTANTE: NO recalcular el total del item si ya viene del DTO
+            // El total del item ya debe estar en guaraníes desde el frontend
+            // Solo calcular si el total es null (para compatibilidad con código antiguo)
+            // PERO: Verificar que el precioUnitario y total estén en guaraníes
+            // Si la factura tiene moneda extranjera y los valores parecen estar en moneda extranjera,
+            // NO recalcular porque eso sobrescribiría los valores correctos
+            if (item.getTotal() == null) {
+                logger.warn("⚠️ Item sin total, recalculando desde precioUnitario y cantidad");
+                item.calcularTotal();
+            } else {
+                // CRÍTICO: Verificar si los valores parecen estar en moneda extranjera (valores muy pequeños)
+                // Si la factura tiene moneda extranjera y cambio, y el total es muy pequeño,
+                // probablemente está en moneda extranjera - CONVERTIR a guaraníes
+                boolean pareceMonedaExtranjera = factura.getMonedaExtranjera() != null 
+                    && !factura.getMonedaExtranjera().equals("PYG")
+                    && factura.getCambio() != null
+                    && factura.getCambio().compareTo(BigDecimal.ZERO) > 0
+                    && (item.getTotal().compareTo(BigDecimal.valueOf(1000)) < 0 || 
+                        item.getPrecioUnitario().compareTo(BigDecimal.valueOf(1000)) < 0);
+                
+                if (pareceMonedaExtranjera) {
+                    logger.error("❌ ERROR CRÍTICO: Item parece tener valores en moneda extranjera (precioUnitario={}, total={}), " +
+                            "pero debería estar en guaraníes. Convirtiendo a guaraníes como medida de seguridad.",
+                            item.getPrecioUnitario(), item.getTotal());
+                    
+                    // CONVERTIR a guaraníes como medida de seguridad
+                    BigDecimal cambio = factura.getCambio();
+                    BigDecimal precioUnitarioGs = item.getPrecioUnitario().multiply(cambio)
+                            .setScale(2, java.math.RoundingMode.HALF_UP);
+                    BigDecimal totalGs = item.getTotal().multiply(cambio)
+                            .setScale(2, java.math.RoundingMode.HALF_UP);
+                    
+                    logger.info("🔄 Conversión de seguridad: precioUnitario {} {} → {} Gs, total {} {} → {} Gs",
+                            item.getPrecioUnitario(), factura.getMonedaExtranjera(), precioUnitarioGs,
+                            item.getTotal(), factura.getMonedaExtranjera(), totalGs);
+                    
+                    item.setPrecioUnitario(precioUnitarioGs);
+                    item.setTotal(totalGs);
+                } else {
+                    logger.info("✅ Item con total del DTO (en guaraníes): precioUnitario={}, total={}", 
+                            item.getPrecioUnitario(), item.getTotal());
+                }
+            }
+            
+            // LOG: Verificar valores del item después de procesar
+            logger.info("Item después de procesar: precioUnitario={}, total={}", 
+                    item.getPrecioUnitario(), item.getTotal());
         }
 
-        // Calcular totales de la factura
-        factura.recalcularTotales();
+        // IMPORTANTE: Los totales ya vienen calculados en guaraníes desde el frontend
+        // NO recalcular si ya están establecidos - esto asegura que siempre se guarden en guaraníes
+        if (factura.getTotalParcial() == null || factura.getTotalFinal() == null) {
+            logger.warn("⚠️ Totales no establecidos desde DTO, recalculando desde items");
+            factura.recalcularTotales();
+            logger.info("Totales recalculados: Total Parcial={}, Total Final={}", 
+                    factura.getTotalParcial(), factura.getTotalFinal());
+        } else {
+            logger.info("✅ Usando totales del DTO (en guaraníes): Total Parcial={}, Total Final={}", 
+                    factura.getTotalParcial(), factura.getTotalFinal());
+        }
+        
+        logger.info("=== SERVICIO: Antes de guardar ===");
+        logger.info("Total Parcial: {}, Total Final: {}", factura.getTotalParcial(), factura.getTotalFinal());
+        logger.info("IVA Parcial 5%: {}, IVA Parcial 10%: {}", 
+                factura.getIvaParcial5(), factura.getIvaParcial10());
+        logger.info("Total Parcial 5%: {}, Total Parcial 10%: {}", 
+                factura.getTotalParcial5(), factura.getTotalParcial10());
+        logger.info("===================================");
 
         // Aplicar descuento final si existe
         if (factura.getDescuentoFinal() != null && factura.getDescuentoFinal().compareTo(BigDecimal.ZERO) > 0) {
-            factura.aplicarDescuento(factura.getDescuentoFinal());
+            // Si los totales ya están establecidos, solo ajustar el total final
+            if (factura.getTotalParcial() != null && factura.getTotalFinal() != null) {
+                factura.setTotalFinal(factura.getTotalParcial().subtract(factura.getDescuentoFinal()));
+            } else {
+                factura.aplicarDescuento(factura.getDescuentoFinal());
+            }
         }
 
         // Guardar factura (cascade guardará los items)
@@ -341,8 +425,7 @@ public class FacturaLegalService {
         // Verificar permisos
         empresaSecurityService.verificarAccesoLectura(factura.getEmpresa().getId());
 
-        // Forzar carga de items
-        factura.getItems().size();
+        inicializarRelacionesFactura(factura);
 
         return factura;
     }
@@ -359,7 +442,9 @@ public class FacturaLegalService {
         // Verificar permisos
         empresaSecurityService.verificarAccesoLectura(empresaId);
 
-        return facturaLegalRepository.findByEmpresaIdAndActivoTrue(empresaId, pageable);
+        Page<FacturaLegal> page = facturaLegalRepository.findByEmpresaIdAndActivoTrue(empresaId, pageable);
+        page.forEach(this::inicializarRelacionesFactura);
+        return page;
     }
 
     /**
@@ -369,6 +454,7 @@ public class FacturaLegalService {
      * @param clienteId ID del cliente (opcional)
      * @param fechaDesde Fecha desde
      * @param fechaHasta Fecha hasta
+     * @param estado Estado del documento electrónico (opcional, puede ser "SIN_DE" para facturas sin DE)
      * @param pageable Configuración de paginación
      * @return Página de facturas filtradas
      */
@@ -378,21 +464,19 @@ public class FacturaLegalService {
             Long clienteId,
             LocalDateTime fechaDesde,
             LocalDateTime fechaHasta,
+            String estado,
             Pageable pageable) {
         
         // Verificar permisos
         empresaSecurityService.verificarAccesoLectura(empresaId);
 
-        // Si no se especifican fechas, usar rango del mes actual
-        if (fechaDesde == null) {
-            fechaDesde = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
-        }
-        if (fechaHasta == null) {
-            fechaHasta = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59);
-        }
-
-        return facturaLegalRepository.findByFiltros(
-                empresaId, clienteId, fechaDesde, fechaHasta, pageable);
+        // Construir Specification dinámicamente
+        Specification<FacturaLegal> spec = crearSpecificationFiltros(
+                empresaId, clienteId, fechaDesde, fechaHasta, estado);
+        
+        Page<FacturaLegal> page = facturaLegalRepository.findAll(spec, pageable);
+        page.forEach(this::inicializarRelacionesFactura);
+        return page;
     }
 
     /**
@@ -411,7 +495,9 @@ public class FacturaLegalService {
         // Verificar permisos
         empresaSecurityService.verificarAccesoLectura(cliente.getEmpresa().getId());
 
-        return facturaLegalRepository.findByClienteIdAndActivoTrue(clienteId, pageable);
+        Page<FacturaLegal> page = facturaLegalRepository.findByClienteIdAndActivoTrue(clienteId, pageable);
+        page.forEach(this::inicializarRelacionesFactura);
+        return page;
     }
 
     /**
@@ -432,6 +518,22 @@ public class FacturaLegalService {
 
         logger.info("Factura desactivada: {} - Número: {}",
                 factura.getId(), factura.getNumeroFacturaFormateado());
+    }
+
+    private void inicializarRelacionesFactura(FacturaLegal factura) {
+        if (factura == null) {
+            return;
+        }
+
+        factura.getItems().size();
+        DocumentoElectronico documento = factura.getDocumentoElectronico();
+        if (documento != null) {
+            documento.getId();
+            LoteDE lote = documento.getLoteDE();
+            if (lote != null) {
+                lote.getId();
+            }
+        }
     }
 
     /**
@@ -472,5 +574,146 @@ public class FacturaLegalService {
         empresaSecurityService.verificarAccesoLectura(empresaId);
 
         return facturaLegalRepository.countByFechaRange(empresaId, fechaDesde, fechaHasta);
+    }
+
+    /**
+     * Obtiene el resumen de facturas aprobadas y no aprobadas.
+     * Solo filtra por fechas si se proporcionan.
+     * 
+     * @param empresaId ID de la empresa
+     * @param fechaDesde Fecha desde (opcional)
+     * @param fechaHasta Fecha hasta (opcional)
+     * @return ResumenFacturasDto con los totales
+     */
+    @Transactional(readOnly = true)
+    public com.frcefact.dto.ResumenFacturasDto obtenerResumenFacturas(
+            Long empresaId,
+            LocalDateTime fechaDesde,
+            LocalDateTime fechaHasta) {
+        
+        // Verificar permisos
+        empresaSecurityService.verificarAccesoLectura(empresaId);
+
+        // Obtener facturas según filtros
+        List<FacturaLegal> facturas;
+        if (fechaDesde != null && fechaHasta != null) {
+            facturas = facturaLegalRepository.findByFechaRange(empresaId, fechaDesde, fechaHasta);
+        } else {
+            facturas = facturaLegalRepository.findByEmpresaIdAndActivoTrue(empresaId);
+        }
+
+        // Inicializar totales
+        long cantidadAprobadas = 0;
+        BigDecimal totalAprobadas = BigDecimal.ZERO;
+        BigDecimal totalIva10Aprobadas = BigDecimal.ZERO;
+        BigDecimal totalIva5Aprobadas = BigDecimal.ZERO;
+        BigDecimal totalExentasAprobadas = BigDecimal.ZERO;
+
+        long cantidadNoAprobadas = 0;
+        BigDecimal totalNoAprobadas = BigDecimal.ZERO;
+
+        // Procesar cada factura
+        for (FacturaLegal factura : facturas) {
+            // Verificar si está aprobada
+            boolean aprobada = false;
+            if (factura.getDocumentoElectronico() != null) {
+                aprobada = EstadoDE.APROBADO.equals(factura.getDocumentoElectronico().getEstado());
+            }
+
+            BigDecimal totalFactura = factura.getTotalFinal() != null ? factura.getTotalFinal() : BigDecimal.ZERO;
+
+            if (aprobada) {
+                cantidadAprobadas++;
+                totalAprobadas = totalAprobadas.add(totalFactura);
+                
+                // Sumar por tipo de IVA
+                if (factura.getTotalParcial10() != null) {
+                    totalIva10Aprobadas = totalIva10Aprobadas.add(factura.getTotalParcial10());
+                }
+                if (factura.getTotalParcial5() != null) {
+                    totalIva5Aprobadas = totalIva5Aprobadas.add(factura.getTotalParcial5());
+                }
+                if (factura.getTotalParcial0() != null) {
+                    totalExentasAprobadas = totalExentasAprobadas.add(factura.getTotalParcial0());
+                }
+            } else {
+                cantidadNoAprobadas++;
+                totalNoAprobadas = totalNoAprobadas.add(totalFactura);
+            }
+        }
+
+        return new com.frcefact.dto.ResumenFacturasDto(
+                cantidadAprobadas,
+                totalAprobadas,
+                totalIva10Aprobadas,
+                totalIva5Aprobadas,
+                totalExentasAprobadas,
+                cantidadNoAprobadas,
+                totalNoAprobadas
+        );
+    }
+
+    /**
+     * Crea una Specification dinámica para filtrar facturas.
+     * 
+     * @param empresaId ID de la empresa
+     * @param clienteId ID del cliente (opcional)
+     * @param fechaDesde Fecha desde
+     * @param fechaHasta Fecha hasta
+     * @param estado Estado del documento electrónico (opcional, puede ser "SIN_DE")
+     * @return Specification para filtrar facturas
+     */
+    private Specification<FacturaLegal> crearSpecificationFiltros(
+            Long empresaId,
+            Long clienteId,
+            LocalDateTime fechaDesde,
+            LocalDateTime fechaHasta,
+            String estado) {
+        
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            
+            // Filtro por empresa (requerido)
+            predicates.add(criteriaBuilder.equal(root.get("empresa").get("id"), empresaId));
+            
+            // Filtro por activo
+            predicates.add(criteriaBuilder.equal(root.get("activo"), true));
+            
+            // Filtro por cliente (opcional)
+            if (clienteId != null) {
+                predicates.add(criteriaBuilder.equal(root.get("cliente").get("id"), clienteId));
+            }
+            
+            // Filtro por fecha desde
+            if (fechaDesde != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("fecha"), fechaDesde));
+            }
+            
+            // Filtro por fecha hasta
+            if (fechaHasta != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("fecha"), fechaHasta));
+            }
+            
+            // Filtro por estado del documento electrónico (opcional)
+            if (estado != null && !estado.isEmpty()) {
+                jakarta.persistence.criteria.Join<FacturaLegal, DocumentoElectronico> deJoin = 
+                        root.join("documentoElectronico", JoinType.LEFT);
+                
+                if ("SIN_DE".equals(estado)) {
+                    // Facturas sin documento electrónico
+                    predicates.add(criteriaBuilder.isNull(deJoin));
+                } else {
+                    // Filtrar por estado específico del documento electrónico
+                    try {
+                        EstadoDE estadoEnum = EstadoDE.valueOf(estado);
+                        predicates.add(criteriaBuilder.equal(deJoin.get("estado"), estadoEnum));
+                    } catch (IllegalArgumentException e) {
+                        // Si el estado no es válido, ignorar el filtro
+                    }
+                }
+            }
+            
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
     }
 }

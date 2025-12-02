@@ -54,6 +54,10 @@ public class FacturaLegalMapper {
         dto.setTotalParcial(factura.getTotalParcial());
         dto.setTotalFinal(factura.getTotalFinal());
 
+        // Moneda extranjera
+        dto.setMonedaExtranjera(factura.getMonedaExtranjera());
+        dto.setCambio(factura.getCambio());
+
         dto.setActivo(factura.getActivo());
 
         // Items
@@ -82,6 +86,21 @@ public class FacturaLegalMapper {
             dto.setNombreCliente(factura.getCliente().getNombre());
         }
 
+        DocumentoElectronico documento = factura.getDocumentoElectronico();
+        if (documento != null) {
+            dto.setDocumentoElectronicoId(documento.getId());
+            dto.setEstadoDocumentoElectronico(documento.getEstado() != null ? documento.getEstado().name() : null);
+            dto.setCdcDocumentoElectronico(documento.getCdc());
+            dto.setLoteDeId(documento.getLoteDE() != null ? documento.getLoteDE().getId() : null);
+            
+            // Extraer URL del QR si no está guardada
+            String urlQr = documento.getUrlQr();
+            if ((urlQr == null || urlQr.isBlank()) && documento.getXmlOriginal() != null && !documento.getXmlOriginal().isBlank()) {
+                urlQr = com.frcefact.sifen.util.SifenResponseParser.extractUrlQr(documento.getXmlOriginal());
+            }
+            dto.setUrlQrDocumentoElectronico(urlQr);
+        }
+
         return dto;
     }
 
@@ -97,7 +116,25 @@ public class FacturaLegalMapper {
         FacturaLegal factura = new FacturaLegal();
         factura.setId(dto.getId());
         factura.setNumeroFactura(dto.getNumeroFactura());
-        
+
+        if (dto.getEmpresaId() != null) {
+            Empresa empresa = new Empresa();
+            empresa.setId(dto.getEmpresaId());
+            factura.setEmpresa(empresa);
+        }
+
+        if (dto.getTimbradoDetalleId() != null) {
+            TimbradoDetalle timbradoDetalle = new TimbradoDetalle();
+            timbradoDetalle.setId(dto.getTimbradoDetalleId());
+            factura.setTimbradoDetalle(timbradoDetalle);
+        }
+
+        if (dto.getClienteId() != null) {
+            Cliente cliente = new Cliente();
+            cliente.setId(dto.getClienteId());
+            factura.setCliente(cliente);
+        }
+
         if (dto.getFecha() != null && !dto.getFecha().isEmpty()) {
             factura.setFecha(LocalDateTime.parse(dto.getFecha(), FORMATTER));
         }
@@ -107,6 +144,38 @@ public class FacturaLegalMapper {
         factura.setRuc(dto.getRuc());
         factura.setDireccion(dto.getDireccion());
         factura.setDescuentoFinal(dto.getDescuentoFinal());
+        
+        // Moneda extranjera
+        factura.setMonedaExtranjera(dto.getMonedaExtranjera());
+        factura.setCambio(dto.getCambio());
+        
+        // IMPORTANTE: Los totales se establecen desde el DTO (que viene en guaraníes)
+        // NO se recalculan aquí porque los items pueden venir en moneda extranjera
+        // El servicio decidirá si recalcular o usar los totales del DTO
+        if (dto.getIvaParcial0() != null) factura.setIvaParcial0(dto.getIvaParcial0());
+        if (dto.getIvaParcial5() != null) factura.setIvaParcial5(dto.getIvaParcial5());
+        if (dto.getIvaParcial10() != null) factura.setIvaParcial10(dto.getIvaParcial10());
+        if (dto.getTotalParcial0() != null) factura.setTotalParcial0(dto.getTotalParcial0());
+        if (dto.getTotalParcial5() != null) factura.setTotalParcial5(dto.getTotalParcial5());
+        if (dto.getTotalParcial10() != null) factura.setTotalParcial10(dto.getTotalParcial10());
+        if (dto.getTotalParcial() != null) factura.setTotalParcial(dto.getTotalParcial());
+        if (dto.getTotalFinal() != null) factura.setTotalFinal(dto.getTotalFinal());
+        
+        // LOG: Verificar valores recibidos del DTO
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FacturaLegalMapper.class);
+        logger.info("=== MAPPER: Valores recibidos del DTO ===");
+        logger.info("Moneda: {}, Cambio: {}", dto.getMonedaExtranjera(), dto.getCambio());
+        logger.info("Total Parcial: {}, Total Final: {}", dto.getTotalParcial(), dto.getTotalFinal());
+        logger.info("IVA Parcial 5%: {}, IVA Parcial 10%: {}", dto.getIvaParcial5(), dto.getIvaParcial10());
+        logger.info("Total Parcial 5%: {}, Total Parcial 10%: {}", dto.getTotalParcial5(), dto.getTotalParcial10());
+        if (dto.getItems() != null) {
+            for (int i = 0; i < dto.getItems().size(); i++) {
+                FacturaLegalItemDto item = dto.getItems().get(i);
+                logger.info("Item {}: precioUnitario={}, total={}", i, item.getPrecioUnitario(), item.getTotal());
+            }
+        }
+        logger.info("=========================================");
+        
         factura.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
 
         // Items
@@ -114,10 +183,12 @@ public class FacturaLegalMapper {
             List<FacturaLegalItem> items = dto.getItems().stream()
                     .map(this::itemToEntity)
                     .collect(Collectors.toList());
-            
+
             for (FacturaLegalItem item : items) {
-                factura.agregarItem(item);
+                item.setFacturaLegal(factura);
             }
+
+            factura.setItems(items);
         }
 
         return factura;
@@ -157,6 +228,12 @@ public class FacturaLegalMapper {
         item.setDescripcion(dto.getDescripcion());
         item.setPrecioUnitario(dto.getPrecioUnitario());
         item.setTotal(dto.getTotal());
+
+        if (dto.getProductoId() != null) {
+            Producto producto = new Producto();
+            producto.setId(dto.getProductoId());
+            item.setProducto(producto);
+        }
 
         return item;
     }

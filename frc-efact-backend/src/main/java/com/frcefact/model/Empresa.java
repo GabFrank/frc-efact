@@ -101,6 +101,13 @@ public class Empresa extends AuditableEntity {
     @Column(name = "certificado_fecha_expiracion")
     private LocalDate certificadoFechaExpiracion;
 
+    // CSC (Código de Seguridad del Contribuyente)
+    @Size(max = 50)
+    @Column(name = "csc_id", length = 50)
+    private String cscId;
+
+    @Column(name = "csc_encrypted", columnDefinition = "TEXT")
+    private String cscEncrypted;
 
     // Configuración SIFEN
     @Size(max = 20)
@@ -292,6 +299,22 @@ public class Empresa extends AuditableEntity {
 
     public void setCertificadoFechaExpiracion(LocalDate certificadoFechaExpiracion) {
         this.certificadoFechaExpiracion = certificadoFechaExpiracion;
+    }
+
+    public String getCscId() {
+        return cscId;
+    }
+
+    public void setCscId(String cscId) {
+        this.cscId = cscId;
+    }
+
+    public String getCscEncrypted() {
+        return cscEncrypted;
+    }
+
+    public void setCscEncrypted(String cscEncrypted) {
+        this.cscEncrypted = cscEncrypted;
     }
 
     public Boolean getActivo() {

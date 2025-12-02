@@ -10,7 +10,7 @@ import { Timbrado, TimbradoDetalle } from '../../models/timbrado.model';
 export class TimbradoApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/timbrados`;
-  private readonly detalleUrl = `${environment.apiUrl}/timbrados-detalle`;
+  private readonly detalleUrl = `${environment.apiUrl}/timbrado-detalles`;
 
   // Timbrado endpoints
   getAll(): Observable<Timbrado[]> {

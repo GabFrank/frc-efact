@@ -36,7 +36,7 @@ export const routes: Routes = [
       },
       {
         path: 'facturacion',
-        loadComponent: () => import('./features/facturacion/factura-list.component').then(m => m.FacturaListComponent)
+        loadChildren: () => import('./features/facturacion/facturacion.routes').then(m => m.FACTURACION_ROUTES)
       },
       {
         path: 'documentos',

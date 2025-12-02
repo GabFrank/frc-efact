@@ -36,6 +36,13 @@ spring:
     locations: classpath:db/migration
     schemas: public
 
+  # Mail Configuration for Development
+  # IMPORTANTE: Para desarrollo local, puedes configurar la contraseña aquí o usar la variable de entorno MAIL_PASSWORD
+  # Si ejecutas desde el IDE, agrega la variable de entorno en la configuración de ejecución
+  # Si ejecutas desde terminal, exporta: export MAIL_PASSWORD="tu-contraseña-sin-espacios"
+  mail:
+    password: ${MAIL_PASSWORD:CHANGE_ME}  # Cambia esto o configura MAIL_PASSWORD como variable de entorno
+
 # Development Server Configuration
 server:
   port: 8080
@@ -52,6 +59,8 @@ logging:
     org.hibernate: WARN
     org.flywaydb: INFO
     org.postgresql: WARN
+  file:
+    name: logs/backend-dev.log
 
 # CORS Configuration for Development
 cors:
@@ -62,3 +71,11 @@ cors:
 # Certificates Configuration for Development
 certificates:
   upload-dir: ${CERTIFICATES_DIR:./certificates}  # Directorio relativo para desarrollo
+
+sifen:
+  enabled: true
+  ambiente: PROD
+  scheduler:
+    enabled: false
+
+    

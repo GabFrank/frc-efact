@@ -29,8 +29,8 @@ export interface AutocompleteOption {
   template: `
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>{{ label }}</mat-label>
-      <input 
-        matInput 
+      <input
+        matInput
         [formControl]="searchControl"
         [matAutocomplete]="auto"
         [placeholder]="placeholder"
@@ -38,20 +38,20 @@ export interface AutocompleteOption {
         (input)="onInput($event)"
         (blur)="onBlur()">
       <mat-icon matSuffix>search</mat-icon>
-      
-      <mat-autocomplete 
-        #auto="matAutocomplete" 
+
+      <mat-autocomplete
+        #auto="matAutocomplete"
         [displayWith]="displayFn"
         (optionSelected)="onOptionSelected($event)">
-        <mat-option 
-          *ngFor="let option of filteredOptions$ | async" 
+        <mat-option
+          *ngFor="let option of filteredOptions$ | async"
           [value]="option">
           <div class="option-content">
             <span class="option-label">{{ option.label }}</span>
             <span class="option-code" *ngIf="option.codigo">({{ option.codigo }})</span>
           </div>
         </mat-option>
-        
+
         <mat-option *ngIf="(filteredOptions$ | async)?.length === 0" disabled>
           <div class="no-options">
             <mat-icon>search_off</mat-icon>
@@ -59,7 +59,7 @@ export interface AutocompleteOption {
           </div>
         </mat-option>
       </mat-autocomplete>
-      
+
       <mat-error *ngIf="hasError">
         {{ errorMessage }}
       </mat-error>
@@ -125,6 +125,7 @@ export class AutocompleteSelectComponent implements OnInit, OnDestroy, OnChanges
   @Input() errorMessage: string = '';
   @Input() required: boolean = false;
   @Input() disabled: boolean = false;
+  @Input() showAllOnEmpty: boolean = true;
 
   @Output() valueChange = new EventEmitter<string>();
   @Output() optionSelected = new EventEmitter<AutocompleteOption>();
@@ -137,7 +138,7 @@ export class AutocompleteSelectComponent implements OnInit, OnDestroy, OnChanges
   ngOnInit(): void {
     this.updateValue();
     this.setupFiltering();
-    
+
     // Set initial disabled state
     if (this.disabled) {
       this.searchControl.disable();
@@ -148,7 +149,7 @@ export class AutocompleteSelectComponent implements OnInit, OnDestroy, OnChanges
     if (changes['value'] || changes['options']) {
       this.updateValue();
     }
-    
+
     if (changes['disabled']) {
       if (this.disabled) {
         this.searchControl.disable();
@@ -161,8 +162,8 @@ export class AutocompleteSelectComponent implements OnInit, OnDestroy, OnChanges
   private updateValue(): void {
     if (this.value && typeof this.value === 'string' && this.value.trim() !== '') {
       const valueToSearch = this.value.toLowerCase();
-      const option = this.options.find(opt => 
-        opt.value === this.value || 
+      const option = this.options.find(opt =>
+        opt.value === this.value ||
         opt.codigo === this.value ||
         opt.label.toLowerCase().includes(valueToSearch)
       );
@@ -196,14 +197,14 @@ export class AutocompleteSelectComponent implements OnInit, OnDestroy, OnChanges
 
   private filterOptions(value: string): AutocompleteOption[] {
     if (!value || typeof value !== 'string') {
-      return this.options.slice(0, 50); // Limit to 50 options for performance
+      return this.showAllOnEmpty ? this.options.slice(0, 50) : [];
     }
 
     const filterValue = value.toLowerCase().trim();
 
     // Si no hay texto de búsqueda, mostrar todas las opciones
     if (filterValue === '') {
-      return this.options.slice(0, 50);
+      return this.showAllOnEmpty ? this.options.slice(0, 50) : [];
     }
 
     return this.options

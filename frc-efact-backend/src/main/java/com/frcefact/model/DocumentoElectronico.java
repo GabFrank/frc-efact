@@ -71,7 +71,7 @@ public class DocumentoElectronico extends AuditableEntity {
      * Estado actual del documento electrónico
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "estado", columnDefinition = "financiero.estado_de_enum", nullable = false)
+    @Column(name = "estado", length = 50, nullable = false)
     private EstadoDE estado = EstadoDE.PENDIENTE;
 
     /**
@@ -87,6 +87,18 @@ public class DocumentoElectronico extends AuditableEntity {
     private String mensajeRespuestaSifen;
 
     /**
+     * Respuesta completa recibida de SIFEN en formato original
+     */
+    @Column(name = "respuesta_sifen", columnDefinition = "TEXT")
+    private String respuestaSifen;
+
+    /**
+     * Protocolo/autorización retornado por SIFEN para el documento
+     */
+    @Column(name = "protocolo_autorizacion", length = 50)
+    private String protocoloAutorizacion;
+
+    /**
      * Fecha de emisión del documento
      */
     @Column(name = "fecha_emision", nullable = false)
@@ -97,6 +109,18 @@ public class DocumentoElectronico extends AuditableEntity {
      */
     @Column(name = "fecha_recepcion_sifen")
     private LocalDateTime fechaRecepcionSifen;
+
+    /**
+     * Fecha de la última actualización de estado reportada por SIFEN
+     */
+    @Column(name = "fecha_estado_actualizado")
+    private LocalDateTime fechaEstadoActualizado;
+
+    /**
+     * Contador de intentos de envío/consulta del documento
+     */
+    @Column(name = "intentos", nullable = false)
+    private Integer intentos = 0;
 
     /**
      * Indica si el documento está activo
@@ -207,6 +231,22 @@ public class DocumentoElectronico extends AuditableEntity {
         this.mensajeRespuestaSifen = mensajeRespuestaSifen;
     }
 
+    public String getRespuestaSifen() {
+        return respuestaSifen;
+    }
+
+    public void setRespuestaSifen(String respuestaSifen) {
+        this.respuestaSifen = respuestaSifen;
+    }
+
+    public String getProtocoloAutorizacion() {
+        return protocoloAutorizacion;
+    }
+
+    public void setProtocoloAutorizacion(String protocoloAutorizacion) {
+        this.protocoloAutorizacion = protocoloAutorizacion;
+    }
+
     public LocalDateTime getFechaEmision() {
         return fechaEmision;
     }
@@ -221,6 +261,22 @@ public class DocumentoElectronico extends AuditableEntity {
 
     public void setFechaRecepcionSifen(LocalDateTime fechaRecepcionSifen) {
         this.fechaRecepcionSifen = fechaRecepcionSifen;
+    }
+
+    public LocalDateTime getFechaEstadoActualizado() {
+        return fechaEstadoActualizado;
+    }
+
+    public void setFechaEstadoActualizado(LocalDateTime fechaEstadoActualizado) {
+        this.fechaEstadoActualizado = fechaEstadoActualizado;
+    }
+
+    public Integer getIntentos() {
+        return intentos;
+    }
+
+    public void setIntentos(Integer intentos) {
+        this.intentos = intentos;
     }
 
     public Boolean getActivo() {

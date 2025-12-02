@@ -174,6 +174,11 @@ public class EmpresaService {
             empresaExistente.setCertificadoFechaExpiracion(empresaActualizada.getCertificadoFechaExpiracion());
         }
 
+        // Actualizar configuración SIFEN
+        if (empresaActualizada.getSifenAmbiente() != null) {
+            empresaExistente.setSifenAmbiente(empresaActualizada.getSifenAmbiente());
+        }
+
         Empresa empresaGuardada = empresaRepository.save(empresaExistente);
         logger.info("Empresa actualizada exitosamente con ID: {}", empresaGuardada.getId());
 

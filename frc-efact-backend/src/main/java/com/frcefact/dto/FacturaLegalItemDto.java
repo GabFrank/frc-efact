@@ -15,7 +15,6 @@ public class FacturaLegalItemDto {
 
     @NotNull(message = "Cantidad es requerida")
     @DecimalMin(value = "0.001", message = "Cantidad debe ser mayor a 0")
-    @Digits(integer = 7, fraction = 3, message = "Cantidad debe tener máximo 7 dígitos enteros y 3 decimales")
     private BigDecimal cantidad;
 
     @NotBlank(message = "Descripción es requerida")
@@ -24,7 +23,6 @@ public class FacturaLegalItemDto {
 
     @NotNull(message = "Precio unitario es requerido")
     @DecimalMin(value = "0.01", message = "Precio unitario debe ser mayor a 0")
-    @Digits(integer = 13, fraction = 2, message = "Precio unitario debe tener máximo 13 dígitos enteros y 2 decimales")
     private BigDecimal precioUnitario;
 
     private BigDecimal total;

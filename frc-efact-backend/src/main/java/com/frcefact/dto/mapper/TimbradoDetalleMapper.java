@@ -27,6 +27,7 @@ public class TimbradoDetalleMapper {
         // Verificar que el timbrado existe antes de acceder a su ID
         if (detalle.getTimbrado() != null) {
             dto.setTimbradoId(detalle.getTimbrado().getId());
+            dto.setTimbradoNumero(detalle.getTimbrado().getNumero());
         }
         
         dto.setPuntoExpedicion(detalle.getPuntoExpedicion());

@@ -8,6 +8,7 @@ import com.frcefact.model.Barrio;
 import com.frcefact.model.Ciudad;
 import com.frcefact.model.Timbrado;
 import com.frcefact.model.TimbradoDetalle;
+import com.frcefact.repository.FacturaLegalRepository;
 import com.frcefact.repository.TimbradoDetalleRepository;
 import com.frcefact.repository.TimbradoRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -28,16 +29,19 @@ public class TimbradoDetalleService {
     private final TimbradoRepository timbradoRepository;
     private final TimbradoDetalleMapper timbradoDetalleMapper;
     private final EmpresaSecurityService empresaSecurityService;
+    private final FacturaLegalRepository facturaLegalRepository;
 
     public TimbradoDetalleService(
             TimbradoDetalleRepository timbradoDetalleRepository,
             TimbradoRepository timbradoRepository,
             TimbradoDetalleMapper timbradoDetalleMapper,
-            EmpresaSecurityService empresaSecurityService) {
+            EmpresaSecurityService empresaSecurityService,
+            FacturaLegalRepository facturaLegalRepository) {
         this.timbradoDetalleRepository = timbradoDetalleRepository;
         this.timbradoRepository = timbradoRepository;
         this.timbradoDetalleMapper = timbradoDetalleMapper;
         this.empresaSecurityService = empresaSecurityService;
+        this.facturaLegalRepository = facturaLegalRepository;
     }
 
     /**
@@ -255,6 +259,17 @@ public class TimbradoDetalleService {
     }
 
     /**
+     * Lista todos los detalles activos de una empresa.
+     */
+    @Transactional(readOnly = true)
+    public List<TimbradoDetalle> listarActivosPorEmpresa(Long empresaId) {
+        // Verificar permisos
+        empresaSecurityService.verificarAccesoLectura(empresaId);
+
+        return timbradoDetalleRepository.findByEmpresaIdAndActivoTrue(empresaId);
+    }
+
+    /**
      * Obtiene y incrementa el número actual de un detalle de timbrado.
      * Usado para asignar números de factura.
      */
@@ -265,6 +280,12 @@ public class TimbradoDetalleService {
 
         // Verificar permisos de escritura
         empresaSecurityService.verificarAccesoEscritura(detalle.getTimbrado().getEmpresa().getId());
+
+        // Para timbrados electrónicos, generar número basado en facturas existentes sin modificar el detalle
+        if (Boolean.TRUE.equals(detalle.getTimbrado().getIsElectronico())) {
+            Integer maxNumero = facturaLegalRepository.findMaxNumeroFacturaByTimbradoDetalleId(detalleId);
+            return maxNumero == null ? 1L : maxNumero.longValue() + 1L;
+        }
 
         // Verificar que tiene números disponibles
         if (!detalle.tieneNumerosDisponibles()) {

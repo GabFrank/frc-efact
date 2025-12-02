@@ -58,7 +58,7 @@ public class EventoCancelacionDE extends AuditableEntity {
      * Estado actual del evento
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "estado", columnDefinition = "financiero.estado_evento_enum", nullable = false)
+    @Column(name = "estado", length = 50, nullable = false)
     private EstadoEvento estado = EstadoEvento.PENDIENTE;
 
     /**

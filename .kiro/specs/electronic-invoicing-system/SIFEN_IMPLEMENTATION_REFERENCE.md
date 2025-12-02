@@ -3,7 +3,7 @@
 ## Fuente
 
 **Repositorio**: https://github.com/GabFrank/franco-system-backend-filial  
-**Branch**: facturacion-electronica  
+**Branch**: 3.0.7-2 
 **Path**: `src/main/java/com/franco/dev/service/sifen`
 
 ## Estructura de Archivos
