@@ -77,6 +77,7 @@ public class UsuarioController {
                     content = @Content
             )
     })
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<UsuarioDto> obtenerPerfil(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new UsernameNotFoundException("Usuario no autenticado");
@@ -85,6 +86,9 @@ public class UsuarioController {
         String username = authentication.getName();
         Usuario usuario = usuarioService.buscarPorUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
+        
+        // Inicializar roles dentro de la transacción
+        usuario.getUsuarioRoles().size();
 
         UsuarioDto usuarioDto = usuarioMapper.toDto(usuario);
         return ResponseEntity.ok(usuarioDto);

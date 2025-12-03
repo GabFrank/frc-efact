@@ -526,6 +526,40 @@ public class UsuarioService {
     }
 
     /**
+     * Vincular cuenta Auth0 a usuario existente.
+     * 
+     * @param username el username del usuario
+     * @param auth0Id el ID de Auth0
+     */
+    public void vincularAuth0(String username, String auth0Id) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
+        
+        // Verificar si el Auth0 ID ya está en uso por otro usuario
+        usuarioRepository.findByAuth0Id(auth0Id).ifPresent(u -> {
+            if (!u.getId().equals(usuario.getId())) {
+                throw new IllegalArgumentException("La cuenta de Auth0 ya está vinculada a otro usuario.");
+            }
+        });
+        
+        usuario.setAuth0Id(auth0Id);
+        usuarioRepository.save(usuario);
+    }
+
+    /**
+     * Desvincular cuenta Auth0.
+     * 
+     * @param username el username del usuario
+     */
+    public void desvincularAuth0(String username) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
+        
+        usuario.setAuth0Id(null);
+        usuarioRepository.save(usuario);
+    }
+
+    /**
      * Obtener todos los roles disponibles.
      *
      * @return lista de DTOs de roles

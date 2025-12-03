@@ -7,7 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatMenuModule } from '@angular/material/menu';
+import { MatMenuModule, MatMenu } from '@angular/material/menu';
 import { SelectionModel } from '@angular/cdk/collections';
 
 export interface TableColumn {
@@ -24,6 +24,7 @@ export interface TableAction {
     color?: 'primary' | 'accent' | 'warn';
     handler?: (row: any) => void;
     visible?: (row: any) => boolean;
+    group?: string; // Optional group name for nested menus
 }
 
 @Component({
@@ -75,26 +76,163 @@ export interface TableAction {
           <th mat-header-cell *matHeaderCellDef>Acciones</th>
           <td mat-cell *matCellDef="let row">
             <ng-container *ngIf="hasVisibleActions(row)">
-              <button
-                mat-icon-button
-                [matMenuTriggerFor]="actionMenu"
-                aria-label="Acciones"
-              >
-                <mat-icon>more_vert</mat-icon>
-              </button>
-              <mat-menu #actionMenu="matMenu">
-                <ng-container *ngFor="let action of actions">
+              <ng-container *ngIf="hasGroupedActions(); else flatMenu">
+                <button
+                  mat-icon-button
+                  [matMenuTriggerFor]="actionMenu"
+                  aria-label="Acciones"
+                >
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #actionMenu="matMenu">
+                  <!-- Group buttons with direct template references -->
                   <button
                     mat-menu-item
-                    type="button"
-                    *ngIf="!action.visible || action.visible(row)"
-                    (click)="onActionClick(action, row, $event)"
+                    [matMenuTriggerFor]="groupMenu0"
+                    *ngIf="getActionGroups().length > 0 && hasVisibleActionsInGroup(row, getActionGroups()[0])"
                   >
-                    <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
-                    <span>{{ action.label || action.tooltip || action.icon }}</span>
+                    <span>{{ getActionGroups()[0] }}</span>
                   </button>
-                </ng-container>
-              </mat-menu>
+                  <button
+                    mat-menu-item
+                    [matMenuTriggerFor]="groupMenu1"
+                    *ngIf="getActionGroups().length > 1 && hasVisibleActionsInGroup(row, getActionGroups()[1])"
+                  >
+                    <span>{{ getActionGroups()[1] }}</span>
+                  </button>
+                  <button
+                    mat-menu-item
+                    [matMenuTriggerFor]="groupMenu2"
+                    *ngIf="getActionGroups().length > 2 && hasVisibleActionsInGroup(row, getActionGroups()[2])"
+                  >
+                    <span>{{ getActionGroups()[2] }}</span>
+                  </button>
+                  <button
+                    mat-menu-item
+                    [matMenuTriggerFor]="groupMenu3"
+                    *ngIf="getActionGroups().length > 3 && hasVisibleActionsInGroup(row, getActionGroups()[3])"
+                  >
+                    <span>{{ getActionGroups()[3] }}</span>
+                  </button>
+                  <button
+                    mat-menu-item
+                    [matMenuTriggerFor]="groupMenu4"
+                    *ngIf="getActionGroups().length > 4 && hasVisibleActionsInGroup(row, getActionGroups()[4])"
+                  >
+                    <span>{{ getActionGroups()[4] }}</span>
+                  </button>
+                  <!-- Nested menus - always defined so references are available -->
+                  <mat-menu #groupMenu0="matMenu">
+                    <ng-container *ngIf="getActionGroups().length > 0">
+                      <ng-container *ngFor="let action of getActionsInGroup(getActionGroups()[0])">
+                        <button
+                          mat-menu-item
+                          type="button"
+                          *ngIf="!action.visible || action.visible(row)"
+                          (click)="onActionClick(action, row, $event)"
+                        >
+                          <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
+                          <span>{{ action.label || action.tooltip || action.icon }}</span>
+                        </button>
+                      </ng-container>
+                    </ng-container>
+                  </mat-menu>
+                  <mat-menu #groupMenu1="matMenu">
+                    <ng-container *ngIf="getActionGroups().length > 1">
+                      <ng-container *ngFor="let action of getActionsInGroup(getActionGroups()[1])">
+                        <button
+                          mat-menu-item
+                          type="button"
+                          *ngIf="!action.visible || action.visible(row)"
+                          (click)="onActionClick(action, row, $event)"
+                        >
+                          <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
+                          <span>{{ action.label || action.tooltip || action.icon }}</span>
+                        </button>
+                      </ng-container>
+                    </ng-container>
+                  </mat-menu>
+                  <mat-menu #groupMenu2="matMenu">
+                    <ng-container *ngIf="getActionGroups().length > 2">
+                      <ng-container *ngFor="let action of getActionsInGroup(getActionGroups()[2])">
+                        <button
+                          mat-menu-item
+                          type="button"
+                          *ngIf="!action.visible || action.visible(row)"
+                          (click)="onActionClick(action, row, $event)"
+                        >
+                          <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
+                          <span>{{ action.label || action.tooltip || action.icon }}</span>
+                        </button>
+                      </ng-container>
+                    </ng-container>
+                  </mat-menu>
+                  <mat-menu #groupMenu3="matMenu">
+                    <ng-container *ngIf="getActionGroups().length > 3">
+                      <ng-container *ngFor="let action of getActionsInGroup(getActionGroups()[3])">
+                        <button
+                          mat-menu-item
+                          type="button"
+                          *ngIf="!action.visible || action.visible(row)"
+                          (click)="onActionClick(action, row, $event)"
+                        >
+                          <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
+                          <span>{{ action.label || action.tooltip || action.icon }}</span>
+                        </button>
+                      </ng-container>
+                    </ng-container>
+                  </mat-menu>
+                  <mat-menu #groupMenu4="matMenu">
+                    <ng-container *ngIf="getActionGroups().length > 4">
+                      <ng-container *ngFor="let action of getActionsInGroup(getActionGroups()[4])">
+                        <button
+                          mat-menu-item
+                          type="button"
+                          *ngIf="!action.visible || action.visible(row)"
+                          (click)="onActionClick(action, row, $event)"
+                        >
+                          <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
+                          <span>{{ action.label || action.tooltip || action.icon }}</span>
+                        </button>
+                      </ng-container>
+                    </ng-container>
+                  </mat-menu>
+                  <!-- Render ungrouped actions -->
+                  <ng-container *ngFor="let action of getUngroupedActions()">
+                    <button
+                      mat-menu-item
+                      type="button"
+                      *ngIf="!action.visible || action.visible(row)"
+                      (click)="onActionClick(action, row, $event)"
+                    >
+                      <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
+                      <span>{{ action.label || action.tooltip || action.icon }}</span>
+                    </button>
+                  </ng-container>
+                </mat-menu>
+              </ng-container>
+              <ng-template #flatMenu>
+                <button
+                  mat-icon-button
+                  [matMenuTriggerFor]="actionMenu"
+                  aria-label="Acciones"
+                >
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #actionMenu="matMenu">
+                  <ng-container *ngFor="let action of actions">
+                    <button
+                      mat-menu-item
+                      type="button"
+                      *ngIf="!action.visible || action.visible(row)"
+                      (click)="onActionClick(action, row, $event)"
+                    >
+                      <mat-icon *ngIf="action.icon">{{ action.icon }}</mat-icon>
+                      <span>{{ action.label || action.tooltip || action.icon }}</span>
+                    </button>
+                  </ng-container>
+                </mat-menu>
+              </ng-template>
             </ng-container>
           </td>
         </ng-container>
@@ -209,6 +347,46 @@ export class DataTableComponent implements OnInit {
     }
     return this.actions.some(action => !action.visible || action.visible(row));
   }
+
+  hasGroupedActions(): boolean {
+    if (!this.actions || this.actions.length === 0) {
+      return false;
+    }
+    return this.actions.some(action => action.group != null && action.group !== '');
+  }
+
+  getActionGroups(): string[] {
+    if (!this.actions) {
+      return [];
+    }
+    const groups = new Set<string>();
+    this.actions.forEach(action => {
+      if (action.group) {
+        groups.add(action.group);
+      }
+    });
+    return Array.from(groups);
+  }
+
+  getActionsInGroup(group: string): TableAction[] {
+    if (!this.actions) {
+      return [];
+    }
+    return this.actions.filter(action => action.group === group);
+  }
+
+  getUngroupedActions(): TableAction[] {
+    if (!this.actions) {
+      return [];
+    }
+    return this.actions.filter(action => !action.group || action.group === '');
+  }
+
+  hasVisibleActionsInGroup(row: any, group: string): boolean {
+    const groupActions = this.getActionsInGroup(group);
+    return groupActions.some(action => !action.visible || action.visible(row));
+  }
+
 
     // Selection methods
     isAllSelected(): boolean {

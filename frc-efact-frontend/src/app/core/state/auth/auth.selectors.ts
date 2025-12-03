@@ -39,12 +39,17 @@ export const selectUserRoles = createSelector(
     if (!state.user?.roles) return [];
     
     return state.user.roles.map(role => {
-      // Si el rol es un objeto con propiedad 'nombre', devolver el nombre
+      let roleName = '';
+      // Si el rol es un objeto con propiedad 'nombre', obtener el nombre
       if (typeof role === 'object' && 'nombre' in role) {
-        return (role as any).nombre;
+        roleName = (role as any).nombre;
+      } else {
+        // Si es un string, usarlo directamente
+        roleName = role as string;
       }
-      // Si es un string, devolverlo directamente
-      return role;
+      
+      // Normalizar quitando el prefijo ROLE_ si existe
+      return roleName.startsWith('ROLE_') ? roleName.substring(5) : roleName;
     });
   }
 );

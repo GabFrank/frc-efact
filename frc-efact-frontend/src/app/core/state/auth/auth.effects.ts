@@ -56,16 +56,15 @@ export class AuthEffects {
       this.actions$.pipe(
         ofType(AuthActions.loginSuccess),
         tap(({ user, token, refreshToken }) => {
-          // Guardar datos en localStorage
           localStorage.setItem('auth_token', token);
           localStorage.setItem('refresh_token', refreshToken);
           localStorage.setItem('current_user', JSON.stringify(user));
 
-          // Actualizar el AuthService para mantener sincronización
           this.authService.updateCurrentUser(user);
 
-          // Navegar al dashboard
-          this.router.navigate(['/dashboard']);
+          setTimeout(() => {
+            this.router.navigate(['/dashboard']);
+          }, 100);
         })
       ),
     { dispatch: false }

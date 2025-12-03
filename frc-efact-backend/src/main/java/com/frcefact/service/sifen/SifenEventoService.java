@@ -701,11 +701,16 @@ public class SifenEventoService {
             de.setCodigoRespuestaSifen(codigoRespuesta);
             de.setMensajeRespuestaSifen(mensajeRespuesta);
             documentoElectronicoRepository.save(de);
+            
+            // Actualizar factura con cliente nominado y sus datos
             factura.setCliente(cliente);
+            factura.setNombre(cliente.getNombreCompleto());
+            factura.setRuc(cliente.getRuc());
             facturaLegalRepository.save(factura);
             log.info("   ✅ Evento APROBADO - Factura actualizada con cliente nominado");
             log.info("   📋 Código SIFEN: {} - {}", codigoRespuesta, mensajeRespuesta);
-            log.info("   👤 Factura ID {} ahora tiene cliente ID {}", factura.getId(), cliente.getId());
+            log.info("   👤 Factura ID {} ahora tiene cliente ID {} - Nombre: {} - RUC: {}", 
+                    factura.getId(), cliente.getId(), factura.getNombre(), factura.getRuc());
         } else if ("Rechazado".equalsIgnoreCase(estadoResultado)) {
             evento.setEstado(EstadoEvento.RECHAZADO);
             evento.setFechaProcesamiento(LocalDateTime.now());
@@ -723,10 +728,15 @@ public class SifenEventoService {
                 if (protocolo != null && !protocolo.isEmpty() && !"0".equals(protocolo)) {
                     evento.setEstado(EstadoEvento.APROBADO);
                     evento.setFechaProcesamiento(LocalDateTime.now());
+                    
+                    // Actualizar factura con cliente nominado y sus datos
                     factura.setCliente(cliente);
+                    factura.setNombre(cliente.getNombreCompleto());
+                    factura.setRuc(cliente.getRuc());
                     facturaLegalRepository.save(factura);
                     log.info("   ✅ Evento APROBADO (código 0600 + protocolo) - Factura actualizada");
-                    log.info("   👤 Factura ID {} ahora tiene cliente ID {}", factura.getId(), cliente.getId());
+                    log.info("   👤 Factura ID {} ahora tiene cliente ID {} - Nombre: {} - RUC: {}", 
+                            factura.getId(), cliente.getId(), factura.getNombre(), factura.getRuc());
                 } else {
                     evento.setEstado(EstadoEvento.PENDIENTE);
                     log.info("   ✅ Evento registrado (código 0600) - estado pendiente");

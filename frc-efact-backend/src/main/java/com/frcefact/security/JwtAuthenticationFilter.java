@@ -1,5 +1,6 @@
 package com.frcefact.security;
 
+import io.jsonwebtoken.UnsupportedJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,23 +40,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String username = tokenProvider.getUsernameFromToken(jwt);
-
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                logger.debug("Set authentication for user: {}", username);
+            if (StringUtils.hasText(jwt)) {
+                // Verificar si es un token local antes de intentar validarlo
+                // Si no es local, probablemente es de Auth0 (RS256) y lo dejamos pasar al OAuth2 Resource Server
+                if (tokenProvider.isLocalToken(jwt)) {
+                    // Es un token local, intentar validarlo
+                    if (tokenProvider.validateToken(jwt)) {
+                        String username = tokenProvider.getUsernameFromToken(jwt);
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()
+                                );
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                }
             }
+        } catch (UnsupportedJwtException ex) {
+            // Token usa algoritmo diferente (probablemente RS256 de Auth0)
+            // Lo dejamos pasar al OAuth2 Resource Server
         } catch (Exception ex) {
-            logger.error("Could not set user authentication in security context", ex);
+            // Solo loguear errores inesperados, pero continuar con el filtro chain
+            // para permitir que el OAuth2 Resource Server intente validar el token
+            logger.debug("JwtAuthenticationFilter - Error validando token local: {}", ex.getMessage());
         }
 
         filterChain.doFilter(request, response);

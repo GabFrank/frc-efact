@@ -48,7 +48,7 @@ public class JwtTokenProvider {
                 .signWith(getSigningKey())
                 .compact();
     }
-
+    
     /**
      * Generar refresh token para un usuario.
      *
@@ -103,6 +103,36 @@ public class JwtTokenProvider {
     }
 
     /**
+     * Verificar si el token es un token local (no es un token de Auth0).
+     * Los tokens locales usan algoritmos simétricos (HS256, HS512, etc.),
+     * mientras que Auth0 usa RS256 (algoritmo asimétrico).
+     * 
+     * @param token el token JWT
+     * @return true si el token NO es RS256 (es decir, es un token local)
+     */
+    public boolean isLocalToken(String token) {
+        try {
+            // Parsear el header sin validar la firma para obtener el algoritmo
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) {
+                return false;
+            }
+            
+            // Decodificar el header (base64url)
+            String headerJson = new String(java.util.Base64.getUrlDecoder().decode(parts[0]));
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode header = mapper.readTree(headerJson);
+            String alg = header.get("alg").asText();
+            
+            // Si NO es RS256 (algoritmo de Auth0), entonces es un token local
+            return !"RS256".equals(alg);
+        } catch (Exception ex) {
+            logger.debug("Error detectando algoritmo del token: {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Validar token JWT.
      *
      * @param token el token JWT a validar
@@ -122,7 +152,8 @@ public class JwtTokenProvider {
         } catch (ExpiredJwtException ex) {
             logger.error("Expired JWT token: {}", ex.getMessage());
         } catch (UnsupportedJwtException ex) {
-            logger.error("Unsupported JWT token: {}", ex.getMessage());
+            // No loguear como ERROR si es un token con algoritmo diferente (probablemente Auth0)
+            logger.debug("Unsupported JWT token algorithm (likely Auth0 token): {}", ex.getMessage());
         } catch (IllegalArgumentException ex) {
             logger.error("JWT claims string is empty: {}", ex.getMessage());
         }

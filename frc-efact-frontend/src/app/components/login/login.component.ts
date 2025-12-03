@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { AuthService as Auth0Service } from '@auth0/auth0-angular';
 import { LoginRequest } from '../../models/login-request.model';
 import * as AuthActions from '../../core/state/auth/auth.actions';
 import { selectAuthLoading, selectAuthError } from '../../core/state/auth/auth.selectors';
@@ -34,6 +35,7 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private store = inject(Store);
   private router = inject(Router);
+  private auth0 = inject(Auth0Service);
 
   loginForm: FormGroup;
   isLoading$: Observable<boolean>;
@@ -64,6 +66,10 @@ export class LoginComponent {
       username: credentials.username,
       password: credentials.password
     }));
+  }
+
+  loginWithAuth0(): void {
+    this.auth0.loginWithRedirect();
   }
 
   private markFormGroupTouched(formGroup: FormGroup): void {

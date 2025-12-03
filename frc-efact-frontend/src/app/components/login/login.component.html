@@ -56,6 +56,21 @@
           <span *ngIf="!(isLoading$ | async)">Iniciar Sesión</span>
           <mat-spinner *ngIf="isLoading$ | async" diameter="20"></mat-spinner>
         </button>
+
+        <div style="margin: 20px 0; display: flex; align-items: center; justify-content: center;">
+          <span style="color: #666; background: #fff; padding: 0 10px; z-index: 1;">O</span>
+          <div style="position: absolute; border-top: 1px solid #e0e0e0; width: 80%;"></div>
+        </div>
+
+        <button
+          mat-stroked-button
+          type="button"
+          class="full-width"
+          (click)="loginWithAuth0()"
+          [disabled]="isLoading$ | async">
+          <mat-icon>login</mat-icon>
+          Iniciar con Auth0 / Google
+        </button>
       </form>
     </mat-card-content>
   </mat-card>

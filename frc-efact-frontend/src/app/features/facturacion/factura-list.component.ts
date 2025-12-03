@@ -17,6 +17,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { PageEvent } from '@angular/material/paginator';
 import { FacturaApiService, ResumenFacturas } from '../../core/api/factura-api.service';
 import { SifenApiService } from '../../core/api/sifen-api.service';
 import { FacturaLegal } from '../../models/factura.model';
@@ -177,6 +178,7 @@ import {
               <mat-label>Cliente</mat-label>
               <input matInput
                      [(ngModel)]="searchCliente"
+                     (ngModelChange)="onSearchClienteChange()"
                      placeholder="Buscar por nombre o RUC">
               <mat-icon matPrefix>search</mat-icon>
             </mat-form-field>
@@ -212,9 +214,13 @@ import {
           <app-data-table
             *ngIf="!(loading$ | async)"
             [columns]="columns"
-            [data]="facturasFiltradas()"
+            [data]="facturasPaginas()"
             [actions]="tableActions"
+            [pageSize]="pageSize"
+            [pageIndex]="pageIndex"
+            [totalItems]="facturasFiltradas().length"
             (actionClick)="onActionClick($event)"
+            (pageChange)="onPageChange($event)"
           />
         </mat-card-content>
       </mat-card>
@@ -562,8 +568,13 @@ export class FacturaListComponent implements OnInit, OnDestroy {
 
   facturas = signal<FacturaLegal[]>([]);
   facturasFiltradas = signal<FacturaLegal[]>([]);
+  facturasPaginas = signal<FacturaLegal[]>([]);
   resumen = signal<ResumenFacturas | null>(null);
   cargandoResumen = signal<boolean>(false);
+
+  // Paginación
+  pageSize = 10;
+  pageIndex = 0;
 
   filtro: FacturaFiltro = {
     empresaId: undefined, // Se obtiene de query params
@@ -644,84 +655,100 @@ export class FacturaListComponent implements OnInit, OnDestroy {
   ];
 
   tableActions: TableAction[] = [
+    // Grupo: Información y Visualización
     {
       icon: 'info',
       label: 'Ver estado',
       color: 'primary',
-      tooltip: 'Ver estado completo de factura, DE y lote'
+      tooltip: 'Ver estado completo de factura, DE y lote',
+      group: 'Información'
     },
     {
       icon: 'open_in_new',
       label: 'Ver / Editar',
-      tooltip: 'Ver o editar factura'
-    },
-    {
-      icon: 'description',
-      label: 'Generar DE',
-      color: 'accent',
-      tooltip: 'Generar documento electrónico',
-      visible: (row: any) => !row.documentoElectronicoId || (row.estadoDocumentoElectronico !== 'ERROR' && row.estadoDocumentoElectronico !== 'RECHAZADO')
-    },
-    {
-      icon: 'link_off',
-      label: 'Desvincular DE',
-      color: 'warn',
-      tooltip: 'Desvincular documento electrónico (solo si tiene error permanente)',
-      visible: (row: any) => row.documentoElectronicoId != null && (row.estadoDocumentoElectronico === 'ERROR' || row.estadoDocumentoElectronico === 'RECHAZADO')
-    },
-    {
-      icon: 'sync',
-      label: 'Consultar SIFEN',
-      color: 'primary',
-      tooltip: 'Consultar estado en SIFEN'
-    },
-    {
-      icon: 'refresh',
-      label: 'Reenviar DE',
-      color: 'accent',
-      tooltip: 'Reenviar documento electrónico en un nuevo lote',
-      visible: (row: any) => row.documentoElectronicoId != null
-    },
-    {
-      icon: 'email',
-      label: 'Reenviar Email',
-      color: 'primary',
-      tooltip: 'Reenviar email con factura electrónica al cliente',
-      visible: (row: any) => row.documentoElectronicoId != null && row.estadoDocumentoElectronico === 'APROBADO'
-    },
-    {
-      icon: 'cancel',
-      label: 'Cancelar DE',
-      color: 'warn',
-      tooltip: 'Cancelar documento electrónico',
-      visible: (row: any) => row.cdcDocumentoElectronico != null && row.estadoDE !== 'CANCELADO'
-    },
-    {
-      icon: 'person_add',
-      label: 'Nominar DE',
-      color: 'primary',
-      tooltip: 'Nominar receptor del documento electrónico',
-      visible: (row: any) => row.cdcDocumentoElectronico != null && (!row.clienteId || row.clienteId === null)
-    },
-    {
-      icon: 'block',
-      label: 'Inutilizar Número',
-      color: 'warn',
-      tooltip: 'Inutilizar número de documento',
-      visible: (row: any) => row.timbradoDetalleId != null && row.numeroFactura != null
+      tooltip: 'Ver o editar factura',
+      group: 'Información'
     },
     {
       icon: 'picture_as_pdf',
       label: 'Abrir PDF',
       color: 'primary',
       tooltip: 'Abrir PDF del KUDE',
-      visible: (row: any) => row.documentoElectronicoId != null
+      visible: (row: any) => row.documentoElectronicoId != null,
+      group: 'Información'
+    },
+    // Grupo: Gestión DE
+    {
+      icon: 'description',
+      label: 'Generar DE',
+      color: 'accent',
+      tooltip: 'Generar documento electrónico',
+      visible: (row: any) => !row.documentoElectronicoId,
+      group: 'Gestión DE'
+    },
+    {
+      icon: 'link_off',
+      label: 'Desvincular DE',
+      color: 'warn',
+      tooltip: 'Desvincular documento electrónico (solo si tiene error permanente)',
+      visible: (row: any) => row.documentoElectronicoId != null && (row.estadoDocumentoElectronico === 'ERROR' || row.estadoDocumentoElectronico === 'RECHAZADO'),
+      group: 'Gestión DE'
+    },
+    {
+      icon: 'refresh',
+      label: 'Reenviar DE',
+      color: 'accent',
+      tooltip: 'Reenviar documento electrónico en un nuevo lote',
+      visible: (row: any) => row.documentoElectronicoId != null,
+      group: 'Gestión DE'
+    },
+    {
+      icon: 'cancel',
+      label: 'Cancelar DE',
+      color: 'warn',
+      tooltip: 'Cancelar documento electrónico',
+      visible: (row: any) => row.cdcDocumentoElectronico != null && row.estadoDE !== 'CANCELADO',
+      group: 'Gestión DE'
+    },
+    {
+      icon: 'person_add',
+      label: 'Nominar DE',
+      color: 'primary',
+      tooltip: 'Nominar receptor del documento electrónico',
+      visible: (row: any) => row.cdcDocumentoElectronico != null && (!row.clienteId || row.clienteId === null),
+      group: 'Gestión DE'
+    },
+    // Grupo: SIFEN y Consultas
+    {
+      icon: 'sync',
+      label: 'Consultar SIFEN',
+      color: 'primary',
+      tooltip: 'Consultar estado en SIFEN',
+      group: 'SIFEN'
+    },
+    // Grupo: Comunicación
+    {
+      icon: 'email',
+      label: 'Reenviar Email',
+      color: 'primary',
+      tooltip: 'Reenviar email con factura electrónica al cliente',
+      visible: (row: any) => row.documentoElectronicoId != null && row.estadoDocumentoElectronico === 'APROBADO',
+      group: 'Comunicación'
+    },
+    {
+      icon: 'block',
+      label: 'Inutilizar Número',
+      color: 'warn',
+      tooltip: 'Inutilizar número de documento',
+      visible: (row: any) => row.timbradoDetalleId != null && row.numeroFactura != null,
+      group: 'Gestión DE'
     },
     {
       icon: 'delete',
       label: 'Eliminar',
       color: 'warn',
-      tooltip: 'Eliminar factura'
+      tooltip: 'Eliminar factura',
+      group: 'Gestión DE'
     }
   ];
 
@@ -854,11 +881,19 @@ export class FacturaListComponent implements OnInit, OnDestroy {
   }
 
   aplicarFiltros(): void {
+    // Resetear paginación al aplicar filtros
+    this.pageIndex = 0;
     // Cargar facturas desde el backend con los filtros aplicados
     // El filtro local se aplicará automáticamente cuando lleguen las facturas (en el subscribe)
     this.cargarFacturas();
     // Cargar resumen usando solo las fechas
     this.cargarResumen();
+  }
+
+  onSearchClienteChange(): void {
+    // Resetear paginación cuando cambia la búsqueda
+    this.pageIndex = 0;
+    this.aplicarFiltroLocal();
   }
 
   cargarResumen(): void {
@@ -894,6 +929,21 @@ export class FacturaListComponent implements OnInit, OnDestroy {
     }
 
     this.facturasFiltradas.set(filtradas);
+    this.actualizarPaginacion();
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.actualizarPaginacion();
+  }
+
+  private actualizarPaginacion(): void {
+    const todas = this.facturasFiltradas();
+    const startIndex = this.pageIndex * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+    const paginadas = todas.slice(startIndex, endIndex);
+    this.facturasPaginas.set(paginadas);
   }
 
   limpiarFiltros(): void {
@@ -909,6 +959,8 @@ export class FacturaListComponent implements OnInit, OnDestroy {
       montoMaximo: undefined
     };
     this.searchCliente = '';
+    // Resetear paginación al limpiar filtros
+    this.pageIndex = 0;
     this.cargarFacturas();
     this.cargarResumen();
   }
@@ -1220,7 +1272,7 @@ export class FacturaListComponent implements OnInit, OnDestroy {
           error: (error) => {
             const errorCode = error.error?.error;
             const errorMessage = error.error?.message || error.error?.error || error.message || 'Error al reenviar email';
-            
+
             // Si el error es CLIENTE_SIN_EMAIL, abrir diálogo de edición del cliente
             if (errorCode === 'CLIENTE_SIN_EMAIL' && error.error?.clienteId && factura.empresaId && factura.id) {
               const clienteId = parseInt(error.error.clienteId, 10);

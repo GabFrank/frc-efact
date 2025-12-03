@@ -2,6 +2,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  auth0Id?: string;
   isActive: boolean;
   roles: Role[] | string[]; // Puede ser array de objetos Role o array de strings
   ultimoLogin?: string; // Cambiado de lastLogin

@@ -14,6 +14,8 @@ import com.frcefact.repository.DocumentoElectronicoRepository;
 import com.frcefact.repository.FacturaLegalItemRepository;
 import com.frcefact.repository.LoteDERepository;
 import com.frcefact.repository.EventoCancelacionDERepository;
+import com.frcefact.repository.EventoNominacionDERepository;
+import com.frcefact.repository.FacturaLegalRepository;
 import com.frcefact.sifen.config.SifenConfigFactory;
 import com.frcefact.sifen.util.SifenResponseParser;
 import com.frcefact.sifen.util.SifenResponseParser.DocumentResult;
@@ -58,6 +60,8 @@ public class SifenService {
     private final LoteDERepository loteDERepository;
     private final FacturaLegalItemRepository facturaLegalItemRepository;
     private final EventoCancelacionDERepository eventoCancelacionDERepository;
+    private final EventoNominacionDERepository eventoNominacionDERepository;
+    private final FacturaLegalRepository facturaLegalRepository;
     private final XmlGeneratorService xmlGeneratorService;
     private final SifenConfigFactory sifenConfigFactory;
     private final com.frcefact.service.EmailFacturaElectronicaService emailFacturaElectronicaService;
@@ -66,6 +70,8 @@ public class SifenService {
                         LoteDERepository loteDERepository,
                         FacturaLegalItemRepository facturaLegalItemRepository,
                         EventoCancelacionDERepository eventoCancelacionDERepository,
+                        EventoNominacionDERepository eventoNominacionDERepository,
+                        FacturaLegalRepository facturaLegalRepository,
                         XmlGeneratorService xmlGeneratorService,
                         SifenConfigFactory sifenConfigFactory,
                         com.frcefact.service.EmailFacturaElectronicaService emailFacturaElectronicaService) {
@@ -73,6 +79,8 @@ public class SifenService {
         this.loteDERepository = loteDERepository;
         this.facturaLegalItemRepository = facturaLegalItemRepository;
         this.eventoCancelacionDERepository = eventoCancelacionDERepository;
+        this.eventoNominacionDERepository = eventoNominacionDERepository;
+        this.facturaLegalRepository = facturaLegalRepository;
         this.xmlGeneratorService = xmlGeneratorService;
         this.sifenConfigFactory = sifenConfigFactory;
         this.emailFacturaElectronicaService = emailFacturaElectronicaService;
@@ -570,6 +578,8 @@ public class SifenService {
                     
                     // Verificar si es un evento de cancelación aprobado
                     boolean esCancelacion = "CANCELACION".equalsIgnoreCase(evento.getTipoEvento());
+                    // Verificar si es un evento de nominación aprobado
+                    boolean esNominacion = "NOMINACION".equalsIgnoreCase(evento.getTipoEvento());
                     
                     if (esCancelacion && "Aprobado".equalsIgnoreCase(evento.getEstado())) {
                         log.info("   🚫 Evento de cancelación APROBADO detectado - ID: {}, Protocolo: {}", 
@@ -603,6 +613,47 @@ public class SifenService {
                         log.info("   ✅ Documento marcado como CANCELADO por evento de cancelación aprobado");
                     } else if (esCancelacion) {
                         log.info("   ⚠️ Evento de cancelación encontrado pero no está aprobado - Estado: {}", evento.getEstado());
+                    } else if (esNominacion && "Aprobado".equalsIgnoreCase(evento.getEstado())) {
+                        log.info("   👤 Evento de nominación APROBADO detectado - ID: {}, Protocolo: {}", 
+                                evento.getId(), evento.getProtocolo());
+                        
+                        // Verificar si el evento existe en BD local
+                        var eventoLocal = eventoNominacionDERepository.findByEventoId(evento.getId());
+                        if (eventoLocal.isPresent()) {
+                            log.info("   ✅ Evento de nominación encontrado en BD local - actualizando estado");
+                            var eventoNominacion = eventoLocal.get();
+                            if (evento.getProtocolo() != null && !evento.getProtocolo().isEmpty()) {
+                                eventoNominacion.setProtocoloAutorizacion(evento.getProtocolo());
+                            }
+                            if (evento.getCodigo() != null) {
+                                eventoNominacion.setCodigoRespuesta(evento.getCodigo());
+                            }
+                            if (evento.getMensaje() != null) {
+                                eventoNominacion.setMensajeRespuesta(evento.getMensaje());
+                            }
+                            eventoNominacion.setEstado(com.frcefact.model.EstadoEvento.APROBADO);
+                            eventoNominacion.setFechaProcesamiento(LocalDateTime.now());
+                            
+                            // Actualizar la factura legal con el cliente nominado y sus datos
+                            FacturaLegal factura = documento.getFacturaLegal();
+                            if (factura != null && eventoNominacion.getCliente() != null) {
+                                Cliente cliente = eventoNominacion.getCliente();
+                                factura.setCliente(cliente);
+                                factura.setNombre(cliente.getNombreCompleto());
+                                factura.setRuc(cliente.getRuc());
+                                facturaLegalRepository.save(factura);
+                                log.info("   ✅ Factura Legal ID {} actualizada con cliente nominado - Nombre: {} - RUC: {}", 
+                                        factura.getId(), factura.getNombre(), factura.getRuc());
+                            }
+                            // No guardamos el evento aquí porque puede estar en otra transacción
+                        } else {
+                            log.warn("   ⚠️ Evento de nominación aprobado encontrado en SIFEN pero no existe en BD local - ID: {}", 
+                                    evento.getId());
+                        }
+                        
+                        log.info("   ✅ Evento de nominación procesado - El documento mantiene su estado actual");
+                    } else if (esNominacion) {
+                        log.info("   ⚠️ Evento de nominación encontrado pero no está aprobado - Estado: {}", evento.getEstado());
                     }
                 }
             } else {

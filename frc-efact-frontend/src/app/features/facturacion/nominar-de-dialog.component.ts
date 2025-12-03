@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { Subject, takeUntil, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
+import { Subject, takeUntil } from 'rxjs';
 import { SifenApiService } from '../../core/api/sifen-api.service';
 import { ClienteApiService } from '../../core/api/cliente-api.service';
 import { Cliente } from '../../models/cliente.model';
@@ -59,13 +59,14 @@ export interface NominarDeDialogData {
             [label]="'Cliente'"
             [placeholder]="'Buscar cliente por nombre o RUC...'"
             [options]="clienteOptions()"
-            [value]="clienteControl.value ? String(clienteControl.value) : null"
+            [value]="clienteInputValue()"
             [hasError]="clienteControl.invalid && clienteControl.touched"
             [errorMessage]="'El cliente es obligatorio'"
             [required]="true"
             [showAllOnEmpty]="false"
             (optionSelected)="onClienteOptionSelected($event)"
-            (valueChange)="onClienteValueChange($event)">
+            (valueChange)="onClienteValueChange($event)"
+            (searchChange)="onClienteSearchChange($event)">
           </app-autocomplete-select>
 
           <div class="cliente-preview" *ngIf="clienteSeleccionado()">
@@ -83,9 +84,9 @@ export interface NominarDeDialogData {
       <button mat-button (click)="onCancel()" [disabled]="submitting()">
         Cancelar
       </button>
-      <button 
-        mat-raised-button 
-        color="primary" 
+      <button
+        mat-raised-button
+        color="primary"
         (click)="onConfirm()"
         [disabled]="form.invalid || submitting()">
         <mat-spinner *ngIf="submitting()" diameter="20" style="display: inline-block; margin-right: 8px;"></mat-spinner>
@@ -223,8 +224,9 @@ export class NominarDeDialogComponent implements OnInit, OnDestroy {
   clienteControl: FormControl;
   clienteOptions = signal<AutocompleteOption[]>([]);
   clienteSeleccionado = signal<Cliente | null>(null);
+  clienteInputValue = signal<string | null>(null);
   submitting = signal(false);
-  
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -243,7 +245,7 @@ export class NominarDeDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.setupClienteAutocomplete();
+    // No necesitamos setupClienteAutocomplete ya que usamos searchChange
   }
 
   ngOnDestroy(): void {
@@ -251,39 +253,63 @@ export class NominarDeDialogComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  setupClienteAutocomplete(): void {
-    this.clienteControl.valueChanges.pipe(
-      debounceTime(300),
-      distinctUntilChanged(),
-      takeUntil(this.destroy$),
-      switchMap(value => {
-        const searchTerm = typeof value === 'string' ? value : '';
-        
-        if (searchTerm && searchTerm.length >= 2) {
-          return this.clienteApi.buscar(this.data.empresaId, searchTerm);
+  onClienteSearchChange(searchTerm: string): void {
+    // Si hay un cliente seleccionado y el término de búsqueda coincide con el valor del input,
+    // no buscar ni limpiar (esto evita buscar cuando se actualiza el input con el nombre del cliente)
+    const currentInputValue = this.clienteInputValue();
+    if (this.clienteSeleccionado() && currentInputValue) {
+      // Verificar si el término de búsqueda coincide con el valor actual o es parte de él
+      if (searchTerm === currentInputValue || currentInputValue.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return;
+      }
+    }
+
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      this.clienteOptions.set([]);
+      // Solo limpiar la selección si el usuario realmente está limpiando el campo
+      // y no hay un cliente seleccionado
+      if ((!searchTerm || searchTerm.trim() === '') && !this.clienteSeleccionado()) {
+        this.clienteControl.setValue(null);
+        this.clienteSeleccionado.set(null);
+        this.clienteInputValue.set(null);
+      }
+      return;
+    }
+
+    this.clienteApi.buscar(this.data.empresaId, searchTerm.trim())
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (clientes) => {
+          const options: AutocompleteOption[] = clientes.map(cliente => ({
+            value: String(cliente.id),
+            label: cliente.nombre || cliente.razonSocial || 'Sin nombre',
+            codigo: cliente.ruc
+          }));
+          this.clienteOptions.set(options);
+        },
+        error: (error) => {
+          console.error('Error al buscar clientes:', error);
+          this.clienteOptions.set([]);
         }
-        return of([]);
-      })
-    ).subscribe(clientes => {
-      const options: AutocompleteOption[] = clientes.map(cliente => ({
-        value: String(cliente.id),
-        label: cliente.nombre || cliente.razonSocial || 'Sin nombre',
-        codigo: cliente.ruc
-      }));
-      this.clienteOptions.set(options);
-    });
+      });
   }
 
   onClienteOptionSelected(option: AutocompleteOption): void {
     const clienteId = parseInt(option.value, 10);
     this.clienteControl.setValue(clienteId);
-    
+
+    // Actualizar el valor del input con el nombre del cliente (similar a factura-form)
+    const displayText = this.displayCliente(option);
+    this.clienteInputValue.set(displayText);
+
     // Buscar el cliente completo para mostrar en preview
     this.clienteApi.getById(this.data.empresaId, clienteId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (cliente) => {
           this.clienteSeleccionado.set(cliente);
+          // Actualizar el valor del input con el cliente completo
+          this.clienteInputValue.set(this.displayClienteFromCliente(cliente));
         },
         error: () => {
           // Si no se encuentra, al menos mostrar la opción seleccionada
@@ -297,10 +323,24 @@ export class NominarDeDialogComponent implements OnInit, OnDestroy {
       });
   }
 
+  displayCliente(option: AutocompleteOption): string {
+    const nombre = option.label || 'Sin nombre';
+    return option.codigo ? `${nombre} - ${option.codigo}` : nombre;
+  }
+
+  displayClienteFromCliente(cliente: Cliente | null): string {
+    if (!cliente) return '';
+    const nombre = cliente.nombre || cliente.razonSocial || 'Sin nombre';
+    return cliente.ruc ? `${nombre} - ${cliente.ruc}` : nombre;
+  }
+
   onClienteValueChange(value: string): void {
-    if (!value || value.trim() === '') {
+    // Solo limpiar si el valor está vacío Y no hay un cliente seleccionado
+    // Esto evita que se limpie cuando se selecciona una opción (que emite el ID del cliente)
+    if ((!value || value.trim() === '') && !this.clienteSeleccionado()) {
       this.clienteControl.setValue(null);
       this.clienteSeleccionado.set(null);
+      this.clienteInputValue.set(null);
     }
   }
 

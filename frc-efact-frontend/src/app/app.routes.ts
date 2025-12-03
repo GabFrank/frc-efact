@@ -51,6 +51,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/usuarios/usuarios.routes').then(m => m.USUARIOS_ROUTES)
       },
       {
+        path: 'perfil',
+        loadComponent: () => import('./features/usuarios/user-profile.component').then(m => m.UserProfileComponent)
+      },
+      {
         path: 'auditoria',
         loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
       },

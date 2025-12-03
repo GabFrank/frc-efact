@@ -195,6 +195,7 @@ public class FacturaLegalController {
     })
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<Page<FacturaLegalDto>> listarFacturas(
             @Parameter(description = "ID de la empresa") @RequestParam Long empresaId,
             @Parameter(description = "ID del cliente (opcional)") @RequestParam(required = false) Long clienteId,

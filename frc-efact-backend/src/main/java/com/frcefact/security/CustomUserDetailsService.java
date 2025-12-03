@@ -53,6 +53,17 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     /**
+     * Cargar UserDetails directamente desde una entidad Usuario.
+     * Útil para autenticación por token donde ya se recuperó el usuario.
+     *
+     * @param usuario la entidad Usuario
+     * @return UserDetails del usuario
+     */
+    public UserDetails loadUserByEntity(Usuario usuario) {
+        return buildUserDetails(usuario);
+    }
+
+    /**
      * Construir UserDetails desde la entidad Usuario.
      *
      * @param usuario la entidad Usuario
@@ -62,9 +73,18 @@ public class CustomUserDetailsService implements UserDetailsService {
         // Verificar si la cuenta está bloqueada
         boolean accountNonLocked = !usuario.isAccountLocked();
 
+        // Para usuarios de Auth0 sin password local, usar un placeholder
+        // que nunca puede ser usado para autenticación local
+        String password = usuario.getPasswordHash();
+        if (password == null) {
+            // Password placeholder para usuarios que solo se autentican mediante Auth0
+            // Este password nunca puede ser usado para login tradicional
+            password = "[AUTH0_ONLY]";
+        }
+
         return User.builder()
                 .username(usuario.getUsername())
-                .password(usuario.getPasswordHash())
+                .password(password)
                 .disabled(!usuario.getIsActive())
                 .accountLocked(!accountNonLocked)
                 .authorities(getAuthorities(usuario))

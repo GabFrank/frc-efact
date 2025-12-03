@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * Controlador REST para endpoints de dashboard y métricas.
  */
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/dashboard")
 @CrossOrigin(origins = "*")
 public class DashboardController {
 

@@ -565,7 +565,11 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     if (!this.currentUser?.roles) return false;
 
     return this.currentUser.roles.some(userRole => {
-      const roleName = typeof userRole === 'string' ? userRole : userRole.nombre;
+      let roleName = typeof userRole === 'string' ? userRole : userRole.nombre;
+      // Normalizar quitando el prefijo ROLE_ si existe, para coincidir con la jerarquía del frontend
+      if (roleName && roleName.startsWith('ROLE_')) {
+        roleName = roleName.substring(5);
+      }
       return roles.includes(roleName);
     });
   }

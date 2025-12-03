@@ -1,6 +1,8 @@
 package com.frcefact.config;
 
+import com.frcefact.security.CustomJwtAuthenticationConverter;
 import com.frcefact.security.JwtAuthenticationFilter;
+import com.frcefact.security.OAuth2TokenFilter;
 import com.frcefact.security.RateLimitingFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,13 +35,19 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitingFilter rateLimitingFilter;
+    private final OAuth2TokenFilter oauth2TokenFilter;
+    private final CustomJwtAuthenticationConverter customJwtAuthenticationConverter;
 
     public SecurityConfig(UserDetailsService userDetailsService,
                          JwtAuthenticationFilter jwtAuthenticationFilter,
-                         RateLimitingFilter rateLimitingFilter) {
+                         RateLimitingFilter rateLimitingFilter,
+                         OAuth2TokenFilter oauth2TokenFilter,
+                         CustomJwtAuthenticationConverter customJwtAuthenticationConverter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
+        this.oauth2TokenFilter = oauth2TokenFilter;
+        this.customJwtAuthenticationConverter = customJwtAuthenticationConverter;
     }
 
     /**
@@ -121,7 +129,10 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(oauth2TokenFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(customJwtAuthenticationConverter)));
 
         return http.build();
     }

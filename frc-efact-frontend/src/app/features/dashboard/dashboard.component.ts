@@ -383,7 +383,22 @@ export class DashboardComponent implements OnInit {
       this.currentUser = user;
     });
 
+    // Esperar a que el token esté disponible antes de cargar datos
+    // Verificar si hay token local primero
+    if (this.authService.isAuthenticated()) {
+      this.loadDashboardData();
+    } else {
+      // Si no hay token local, esperar un momento y verificar de nuevo
+      // Esto permite que el callback de Auth0 complete
+      setTimeout(() => {
+        if (this.authService.isAuthenticated()) {
+          this.loadDashboardData();
+        } else {
+          // Si aún no hay token, intentar cargar de todas formas (el interceptor manejará Auth0)
     this.loadDashboardData();
+        }
+      }, 500);
+    }
   }
 
   // Métodos de acceso basados en roles
