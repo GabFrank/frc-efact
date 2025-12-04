@@ -16,13 +16,13 @@ export class DashboardApiService {
     return this.http.get<DashboardUsuario>(`${this.apiUrl}/usuario`);
   }
 
-  getDashboardEmpresa(empresaId: number, fechaInicio?: string, fechaFin?: string): Observable<DashboardEmpresa> {
+  getDashboardEmpresa(empresaId: number, fechaDesde?: string, fechaHasta?: string): Observable<DashboardEmpresa> {
     let params = new HttpParams();
-    if (fechaInicio) {
-      params = params.set('fechaInicio', fechaInicio);
+    if (fechaDesde) {
+      params = params.set('fechaDesde', fechaDesde);
     }
-    if (fechaFin) {
-      params = params.set('fechaFin', fechaFin);
+    if (fechaHasta) {
+      params = params.set('fechaHasta', fechaHasta);
     }
     
     return this.http.get<DashboardEmpresa>(`${this.apiUrl}/empresa/${empresaId}`, { params });

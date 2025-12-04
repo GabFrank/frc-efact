@@ -122,6 +122,7 @@ export class AuthService {
       id: backendUser.id,
       username: backendUser.username,
       email: backendUser.email,
+      auth0Id: backendUser.auth0Id,
       isActive: backendUser.isActive,
       roles: backendUser.roles || [],
       ultimoLogin: backendUser.ultimoLogin,

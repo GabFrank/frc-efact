@@ -15,19 +15,26 @@ public class DashboardEmpresaDto {
     private BigDecimal totalGuaraniesMesActual;
     private TotalesPorIvaDto totalesPorIva;
     private List<ClienteRankingDto> top10Clientes;
+    private List<ProductoReporteDto> top10Productos;
+    private FacturasAprobadasDto facturasAprobadas;
+    private FacturasCanceladasDto facturasCanceladas;
 
     public DashboardEmpresaDto() {
     }
 
     public DashboardEmpresaDto(Long empresaId, String razonSocial, Long totalFacturasEmitidas,
                                BigDecimal totalGuaraniesMesActual, TotalesPorIvaDto totalesPorIva,
-                               List<ClienteRankingDto> top10Clientes) {
+                               List<ClienteRankingDto> top10Clientes, List<ProductoReporteDto> top10Productos,
+                               FacturasAprobadasDto facturasAprobadas, FacturasCanceladasDto facturasCanceladas) {
         this.empresaId = empresaId;
         this.razonSocial = razonSocial;
         this.totalFacturasEmitidas = totalFacturasEmitidas;
         this.totalGuaraniesMesActual = totalGuaraniesMesActual;
         this.totalesPorIva = totalesPorIva;
         this.top10Clientes = top10Clientes;
+        this.top10Productos = top10Productos;
+        this.facturasAprobadas = facturasAprobadas;
+        this.facturasCanceladas = facturasCanceladas;
     }
 
     // Getters and Setters
@@ -78,5 +85,29 @@ public class DashboardEmpresaDto {
 
     public void setTop10Clientes(List<ClienteRankingDto> top10Clientes) {
         this.top10Clientes = top10Clientes;
+    }
+
+    public FacturasAprobadasDto getFacturasAprobadas() {
+        return facturasAprobadas;
+    }
+
+    public void setFacturasAprobadas(FacturasAprobadasDto facturasAprobadas) {
+        this.facturasAprobadas = facturasAprobadas;
+    }
+
+    public FacturasCanceladasDto getFacturasCanceladas() {
+        return facturasCanceladas;
+    }
+
+    public void setFacturasCanceladas(FacturasCanceladasDto facturasCanceladas) {
+        this.facturasCanceladas = facturasCanceladas;
+    }
+
+    public List<ProductoReporteDto> getTop10Productos() {
+        return top10Productos;
+    }
+
+    public void setTop10Productos(List<ProductoReporteDto> top10Productos) {
+        this.top10Productos = top10Productos;
     }
 }

@@ -46,6 +46,17 @@ export interface UpdateUserRequest {
   isActive?: boolean;
 }
 
+export interface UpdateProfileRequest {
+  username?: string;
+  email?: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export interface ResetPasswordRequest {
   userId: number;
   newPassword: string;

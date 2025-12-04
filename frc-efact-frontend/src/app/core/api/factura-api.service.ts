@@ -43,6 +43,32 @@ export class FacturaApiService {
     );
   }
 
+  getAllPaginated(filtro?: FacturaFiltro, page: number = 0, size: number = 10): Observable<{ content: FacturaLegal[]; totalElements: number; totalPages: number }> {
+    let params = new HttpParams();
+
+    // El backend requiere empresaId como parámetro obligatorio
+    if (filtro?.empresaId) {
+      params = params.set('empresaId', filtro.empresaId.toString());
+    }
+
+    // Parámetros de paginación
+    params = params.set('page', page.toString());
+    params = params.set('size', size.toString());
+    params = params.set('sortBy', 'fecha');
+    params = params.set('sortDirection', 'DESC');
+
+    if (filtro) {
+      if (filtro.fechaDesde) params = params.set('fechaDesde', filtro.fechaDesde);
+      if (filtro.fechaHasta) params = params.set('fechaHasta', filtro.fechaHasta);
+      if (filtro.clienteId) params = params.set('clienteId', filtro.clienteId.toString());
+      if (filtro.estado) params = params.set('estado', filtro.estado);
+      if (filtro.montoMinimo) params = params.set('montoMinimo', filtro.montoMinimo.toString());
+      if (filtro.montoMaximo) params = params.set('montoMaximo', filtro.montoMaximo.toString());
+    }
+
+    return this.http.get<{ content: FacturaLegal[]; totalElements: number; totalPages: number }>(this.baseUrl, { params });
+  }
+
   getById(id: number): Observable<FacturaLegal> {
     return this.http.get<FacturaLegal>(`${this.baseUrl}/${id}`);
   }

@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { noAuthGuard } from './guards/no-auth.guard';
+import { empresaSelectedGuard } from './guards/empresa-selected.guard';
 
 export const routes: Routes = [
   {
@@ -32,18 +33,22 @@ export const routes: Routes = [
       },
       {
         path: 'clientes',
+        canActivate: [empresaSelectedGuard],
         loadComponent: () => import('./features/clientes/clientes-list.component').then(m => m.ClientesListComponent)
       },
       {
         path: 'facturacion',
+        canActivate: [empresaSelectedGuard],
         loadChildren: () => import('./features/facturacion/facturacion.routes').then(m => m.FACTURACION_ROUTES)
       },
       {
         path: 'documentos',
+        canActivate: [empresaSelectedGuard],
         loadComponent: () => import('./features/documentos/documento-electronico-list.component').then(m => m.DocumentoElectronicoListComponent)
       },
       {
         path: 'reportes',
+        canActivate: [empresaSelectedGuard],
         loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
       },
       {
@@ -56,6 +61,7 @@ export const routes: Routes = [
       },
       {
         path: 'auditoria',
+        canActivate: [empresaSelectedGuard],
         loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
       },
       {

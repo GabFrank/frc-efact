@@ -64,10 +64,10 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
         <mat-card-header>
           <mat-card-title>
             <div class="header-content">
-              <button mat-icon-button (click)="goBack()" matTooltip="Volver a empresas">
+              <button mat-icon-button (click)="goBack()" matTooltip="Volver" *ngIf="empresaId">
                 <mat-icon>arrow_back</mat-icon>
               </button>
-              <h2>Gestión de Timbrados - {{ empresaNombre }}</h2>
+              <h2>Gestión de Timbrados{{ empresaNombre ? ' - ' + empresaNombre : '' }}</h2>
             </div>
           </mat-card-title>
         </mat-card-header>
@@ -175,37 +175,39 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                 <td mat-cell *matCellDef="let timbrado">
                   <button
                     mat-icon-button
-                    [matMenuTriggerFor]="actionsMenu"
-                    matTooltip="Acciones">
-                    <mat-icon>more_vert</mat-icon>
+                    color="primary"
+                    (click)="onViewTimbrado(timbrado)"
+                    matTooltip="Ver detalles">
+                    <mat-icon>visibility</mat-icon>
                   </button>
-
-                  <mat-menu #actionsMenu="matMenu">
-                    <button mat-menu-item (click)="onViewTimbrado(timbrado)">
-                      <mat-icon>visibility</mat-icon>
-                      <span>Ver detalles</span>
-                    </button>
-                    <button mat-menu-item (click)="onEditTimbrado(timbrado)">
-                      <mat-icon>edit</mat-icon>
-                      <span>Editar</span>
-                    </button>
-                    <mat-divider></mat-divider>
-                    <button
-                      mat-menu-item
-                      (click)="onToggleActive(timbrado)"
-                      [class.deactivate-option]="timbrado.activo"
-                      [class.activate-option]="!timbrado.activo">
-                      <mat-icon>{{ timbrado.activo ? 'block' : 'check_circle' }}</mat-icon>
-                      <span>{{ timbrado.activo ? 'Desactivar' : 'Activar' }}</span>
-                    </button>
-                    <button
-                      mat-menu-item
-                      (click)="onDeleteTimbrado(timbrado)"
-                      class="delete-option">
-                      <mat-icon>delete</mat-icon>
-                      <span>Eliminar</span>
-                    </button>
-                  </mat-menu>
+                  <button
+                    mat-icon-button
+                    color="accent"
+                    (click)="onEditTimbrado(timbrado)"
+                    matTooltip="Editar">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    color="primary"
+                    (click)="onManageDetalles(timbrado)"
+                    matTooltip="Puntos de expedición">
+                    <mat-icon>store</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    [color]="timbrado.activo ? 'warn' : 'primary'"
+                    (click)="onToggleActive(timbrado)"
+                    [matTooltip]="timbrado.activo ? 'Desactivar' : 'Activar'">
+                    <mat-icon>{{ timbrado.activo ? 'block' : 'check_circle' }}</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    (click)="onDeleteTimbrado(timbrado)"
+                    matTooltip="Eliminar">
+                    <mat-icon>delete</mat-icon>
+                  </button>
                 </td>
               </ng-container>
 
@@ -435,11 +437,22 @@ export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Obtener empresaId de la ruta
-    this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      this.empresaId = +params['id'];
-      this.loadEmpresaInfo();
-      this.loadTimbradosEmpresa();
+    // Obtener empresaId de la ruta o query params
+    combineLatest([
+      this.route.params,
+      this.route.queryParams
+    ]).pipe(takeUntil(this.destroy$)).subscribe(([params, queryParams]) => {
+      // Prioridad: params['id'] (ruta /empresas/:id/timbrados) > queryParams['empresaId'] (ruta /timbrados?empresaId=X)
+      if (params['id']) {
+        this.empresaId = +params['id'];
+      } else if (queryParams['empresaId']) {
+        this.empresaId = +queryParams['empresaId'];
+      }
+      
+      if (this.empresaId) {
+        this.loadEmpresaInfo();
+        this.loadTimbradosEmpresa();
+      }
     });
 
     // Suscribirse a cambios en timbrados
@@ -468,7 +481,11 @@ export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
   }
 
   goBack(): void {
-    this.router.navigate(['/empresas']);
+    if (this.empresaId) {
+      this.router.navigate(['/empresas']);
+    } else {
+      this.router.navigate(['/dashboard']);
+    }
   }
 
   private loadEmpresaInfo(): void {
@@ -592,5 +609,9 @@ export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
         this.store.dispatch(TimbradosActions.deleteTimbrado({ id: timbrado.id }));
       }
     });
+  }
+
+  onManageDetalles(timbrado: Timbrado): void {
+    this.router.navigate(['/timbrados', timbrado.id, 'detalles']);
   }
 }

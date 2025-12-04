@@ -4,7 +4,11 @@ import com.frcefact.dto.ActividadRecienteDto;
 import com.frcefact.dto.ClienteRankingDto;
 import com.frcefact.dto.DashboardEmpresaDto;
 import com.frcefact.dto.DashboardUsuarioDto;
+import com.frcefact.dto.FacturasAprobadasDto;
+import com.frcefact.dto.FacturasCanceladasDto;
+import com.frcefact.dto.ProductoReporteDto;
 import com.frcefact.dto.TotalesPorIvaDto;
+import com.frcefact.model.EstadoDE;
 import com.frcefact.model.AuditLog;
 import com.frcefact.model.Usuario;
 import com.frcefact.repository.AuditLogRepository;
@@ -33,17 +37,26 @@ public class DashboardService {
     private final AuditLogRepository auditLogRepository;
     private final FacturaLegalRepository facturaLegalRepository;
     private final com.frcefact.repository.EmpresaRepository empresaRepository;
+    private final com.frcefact.repository.DocumentoElectronicoRepository documentoElectronicoRepository;
+    private final com.frcefact.repository.FacturaLegalItemRepository facturaLegalItemRepository;
+    private final com.frcefact.repository.ProductoRepository productoRepository;
 
     public DashboardService(UsuarioRepository usuarioRepository,
                            UsuarioEmpresaRepository usuarioEmpresaRepository,
                            AuditLogRepository auditLogRepository,
                            FacturaLegalRepository facturaLegalRepository,
-                           com.frcefact.repository.EmpresaRepository empresaRepository) {
+                           com.frcefact.repository.EmpresaRepository empresaRepository,
+                           com.frcefact.repository.DocumentoElectronicoRepository documentoElectronicoRepository,
+                           com.frcefact.repository.FacturaLegalItemRepository facturaLegalItemRepository,
+                           com.frcefact.repository.ProductoRepository productoRepository) {
         this.usuarioRepository = usuarioRepository;
         this.usuarioEmpresaRepository = usuarioEmpresaRepository;
         this.auditLogRepository = auditLogRepository;
         this.facturaLegalRepository = facturaLegalRepository;
         this.empresaRepository = empresaRepository;
+        this.documentoElectronicoRepository = documentoElectronicoRepository;
+        this.facturaLegalItemRepository = facturaLegalItemRepository;
+        this.productoRepository = productoRepository;
     }
 
     /**
@@ -205,13 +218,25 @@ public class DashboardService {
         // Generar ranking de top 10 clientes (Requirement 15.4)
         List<ClienteRankingDto> top10Clientes = obtenerTop10Clientes(empresaId, fechaDesde, fechaHasta);
 
+        // Generar ranking de top 10 productos
+        List<ProductoReporteDto> top10Productos = obtenerTop10Productos(empresaId, fechaDesde, fechaHasta);
+
+        // Calcular estadísticas de facturas aprobadas
+        FacturasAprobadasDto facturasAprobadas = obtenerFacturasAprobadas(empresaId, fechaDesde, fechaHasta);
+
+        // Calcular estadísticas de facturas canceladas
+        FacturasCanceladasDto facturasCanceladas = obtenerFacturasCanceladas(empresaId, fechaDesde, fechaHasta);
+
         return new DashboardEmpresaDto(
                 empresaId,
                 empresa.getRazonSocial(),
                 totalFacturasEmitidas,
                 totalGuaraniesMesActual,
                 totalesPorIva,
-                top10Clientes
+                top10Clientes,
+                top10Productos,
+                facturasAprobadas,
+                facturasCanceladas
         );
     }
 
@@ -277,5 +302,113 @@ public class DashboardService {
                 .sorted((c1, c2) -> c2.getMontoTotal().compareTo(c1.getMontoTotal()))
                 .limit(10)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene estadísticas de facturas aprobadas para un período.
+     */
+    private FacturasAprobadasDto obtenerFacturasAprobadas(Long empresaId, LocalDateTime fechaDesde, LocalDateTime fechaHasta) {
+        // Obtener documentos electrónicos aprobados de la empresa en el rango de fechas
+        List<com.frcefact.model.DocumentoElectronico> documentosAprobados = 
+                documentoElectronicoRepository.findByEmpresaAndEstado(empresaId, EstadoDE.APROBADO);
+
+        // Filtrar por rango de fechas
+        List<com.frcefact.model.FacturaLegal> facturasAprobadas = documentosAprobados.stream()
+                .map(com.frcefact.model.DocumentoElectronico::getFacturaLegal)
+                .filter(factura -> factura != null 
+                        && factura.getActivo() 
+                        && !factura.getFecha().isBefore(fechaDesde) 
+                        && !factura.getFecha().isAfter(fechaHasta))
+                .collect(Collectors.toList());
+
+        long cantidad = facturasAprobadas.size();
+        BigDecimal totalGs = facturasAprobadas.stream()
+                .map(com.frcefact.model.FacturaLegal::getTotalFinal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal totalIva10 = facturasAprobadas.stream()
+                .map(com.frcefact.model.FacturaLegal::getTotalParcial10)
+                .filter(total -> total != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal totalIva5 = facturasAprobadas.stream()
+                .map(com.frcefact.model.FacturaLegal::getTotalParcial5)
+                .filter(total -> total != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal totalExentas = facturasAprobadas.stream()
+                .map(com.frcefact.model.FacturaLegal::getTotalParcial0)
+                .filter(total -> total != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new FacturasAprobadasDto(cantidad, totalGs, totalIva10, totalIva5, totalExentas);
+    }
+
+    /**
+     * Obtiene estadísticas de facturas canceladas para un período.
+     */
+    private FacturasCanceladasDto obtenerFacturasCanceladas(Long empresaId, LocalDateTime fechaDesde, LocalDateTime fechaHasta) {
+        // Obtener documentos electrónicos cancelados de la empresa en el rango de fechas
+        List<com.frcefact.model.DocumentoElectronico> documentosCancelados = 
+                documentoElectronicoRepository.findByEmpresaAndEstado(empresaId, EstadoDE.CANCELADO);
+
+        // Filtrar por rango de fechas
+        List<com.frcefact.model.FacturaLegal> facturasCanceladas = documentosCancelados.stream()
+                .map(com.frcefact.model.DocumentoElectronico::getFacturaLegal)
+                .filter(factura -> factura != null 
+                        && factura.getActivo() 
+                        && !factura.getFecha().isBefore(fechaDesde) 
+                        && !factura.getFecha().isAfter(fechaHasta))
+                .collect(Collectors.toList());
+
+        long cantidad = facturasCanceladas.size();
+        BigDecimal totalGs = facturasCanceladas.stream()
+                .map(com.frcefact.model.FacturaLegal::getTotalFinal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new FacturasCanceladasDto(cantidad, totalGs);
+    }
+
+    /**
+     * Obtiene el ranking de los 10 productos con mayor monto facturado.
+     * Excluye facturas con documentos electrónicos cancelados o rechazados.
+     */
+    private List<ProductoReporteDto> obtenerTop10Productos(Long empresaId, LocalDateTime fechaDesde, LocalDateTime fechaHasta) {
+        // Obtener productos más vendidos (excluyendo canceladas/rechazadas para cálculos)
+        List<Object[]> resultados = facturaLegalItemRepository.findProductosMasVendidosParaCalculos(
+                empresaId, fechaDesde, fechaHasta
+        );
+        
+        List<ProductoReporteDto> productos = new java.util.ArrayList<>();
+        
+        for (Object[] resultado : resultados) {
+            Long productoId = (Long) resultado[0];
+            String descripcion = (String) resultado[1];
+            BigDecimal cantidadTotal = (BigDecimal) resultado[2];
+            BigDecimal montoTotal = (BigDecimal) resultado[3];
+            
+            // Obtener información adicional del producto
+            com.frcefact.model.Producto producto = productoRepository.findById(productoId).orElse(null);
+            
+            if (producto != null) {
+                ProductoReporteDto dto = new ProductoReporteDto(
+                        productoId,
+                        producto.getCodigo(),
+                        descripcion,
+                        producto.getPrecio(),
+                        producto.getIva(),
+                        cantidadTotal,
+                        montoTotal
+                );
+                productos.add(dto);
+            }
+            
+            // Limitar a top 10
+            if (productos.size() >= 10) {
+                break;
+            }
+        }
+        
+        return productos;
     }
 }

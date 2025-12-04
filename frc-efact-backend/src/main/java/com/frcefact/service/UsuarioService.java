@@ -1,8 +1,11 @@
 package com.frcefact.service;
 
+import com.frcefact.dto.ChangePasswordRequest;
 import com.frcefact.dto.CreateUserRequest;
+import com.frcefact.dto.UpdateProfileRequest;
 import com.frcefact.dto.UpdateUserRequest;
 import com.frcefact.dto.UserSearchRequest;
+import com.frcefact.model.AuditLog;
 import com.frcefact.model.Rol;
 import com.frcefact.model.Usuario;
 import com.frcefact.model.UsuarioRol;
@@ -35,15 +38,18 @@ public class UsuarioService {
     private final RolRepository rolRepository;
     private final UsuarioRolRepository usuarioRolRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLogService auditLogService;
 
     public UsuarioService(UsuarioRepository usuarioRepository, 
                          RolRepository rolRepository,
                          UsuarioRolRepository usuarioRolRepository,
-                         PasswordEncoder passwordEncoder) {
+                         PasswordEncoder passwordEncoder,
+                         AuditLogService auditLogService) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -557,6 +563,108 @@ public class UsuarioService {
         
         usuario.setAuth0Id(null);
         usuarioRepository.save(usuario);
+    }
+
+    /**
+     * Actualizar perfil propio del usuario.
+     * Permite al usuario actualizar su propio username y email.
+     * No permite cambios de roles o estado (solo admin puede hacerlo).
+     *
+     * @param username el username del usuario autenticado
+     * @param request datos de actualización
+     * @return el usuario actualizado
+     * @throws IllegalArgumentException si el username o email ya existe o si el usuario no se encuentra
+     */
+    public Usuario actualizarPerfilPropio(String username, UpdateProfileRequest request) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
+
+        // Validar y actualizar username si se proporciona
+        if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
+            String newUsername = request.getUsername().trim();
+            if (!newUsername.equals(usuario.getUsername())) {
+                if (usuarioRepository.existsByUsernameAndIdNot(newUsername, usuario.getId())) {
+                    throw new IllegalArgumentException("Username ya existe: " + newUsername);
+                }
+                usuario.setUsername(newUsername);
+            }
+        }
+
+        // Validar y actualizar email si se proporciona
+        if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+            String newEmail = request.getEmail().trim();
+            if (!newEmail.equals(usuario.getEmail())) {
+                if (usuarioRepository.existsByEmailAndIdNot(newEmail, usuario.getId())) {
+                    throw new IllegalArgumentException("Email ya existe: " + newEmail);
+                }
+                usuario.setEmail(newEmail);
+            }
+        }
+
+        return usuarioRepository.save(usuario);
+    }
+
+    /**
+     * Cambiar contraseña del usuario.
+     * Verifica la contraseña actual antes de permitir el cambio.
+     *
+     * @param username el username del usuario autenticado
+     * @param request datos de cambio de contraseña
+     * @throws IllegalArgumentException si la contraseña actual es incorrecta, 
+     *                                  si las contraseñas no coinciden,
+     *                                  si el usuario no se encuentra,
+     *                                  o si el usuario tiene cuenta Auth0 vinculada
+     */
+    public void cambiarPassword(String username, ChangePasswordRequest request) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
+
+        // Verificar si tiene cuenta Auth0 vinculada
+        if (usuario.getAuth0Id() != null && !usuario.getAuth0Id().isEmpty()) {
+            throw new IllegalArgumentException("No se puede cambiar la contraseña. El usuario tiene una cuenta Auth0/Google vinculada.");
+        }
+
+        // Verificar que tenga contraseña (no debería pasar, pero por seguridad)
+        if (usuario.getPasswordHash() == null || usuario.getPasswordHash().isEmpty()) {
+            throw new IllegalArgumentException("El usuario no tiene contraseña configurada.");
+        }
+
+        // Verificar contraseña actual
+        if (!passwordEncoder.matches(request.getCurrentPassword(), usuario.getPasswordHash())) {
+            throw new IllegalArgumentException("La contraseña actual es incorrecta.");
+        }
+
+        // Verificar que las nuevas contraseñas coincidan
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Las contraseñas nuevas no coinciden.");
+        }
+
+        // Verificar que la nueva contraseña sea diferente a la actual
+        if (passwordEncoder.matches(request.getNewPassword(), usuario.getPasswordHash())) {
+            throw new IllegalArgumentException("La nueva contraseña debe ser diferente a la contraseña actual.");
+        }
+
+        // Actualizar contraseña
+        usuario.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        usuario.resetFailedLoginAttempts(); // Resetear intentos fallidos al cambiar contraseña
+        usuarioRepository.save(usuario);
+    }
+
+    /**
+     * Obtener actividad del usuario con paginación.
+     *
+     * @param username el username del usuario
+     * @param page número de página (0-indexed)
+     * @param size tamaño de página
+     * @return página de registros de auditoría del usuario
+     */
+    @Transactional(readOnly = true)
+    public Page<AuditLog> obtenerActividadUsuario(String username, int page, int size) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "fechaHora"));
+        return auditLogService.buscarConFiltros(usuario.getId(), null, null, null, null, null, pageable);
     }
 
     /**

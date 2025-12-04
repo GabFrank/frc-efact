@@ -8,7 +8,7 @@ export const TIMBRADOS_ROUTES: Routes = [
     children: [
       {
         path: '',
-        loadComponent: () => import('./timbrado-list.component').then(m => m.TimbradoListComponent),
+        loadComponent: () => import('../empresas/empresa-timbrados.component').then(m => m.EmpresaTimbradosComponent),
         title: 'Timbrados'
       },
       {

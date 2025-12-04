@@ -1,0 +1,305 @@
+<div class="profile-container" *ngIf="user$ | async as user">
+  <mat-card class="profile-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>account_circle</mat-icon>
+        Mi Perfil
+      </mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <mat-tab-group>
+        <!-- Tab: Información -->
+        <mat-tab label="Información">
+          <div class="tab-content">
+            <div class="profile-header">
+              <div class="avatar-section">
+                <div class="avatar-circle">
+                  <mat-icon>person</mat-icon>
+                </div>
+              </div>
+              <div class="profile-info">
+                <h2>{{ user.username }}</h2>
+                <p class="email">{{ user.email }}</p>
+                <div class="roles-section">
+                  <mat-chip-set>
+                    <mat-chip *ngFor="let role of getRolesArray(user)">
+                      {{ getRoleName(role) }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </div>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <div class="info-section">
+              <div class="info-row">
+                <span class="label">ID de Usuario:</span>
+                <span class="value">{{ user.id }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Estado:</span>
+                <span class="value">
+                  <mat-chip [color]="user.isActive ? 'primary' : 'warn'">
+                    {{ user.isActive ? 'Activo' : 'Inactivo' }}
+                  </mat-chip>
+                </span>
+              </div>
+              <div class="info-row" *ngIf="user.ultimoLogin">
+                <span class="label">Último Login:</span>
+                <span class="value">{{ user.ultimoLogin | date:'dd/MM/yyyy HH:mm:ss' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Cuenta Creada:</span>
+                <span class="value">{{ user.creadoEn | date:'dd/MM/yyyy' }}</span>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab: Editar Perfil -->
+        <mat-tab label="Editar Perfil">
+          <div class="tab-content">
+            <form [formGroup]="profileForm" (ngSubmit)="onSaveProfile()">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Nombre de Usuario</mat-label>
+                <input matInput formControlName="username" required>
+                <mat-icon matPrefix>person</mat-icon>
+                <mat-error *ngIf="profileForm.get('username')?.hasError('required')">
+                  El nombre de usuario es requerido
+                </mat-error>
+                <mat-error *ngIf="profileForm.get('username')?.hasError('minlength')">
+                  Mínimo 3 caracteres
+                </mat-error>
+                <mat-error *ngIf="profileForm.get('username')?.hasError('maxlength')">
+                  Máximo 50 caracteres
+                </mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Email</mat-label>
+                <input matInput type="email" formControlName="email" required>
+                <mat-icon matPrefix>email</mat-icon>
+                <mat-error *ngIf="profileForm.get('email')?.hasError('required')">
+                  El email es requerido
+                </mat-error>
+                <mat-error *ngIf="profileForm.get('email')?.hasError('email')">
+                  Email inválido
+                </mat-error>
+              </mat-form-field>
+
+              <div class="form-actions">
+                <button 
+                  mat-raised-button 
+                  color="primary" 
+                  type="submit"
+                  [disabled]="profileForm.invalid || profileSaving()">
+                  <mat-icon *ngIf="!profileSaving()">save</mat-icon>
+                  <mat-spinner *ngIf="profileSaving()" diameter="20" class="inline-spinner"></mat-spinner>
+                  {{ profileSaving() ? 'Guardando...' : 'Guardar Cambios' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </mat-tab>
+
+        <!-- Tab: Seguridad -->
+        <mat-tab label="Seguridad">
+          <div class="tab-content">
+            <!-- Cambio de Contraseña -->
+            <div class="section" *ngIf="canChangePassword(user)">
+              <h3>Cambiar Contraseña</h3>
+              <form [formGroup]="passwordForm" (ngSubmit)="onChangePassword()">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Contraseña Actual</mat-label>
+                  <input matInput type="password" formControlName="currentPassword" required>
+                  <mat-icon matPrefix>lock</mat-icon>
+                  <mat-error>{{ getFieldError(passwordForm, 'currentPassword') }}</mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Nueva Contraseña</mat-label>
+                  <input matInput type="password" formControlName="newPassword" required>
+                  <mat-icon matPrefix>lock_outline</mat-icon>
+                  <mat-hint>Mínimo 8 caracteres</mat-hint>
+                  <mat-error>{{ getFieldError(passwordForm, 'newPassword') }}</mat-error>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Confirmar Nueva Contraseña</mat-label>
+                  <input matInput type="password" formControlName="confirmPassword" required>
+                  <mat-icon matPrefix>lock_outline</mat-icon>
+                  <mat-error>{{ getFieldError(passwordForm, 'confirmPassword') }}</mat-error>
+                </mat-form-field>
+
+                <div class="form-actions">
+                  <button 
+                    mat-raised-button 
+                    color="primary" 
+                    type="submit"
+                    [disabled]="passwordForm.invalid || passwordChanging()">
+                    <mat-icon *ngIf="!passwordChanging()">lock_reset</mat-icon>
+                    <mat-spinner *ngIf="passwordChanging()" diameter="20" class="inline-spinner"></mat-spinner>
+                    {{ passwordChanging() ? 'Cambiando...' : 'Cambiar Contraseña' }}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div class="section" *ngIf="!canChangePassword(user)">
+              <div class="info-message">
+                <mat-icon>info</mat-icon>
+                <p>No puedes cambiar tu contraseña porque tienes una cuenta Auth0/Google vinculada.</p>
+              </div>
+            </div>
+
+            <mat-divider></mat-divider>
+
+            <!-- Estado de Cuenta -->
+            <div class="section">
+              <h3>Estado de Cuenta</h3>
+              <div class="info-row">
+                <span class="label">Estado:</span>
+                <mat-chip [color]="user.isActive ? 'primary' : 'warn'">
+                  {{ user.isActive ? 'Activa' : 'Inactiva' }}
+                </mat-chip>
+              </div>
+              <div class="info-row" *ngIf="user.failedLoginAttempts && user.failedLoginAttempts > 0">
+                <span class="label">Intentos Fallidos:</span>
+                <span class="value">{{ user.failedLoginAttempts }}</span>
+              </div>
+              <div class="info-row" *ngIf="user.lockedUntil">
+                <span class="label">Bloqueada Hasta:</span>
+                <span class="value">{{ user.lockedUntil | date:'dd/MM/yyyy HH:mm:ss' }}</span>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab: Cuentas Conectadas -->
+        <mat-tab label="Cuentas Conectadas">
+          <div class="tab-content">
+            <div class="section">
+              <h3>Cuentas Externas</h3>
+              
+              <div class="account-item" *ngIf="user.auth0Id && user.auth0Id.trim() !== ''">
+                <div class="account-info">
+                  <mat-icon color="primary">link</mat-icon>
+                  <div>
+                    <strong>Google / Auth0</strong>
+                    <p>Cuenta vinculada</p>
+                    <small style="color: rgba(0,0,0,0.5); font-size: 12px;">ID: {{ user.auth0Id }}</small>
+                  </div>
+                </div>
+                <button 
+                  mat-stroked-button 
+                  color="warn" 
+                  (click)="onUnlinkAccount()">
+                  <mat-icon>link_off</mat-icon>
+                  Desvincular
+                </button>
+              </div>
+
+              <div class="account-item" *ngIf="!user.auth0Id || user.auth0Id.trim() === ''">
+                <div class="account-info">
+                  <mat-icon>link_off</mat-icon>
+                  <div>
+                    <strong>Google / Auth0</strong>
+                    <p>No hay cuenta vinculada</p>
+                  </div>
+                </div>
+                <button 
+                  mat-raised-button 
+                  color="primary" 
+                  (click)="onLinkAccount()"
+                  [disabled]="linkingAccount()">
+                  <mat-icon *ngIf="!linkingAccount()">link</mat-icon>
+                  <mat-spinner *ngIf="linkingAccount()" diameter="20" class="inline-spinner"></mat-spinner>
+                  {{ linkingAccount() ? 'Vinculando...' : 'Vincular Cuenta' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Tab: Actividad -->
+        <mat-tab label="Actividad">
+          <div class="tab-content">
+            <div class="section">
+              <h3>Actividad Reciente</h3>
+              
+              <div *ngIf="activityLoading()" class="loading-container">
+                <mat-spinner></mat-spinner>
+              </div>
+
+              <div *ngIf="!activityLoading()">
+                <table mat-table [dataSource]="activityLogs()" class="activity-table">
+                  <!-- Fecha Column -->
+                  <ng-container matColumnDef="fechaHora">
+                    <th mat-header-cell *matHeaderCellDef>Fecha y Hora</th>
+                    <td mat-cell *matCellDef="let log">
+                      {{ log.fechaHora | date:'dd/MM/yyyy HH:mm:ss' }}
+                    </td>
+                  </ng-container>
+
+                  <!-- Acción Column -->
+                  <ng-container matColumnDef="accion">
+                    <th mat-header-cell *matHeaderCellDef>Acción</th>
+                    <td mat-cell *matCellDef="let log">
+                      <mat-chip [color]="getAccionColor(log.accion)">
+                        {{ getAccionLabel(log.accion) }}
+                      </mat-chip>
+                    </td>
+                  </ng-container>
+
+                  <!-- Entidad Column -->
+                  <ng-container matColumnDef="entidad">
+                    <th mat-header-cell *matHeaderCellDef>Entidad</th>
+                    <td mat-cell *matCellDef="let log">
+                      <div class="entity-info">
+                        <strong>{{ log.entidadTipo }}</strong>
+                        <small>ID: {{ log.entidadId }}</small>
+                      </div>
+                    </td>
+                  </ng-container>
+
+                  <!-- Descripción Column -->
+                  <ng-container matColumnDef="descripcion">
+                    <th mat-header-cell *matHeaderCellDef>Descripción</th>
+                    <td mat-cell *matCellDef="let log">
+                      {{ log.descripcion || '-' }}
+                    </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+
+                  <!-- No data row -->
+                  <tr class="mat-row" *matNoDataRow>
+                    <td class="mat-cell" [attr.colspan]="displayedColumns.length">
+                      <div class="no-data">
+                        <mat-icon>info</mat-icon>
+                        <p>No hay actividad registrada</p>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <mat-paginator
+                  [length]="activityTotalElements()"
+                  [pageSize]="activityPageSize()"
+                  [pageSizeOptions]="[10, 20, 50]"
+                  [pageIndex]="activityPageIndex()"
+                  (page)="onActivityPageChange($event)"
+                  showFirstLastButtons>
+                </mat-paginator>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card-content>
+  </mat-card>
+</div>
+

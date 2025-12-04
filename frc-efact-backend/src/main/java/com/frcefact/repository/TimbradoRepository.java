@@ -19,22 +19,31 @@ public interface TimbradoRepository extends JpaRepository<Timbrado, Long> {
     /**
      * Busca todos los timbrados de una empresa.
      */
-    List<Timbrado> findByEmpresaIdAndActivoTrue(Long empresaId);
+    @Query("SELECT t FROM Timbrado t LEFT JOIN FETCH t.empresa WHERE t.empresa.id = :empresaId AND t.activo = true")
+    List<Timbrado> findByEmpresaIdAndActivoTrue(@Param("empresaId") Long empresaId);
 
     /**
      * Busca timbrados por empresa ordenados por fecha de fin descendente.
      */
-    List<Timbrado> findByEmpresaIdOrderByFechaFinDesc(Long empresaId);
+    @Query("SELECT t FROM Timbrado t LEFT JOIN FETCH t.empresa WHERE t.empresa.id = :empresaId ORDER BY t.fechaFin DESC")
+    List<Timbrado> findByEmpresaIdOrderByFechaFinDesc(@Param("empresaId") Long empresaId);
 
     /**
      * Busca un timbrado por número.
      */
-    Optional<Timbrado> findByNumero(String numero);
+    @Query("SELECT t FROM Timbrado t LEFT JOIN FETCH t.empresa WHERE t.numero = :numero")
+    Optional<Timbrado> findByNumero(@Param("numero") String numero);
+    
+    /**
+     * Busca un timbrado por ID con empresa cargada.
+     */
+    @Query("SELECT t FROM Timbrado t LEFT JOIN FETCH t.empresa WHERE t.id = :id")
+    Optional<Timbrado> findByIdWithEmpresa(@Param("id") Long id);
 
     /**
      * Busca timbrados vigentes de una empresa.
      */
-    @Query("SELECT t FROM Timbrado t WHERE t.empresa.id = :empresaId " +
+    @Query("SELECT t FROM Timbrado t LEFT JOIN FETCH t.empresa WHERE t.empresa.id = :empresaId " +
            "AND t.activo = true " +
            "AND :fecha BETWEEN t.fechaInicio AND t.fechaFin")
     List<Timbrado> findTimbradosVigentes(@Param("empresaId") Long empresaId, 
@@ -43,7 +52,7 @@ public interface TimbradoRepository extends JpaRepository<Timbrado, Long> {
     /**
      * Busca timbrados electrónicos vigentes de una empresa.
      */
-    @Query("SELECT t FROM Timbrado t WHERE t.empresa.id = :empresaId " +
+    @Query("SELECT t FROM Timbrado t LEFT JOIN FETCH t.empresa WHERE t.empresa.id = :empresaId " +
            "AND t.activo = true " +
            "AND t.isElectronico = true " +
            "AND :fecha BETWEEN t.fechaInicio AND t.fechaFin")
@@ -53,7 +62,7 @@ public interface TimbradoRepository extends JpaRepository<Timbrado, Long> {
     /**
      * Busca timbrados que están por vencer.
      */
-    @Query("SELECT t FROM Timbrado t WHERE t.empresa.id = :empresaId " +
+    @Query("SELECT t FROM Timbrado t LEFT JOIN FETCH t.empresa WHERE t.empresa.id = :empresaId " +
            "AND t.activo = true " +
            "AND t.fechaFin BETWEEN :fechaActual AND :fechaLimite")
     List<Timbrado> findTimbradosPorVencer(@Param("empresaId") Long empresaId,
