@@ -5,6 +5,7 @@ import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { provideAuth0 } from '@auth0/auth0-angular';
+import { GLOBAL_ERROR_HANDLER_PROVIDER } from './app.module.error-handler';
 
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
@@ -81,6 +82,7 @@ export const appConfig: ApplicationConfig = {
       trace: false,
       traceLimit: 75
     }),
+    GLOBAL_ERROR_HANDLER_PROVIDER,
     { provide: LOCALE_ID, useValue: 'es-PY' }
   ]
 };

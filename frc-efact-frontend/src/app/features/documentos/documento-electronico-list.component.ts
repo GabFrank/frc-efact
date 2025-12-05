@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, NavigationEnd } from '@angular/router';
@@ -229,7 +229,7 @@ import { CancelarDeDialogComponent } from './cancelar-de-dialog.component';
     }
   `]
 })
-export class DocumentoElectronicoListComponent implements OnInit, OnDestroy {
+export class DocumentoElectronicoListComponent implements OnInit, AfterViewInit, OnDestroy {
   loading = signal(false);
   documentos = signal<DocumentoElectronico[]>([]);
   estadoFiltro: EstadoDE | null = null;
@@ -324,12 +324,12 @@ export class DocumentoElectronicoListComponent implements OnInit, OnDestroy {
     private deApi: DocumentoElectronicoApiService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.cargarDocumentos();
-    
     // Suscribirse a cambios de ruta para recargar cuando se navega a esta ruta
     // Usar distinctUntilChanged para evitar múltiples llamadas con la misma URL
     this.router.events
@@ -346,6 +346,10 @@ export class DocumentoElectronicoListComponent implements OnInit, OnDestroy {
       });
   }
 
+  ngAfterViewInit(): void {
+    // No-op; carga realizada en ngOnInit
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -354,7 +358,7 @@ export class DocumentoElectronicoListComponent implements OnInit, OnDestroy {
   cargarDocumentos(): void {
     this.loading.set(true);
     
-    this.deApi.getAll(this.estadoFiltro || undefined).subscribe({
+    this.deApi.getAll(this.estadoFiltro || undefined).pipe(takeUntil(this.destroy$)).subscribe({
       next: (documentos) => {
         // Asegurar que siempre sea un array
         this.documentos.set(Array.isArray(documentos) ? documentos : []);
@@ -459,7 +463,7 @@ export class DocumentoElectronicoListComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
-    this.deApi.consultarEstado(documento.id).subscribe({
+    this.deApi.consultarEstado(documento.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: (documentoActualizado) => {
         this.snackBar.open('Estado actualizado correctamente', 'Cerrar', { duration: 3000 });
         this.cargarDocumentos();
@@ -482,7 +486,7 @@ export class DocumentoElectronicoListComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
-    this.deApi.descargarXML(documento.id).subscribe({
+    this.deApi.descargarXML(documento.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: (blob) => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -521,10 +525,10 @@ export class DocumentoElectronicoListComponent implements OnInit, OnDestroy {
       data: { documento }
     });
 
-    dialogRef.afterClosed().subscribe(motivo => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(motivo => {
       if (motivo) {
         this.loading.set(true);
-        this.deApi.cancelar(documento.id, motivo).subscribe({
+        this.deApi.cancelar(documento.id, motivo).pipe(takeUntil(this.destroy$)).subscribe({
           next: () => {
             this.snackBar.open('Solicitud de cancelación enviada', 'Cerrar', { duration: 3000 });
             this.cargarDocumentos();

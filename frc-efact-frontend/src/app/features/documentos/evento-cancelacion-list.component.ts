@@ -162,7 +162,7 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
     }
   `]
 })
-export class EventoCancelacionListComponent implements OnInit {
+export class EventoCancelacionListComponent implements OnInit, OnDestroy {
   loading = signal(false);
   eventos = signal<EventoCancelacionDE[]>([]);
   totalElements = signal(0);
@@ -228,7 +228,7 @@ export class EventoCancelacionListComponent implements OnInit {
     this.filtros.page = this.currentPage();
     this.filtros.size = this.pageSize();
     
-    this.sifenApi.listarEventosCancelacion(this.filtros).subscribe({
+    this.sifenApi.listarEventosCancelacion(this.filtros).pipe(takeUntil(this.destroy$)).subscribe({
       next: (response: PageResponse<EventoCancelacionDE>) => {
         this.eventos.set(response.content || []);
         this.totalElements.set(response.totalElements || 0);

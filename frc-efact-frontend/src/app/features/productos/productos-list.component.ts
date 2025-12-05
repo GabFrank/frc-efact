@@ -485,7 +485,7 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
   }
 
   cargarInformacionEmpresa(empresaId: number): void {
-    this.empresaApi.getById(empresaId).subscribe({
+    this.empresaApi.getById(empresaId).pipe(takeUntil(this.destroy$)).subscribe({
       next: (empresa) => {
         this.empresaNombre = empresa.razonSocial;
       },
@@ -513,7 +513,7 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
       this.searchTerm || null,
       this.tipoTransaccionFilter || null,
       this.ivaFilter
-    ).subscribe({
+    ).pipe(takeUntil(this.destroy$)).subscribe({
       next: (response) => {
         console.log('Productos cargados desde backend con filtros y paginación:', response);
         const productos = response.content || [];
@@ -603,7 +603,7 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
       data: { producto: null, empresaId: this.empresaId }
     });
 
-    dialogRef.afterClosed().subscribe(result => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(result => {
       if (result) {
         this.cargarProductos();
       }
@@ -637,7 +637,7 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
       data: { producto, empresaId: this.empresaId }
     });
 
-    dialogRef.afterClosed().subscribe(result => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(result => {
       if (result) {
         this.cargarProductos();
       }
@@ -661,7 +661,7 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
           return;
         }
 
-        this.productoApi.delete(producto.id, this.empresaId).subscribe({
+        this.productoApi.delete(producto.id, this.empresaId).pipe(takeUntil(this.destroy$)).subscribe({
           next: () => {
             this.snackBar.open('Producto eliminado correctamente', 'Cerrar', { duration: 3000 });
             this.cargarProductos();
@@ -692,7 +692,7 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
         return;
       }
 
-      this.productoApi.importarExcel(this.empresaId, file).subscribe({
+      this.productoApi.importarExcel(this.empresaId, file).pipe(takeUntil(this.destroy$)).subscribe({
         next: (result) => {
           this.snackBar.open(
             `Importación exitosa: ${result.cantidadImportada} productos importados`,

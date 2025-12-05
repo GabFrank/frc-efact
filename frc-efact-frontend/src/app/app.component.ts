@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { RouterOutlet, Router } from '@angular/router';
+import { RouterOutlet, Router, NavigationError } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { AuthService as Auth0Service } from '@auth0/auth0-angular';
 import { filter, take } from 'rxjs/operators';
@@ -28,6 +28,16 @@ export class AppComponent implements OnInit {
   ngOnInit(): void {
     // Inicializar auth desde localStorage al cargar la aplicación
     this.store.dispatch(AuthActions.initializeAuth());
+
+    // Loggear navegaciones con error para depurar loops/errores de carga
+    this.router.events.subscribe(event => {
+      if (event instanceof NavigationError) {
+        console.error('NAV_ERROR', {
+          url: event.url,
+          error: event.error
+        });
+      }
+    });
 
     // Manejar callback de Auth0 SOLO si la URL contiene parámetros de callback de Auth0
     // Esto evita que se active cuando el usuario hace login tradicional

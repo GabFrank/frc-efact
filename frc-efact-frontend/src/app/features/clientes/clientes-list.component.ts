@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -24,7 +24,7 @@ import { Cliente } from '../../models/cliente.model';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { ClienteFormComponent } from './cliente-form.component';
-import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, Subject, takeUntil } from 'rxjs';
 import { MatTableDataSource } from '@angular/material/table';
 
 @Component({
@@ -366,7 +366,7 @@ import { MatTableDataSource } from '@angular/material/table';
     }
   `]
 })
-export class ClientesListComponent implements OnInit {
+export class ClientesListComponent implements OnInit, OnDestroy {
   loading = signal(false);
   dataSource = new MatTableDataSource<Cliente>([]);
 
@@ -387,6 +387,7 @@ export class ClientesListComponent implements OnInit {
   displayedColumns: string[] = ['razonSocial', 'ruc', 'tipoCliente', 'activo', 'actions'];
 
   private searchSubject = new Subject<string>();
+  private destroy$ = new Subject<void>();
 
   constructor(
     private clienteApi: ClienteApiService,
@@ -396,10 +397,12 @@ export class ClientesListComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute
   ) {
+    console.info('CLIENTES_LIST_CTOR');
     // Configurar debounce para búsqueda
     this.searchSubject.pipe(
       debounceTime(500),
-      distinctUntilChanged()
+      distinctUntilChanged(),
+      takeUntil(this.destroy$)
     ).subscribe(() => {
       this.currentPage = 0; // Resetear a primera página al buscar
       this.cargarClientes();
@@ -407,8 +410,10 @@ export class ClientesListComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    console.info('CLIENTES_LIST_INIT');
     // Obtener empresaId de query params si está disponible
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      console.info('CLIENTES_QP', params);
       const empresaIdFromRoute = params['empresaId'] ? Number(params['empresaId']) : null;
       if (empresaIdFromRoute) {
         this.empresaId = empresaIdFromRoute;
@@ -420,12 +425,18 @@ export class ClientesListComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.searchSubject.complete();
+  }
+
   goBack(): void {
     this.router.navigate(['/empresas']);
   }
 
   cargarInformacionEmpresa(empresaId: number): void {
-    this.empresaApi.getById(empresaId).subscribe({
+    this.empresaApi.getById(empresaId).pipe(takeUntil(this.destroy$)).subscribe({
       next: (empresa) => {
         this.empresaNombre = empresa.razonSocial;
       },
@@ -436,6 +447,7 @@ export class ClientesListComponent implements OnInit {
   }
 
   cargarClientes(empresaId?: number): void {
+    console.info('CLIENTES_CARGAR', { empresaId, qpEmpresa: this.route.snapshot.queryParams['empresaId'] });
     this.loading.set(true);
     const idEmpresa = empresaId || this.empresaId || 1;
 
@@ -449,7 +461,7 @@ export class ClientesListComponent implements OnInit {
       sortDir: this.sortDir
     };
 
-    this.clienteApi.buscarConFiltros(idEmpresa, filtros).subscribe({
+    this.clienteApi.buscarConFiltros(idEmpresa, filtros).pipe(takeUntil(this.destroy$)).subscribe({
       next: (page: PageResponse<Cliente>) => {
         this.dataSource.data = page.content;
         this.totalElements = page.totalElements;
@@ -521,7 +533,7 @@ export class ClientesListComponent implements OnInit {
       data: { cliente: null, empresaId }
     });
 
-    dialogRef.afterClosed().subscribe(result => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(result => {
       if (result) {
         // Recargar clientes con el empresaId actual de los query params
         const empresaId = this.route.snapshot.queryParams['empresaId']
@@ -543,7 +555,7 @@ export class ClientesListComponent implements OnInit {
       data: { cliente, empresaId }
     });
 
-    dialogRef.afterClosed().subscribe(result => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(result => {
       if (result) {
         // Recargar clientes con el empresaId actual de los query params
         const empresaId = this.route.snapshot.queryParams['empresaId']
@@ -564,14 +576,14 @@ export class ClientesListComponent implements OnInit {
       }
     });
 
-    dialogRef.afterClosed().subscribe(confirmed => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(confirmed => {
       if (confirmed) {
         // Obtener empresaId de query params o usar por defecto
         const empresaId = this.route.snapshot.queryParams['empresaId']
           ? Number(this.route.snapshot.queryParams['empresaId'])
           : 1;
 
-        this.clienteApi.delete(empresaId, cliente.id).subscribe({
+        this.clienteApi.delete(empresaId, cliente.id).pipe(takeUntil(this.destroy$)).subscribe({
           next: () => {
             this.snackBar.open('Cliente eliminado correctamente', 'Cerrar', { duration: 3000 });
             // Recargar clientes con el mismo empresaId
