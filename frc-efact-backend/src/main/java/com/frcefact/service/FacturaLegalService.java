@@ -418,11 +418,12 @@ public class FacturaLegalService {
      */
     @Transactional(readOnly = true)
     public FacturaLegal obtenerPorId(Long id) {
-        FacturaLegal factura = facturaLegalRepository.findById(id)
+        // Usar método con JOIN FETCH para cargar la relación empresa
+        FacturaLegal factura = facturaLegalRepository.findByIdWithEmpresa(id)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Factura no encontrada con ID: " + id));
 
-        // Verificar permisos
+        // Verificar permisos (ahora empresa ya está cargada)
         empresaSecurityService.verificarAccesoLectura(factura.getEmpresa().getId());
 
         inicializarRelacionesFactura(factura);

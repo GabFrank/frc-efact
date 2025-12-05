@@ -21,8 +21,29 @@ public class DocumentoElectronico extends AuditableEntity {
      * Factura legal asociada al documento electrónico (relación 1:1)
      */
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "factura_legal_id", unique = true, nullable = false)
+    @JoinColumn(name = "factura_legal_id", unique = true, nullable = true)
     private FacturaLegal facturaLegal;
+
+    /**
+     * Nota de Crédito asociada al documento electrónico (relación 1:1)
+     */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "nota_credito_id", unique = true, nullable = true)
+    private NotaCredito notaCredito;
+
+    /**
+     * Nota de Débito asociada al documento electrónico (relación 1:1)
+     */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "nota_debito_id", unique = true, nullable = true)
+    private NotaDebito notaDebito;
+
+    /**
+     * Nota de Remisión asociada al documento electrónico (relación 1:1)
+     */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "nota_remision_id", unique = true, nullable = true)
+    private NotaRemision notaRemision;
 
     /**
      * Lote al que pertenece este documento electrónico
@@ -149,6 +170,30 @@ public class DocumentoElectronico extends AuditableEntity {
 
     public void setFacturaLegal(FacturaLegal facturaLegal) {
         this.facturaLegal = facturaLegal;
+    }
+
+    public NotaCredito getNotaCredito() {
+        return notaCredito;
+    }
+
+    public void setNotaCredito(NotaCredito notaCredito) {
+        this.notaCredito = notaCredito;
+    }
+
+    public NotaDebito getNotaDebito() {
+        return notaDebito;
+    }
+
+    public void setNotaDebito(NotaDebito notaDebito) {
+        this.notaDebito = notaDebito;
+    }
+
+    public NotaRemision getNotaRemision() {
+        return notaRemision;
+    }
+
+    public void setNotaRemision(NotaRemision notaRemision) {
+        this.notaRemision = notaRemision;
     }
 
     public LoteDE getLoteDE() {

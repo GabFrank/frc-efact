@@ -1,16 +1,61 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, throwError } from 'rxjs';
+import { catchError, throwError, tap } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { ConnectionStatusService } from '../services/connection-status.service';
+import { environment } from '../../environments/environment';
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const authService = inject(AuthService);
+  const connectionStatusService = inject(ConnectionStatusService);
+
+  // Solo monitorear peticiones a la API del backend
+  // Verificar si la URL contiene la URL base de la API o si es una ruta relativa que empieza con /api/
+  const apiUrlBase = environment.apiUrl.replace('/api', ''); // Obtener la base sin /api
+  const isApiRequest = req.url.includes(environment.apiUrl) || 
+                       (req.url.startsWith('http') && req.url.includes(apiUrlBase)) ||
+                       req.url.startsWith('/api/');
 
   return next(req).pipe(
+    tap(() => {
+      // Si la petición es exitosa a la API, el servidor está online
+      if (isApiRequest) {
+        connectionStatusService.setServerOnline();
+      }
+    }),
     catchError((error: HttpErrorResponse) => {
       let errorMessage = 'An error occurred';
+
+      // Solo monitorear errores de peticiones a la API
+      if (isApiRequest) {
+        // SOLO marcar como offline en errores de conexión reales, NO en errores HTTP normales
+        
+        // Status 0: Error de conexión real (sin respuesta del servidor, timeout, CORS, red)
+        if (error.status === 0 || error.status === null || error.status === undefined) {
+          // Verificar si hay conexión a internet
+          if (navigator.onLine) {
+            // Hay internet pero no se puede conectar al servidor
+            connectionStatusService.setServerOffline('No se pudo conectar con el servidor');
+          } else {
+            // No hay internet, el servicio de conexión ya lo maneja
+            connectionStatusService.setServerOffline('Sin conexión a internet');
+          }
+        } 
+        // Errores 502, 503, 504: Servidor no disponible (gateway/proxy)
+        else if (error.status === 502 || error.status === 503 || error.status === 504) {
+          connectionStatusService.setServerOffline('El servidor no está disponible');
+        }
+        // Timeout (408): El servidor no responde a tiempo
+        else if (error.status === 408) {
+          connectionStatusService.setServerOffline('Timeout - El servidor no responde');
+        }
+        // NO marcar como offline en:
+        // - Errores 4xx (400, 401, 403, 404, etc.): Son errores de validación/autenticación, el servidor está respondiendo
+        // - Errores 5xx (500, 501, 505, etc.): El servidor está respondiendo, solo tiene un error interno
+        // - Cualquier otro error HTTP: El servidor está respondiendo, no es un problema de conexión
+      }
 
       if (error.error instanceof ErrorEvent) {
         // Client-side error

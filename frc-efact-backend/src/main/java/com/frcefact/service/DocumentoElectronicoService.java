@@ -4,6 +4,7 @@ import com.frcefact.exception.BusinessException;
 import com.frcefact.model.*;
 import com.frcefact.repository.DocumentoElectronicoRepository;
 import com.frcefact.repository.FacturaLegalRepository;
+import com.frcefact.repository.NotaCreditoRepository;
 import com.frcefact.repository.LoteDERepository;
 import com.frcefact.service.sifen.SifenService;
 import org.slf4j.Logger;
@@ -27,6 +28,7 @@ public class DocumentoElectronicoService {
 
     private final DocumentoElectronicoRepository documentoElectronicoRepository;
     private final FacturaLegalRepository facturaLegalRepository;
+    private final NotaCreditoRepository notaCreditoRepository;
     private final LoteDERepository loteDERepository;
     private final CertificadoService certificadoService;
     private final SifenService sifenService;
@@ -35,12 +37,14 @@ public class DocumentoElectronicoService {
     public DocumentoElectronicoService(
             DocumentoElectronicoRepository documentoElectronicoRepository,
             FacturaLegalRepository facturaLegalRepository,
+            NotaCreditoRepository notaCreditoRepository,
             LoteDERepository loteDERepository,
             CertificadoService certificadoService,
             SifenService sifenService,
             EmailFacturaElectronicaService emailFacturaElectronicaService) {
         this.documentoElectronicoRepository = documentoElectronicoRepository;
         this.facturaLegalRepository = facturaLegalRepository;
+        this.notaCreditoRepository = notaCreditoRepository;
         this.loteDERepository = loteDERepository;
         this.certificadoService = certificadoService;
         this.sifenService = sifenService;
@@ -209,7 +213,8 @@ public class DocumentoElectronicoService {
         } else if (empresaId != null) {
             return documentoElectronicoRepository.findByFacturaLegal_Empresa_Id(empresaId, pageable);
         } else {
-            return documentoElectronicoRepository.findAll(pageable);
+            // Usar método con EntityGraph para cargar relaciones lazy
+            return documentoElectronicoRepository.findAllWithRelations(pageable);
         }
     }
 
@@ -342,6 +347,105 @@ public class DocumentoElectronicoService {
         lote.setEmpresa(factura.getEmpresa());
         lote.setEstado(EstadoLoteDE.PENDIENTE);
         return loteDERepository.save(lote);
+    }
+
+    private LoteDE crearLoteParaNotaCredito(NotaCredito notaCredito) {
+        LoteDE lote = new LoteDE();
+        lote.setEmpresa(notaCredito.getEmpresa());
+        lote.setEstado(EstadoLoteDE.PENDIENTE);
+        return loteDERepository.save(lote);
+    }
+
+    /**
+     * Genera un documento electrónico a partir de una nota de crédito.
+     * Similar a generarDE para factura, pero para nota de crédito.
+     * 
+     * @param notaCreditoId ID de la nota de crédito
+     * @return Documento electrónico generado
+     */
+    public DocumentoElectronico generarDEDesdeNotaCredito(Long notaCreditoId) {
+        log.info("🔧 Generando documento electrónico para nota de crédito ID: {}", notaCreditoId);
+        
+        // Buscar nota de crédito
+        NotaCredito notaCredito = notaCreditoRepository.findById(notaCreditoId)
+                .orElseThrow(() -> new BusinessException("Nota de crédito no encontrada: " + notaCreditoId));
+        
+        // Validar que la nota de crédito no tenga ya un DE activo
+        DocumentoElectronico deExistente = documentoElectronicoRepository.findByNotaCreditoId(notaCreditoId).orElse(null);
+        if (deExistente != null) {
+            if (deExistente.getEstado() == EstadoDE.ERROR || deExistente.getEstado() == EstadoDE.RECHAZADO) {
+                log.warn("⚠️ La nota de crédito ID: {} tiene un DE con error permanente (estado: {}). Eliminando para crear uno nuevo.", 
+                    notaCreditoId, deExistente.getEstado());
+                documentoElectronicoRepository.delete(deExistente);
+                log.info("✅ DE anterior eliminado. Procediendo a crear uno nuevo.");
+            } else {
+                throw new BusinessException(
+                    String.format("La nota de crédito ya tiene un documento electrónico asociado en estado: %s. " +
+                        "Solo se puede reemplazar si el DE anterior tiene error permanente (ERROR o RECHAZADO).", 
+                        deExistente.getEstado()));
+            }
+        }
+        
+        // Validar que la empresa tiene certificado vigente
+        try {
+            certificadoService.validarCertificadoVigente(notaCredito.getEmpresa());
+        } catch (BusinessException e) {
+            log.error("❌ Certificado no válido para empresa ID: {}", notaCredito.getEmpresa().getId());
+            throw new BusinessException("No se puede generar DE: " + e.getMessage());
+        }
+        
+        // Construir objeto DE de SIFEN y generar XML
+        SifenService.CrearDEResult resultado = sifenService.crearDocumentoElectronicoSifenDesdeNotaCredito(notaCredito);
+        
+        // Crear documento electrónico en BD
+        DocumentoElectronico de = new DocumentoElectronico();
+        de.setNotaCredito(notaCredito);
+        de.setCdc(resultado.cdc());
+        de.setUrlQr(resultado.urlQr());
+        de.setNumeroDocumento(notaCredito.getNumeroFormateado());
+        de.setTipoDocumento("5"); // 5 = Nota de Crédito electrónica (según TTiDE enum)
+        de.setXmlOriginal(resultado.xmlOriginal());
+        de.setEstado(EstadoDE.PENDIENTE);
+        de.setFechaEmision(LocalDateTime.now());
+        de.setActivo(true);
+        
+        // Guardar
+        de = documentoElectronicoRepository.save(de);
+        
+        log.info("✅ Documento electrónico generado con CDC: {} para nota de crédito ID: {}", resultado.cdc(), notaCreditoId);
+        return de;
+    }
+
+    /**
+     * Genera un documento electrónico a partir de una nota de crédito, crea un nuevo lote,
+     * asocia el documento al lote y envía el lote a SIFEN.
+     *
+     * @param notaCreditoId ID de la nota de crédito
+     * @return Resultado con el documento y el lote procesado
+     */
+    public GenerarDeResult generarYEnviarDesdeNotaCredito(Long notaCreditoId) {
+        log.info("🧾 Generando y enviando DE para nota de crédito {}", notaCreditoId);
+
+        NotaCredito notaCredito = notaCreditoRepository.findById(notaCreditoId)
+                .orElseThrow(() -> new BusinessException("Nota de crédito no encontrada: " + notaCreditoId));
+
+        DocumentoElectronico documento = documentoElectronicoRepository.findByNotaCreditoId(notaCreditoId)
+                .orElse(null);
+
+        if (documento == null) {
+            documento = generarDEDesdeNotaCredito(notaCreditoId);
+        } else if (!EstadoDE.PENDIENTE.equals(documento.getEstado()) && !EstadoDE.ERROR.equals(documento.getEstado())) {
+            throw new BusinessException("La nota de crédito ya cuenta con un DE en estado " + documento.getEstado());
+        }
+
+        LoteDE lote = crearLoteParaNotaCredito(notaCredito);
+        asociarALote(documento.getId(), lote);
+
+        LoteDE loteProcesado = sifenService.enviarLote(lote.getId());
+        DocumentoElectronico documentoActualizado = documentoElectronicoRepository.findById(documento.getId())
+                .orElseThrow(() -> new BusinessException("No se pudo recuperar el documento electrónico generado"));
+
+        return new GenerarDeResult(documentoActualizado, loteProcesado);
     }
 
     public record GenerarDeResult(DocumentoElectronico documento, LoteDE lote) {

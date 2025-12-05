@@ -151,4 +151,18 @@ public interface FacturaLegalRepository extends JpaRepository<FacturaLegal, Long
     List<FacturaLegal> findByFechaRangeParaCalculos(@Param("empresaId") Long empresaId,
                                                      @Param("fechaDesde") LocalDateTime fechaDesde,
                                                      @Param("fechaHasta") LocalDateTime fechaHasta);
+
+    /**
+     * Obtiene una factura por ID con todas las relaciones necesarias cargadas.
+     * Usa JOIN FETCH para evitar LazyInitializationException.
+     * Carga: empresa, cliente (si existe), documentoElectronico (si existe) y sus items.
+     */
+    @Query("SELECT DISTINCT f FROM FacturaLegal f " +
+           "JOIN FETCH f.empresa " +
+           "LEFT JOIN FETCH f.cliente " +
+           "LEFT JOIN FETCH f.documentoElectronico de " +
+           "LEFT JOIN FETCH de.loteDE " +
+           "LEFT JOIN FETCH f.items " +
+           "WHERE f.id = :id")
+    Optional<FacturaLegal> findByIdWithEmpresa(@Param("id") Long id);
 }

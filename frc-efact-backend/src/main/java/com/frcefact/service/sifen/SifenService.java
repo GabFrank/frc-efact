@@ -7,11 +7,13 @@ import com.frcefact.model.Empresa;
 import com.frcefact.model.EstadoDE;
 import com.frcefact.model.EstadoLoteDE;
 import com.frcefact.model.FacturaLegal;
+import com.frcefact.model.NotaCredito;
 import com.frcefact.model.LoteDE;
 import com.frcefact.model.Timbrado;
 import com.frcefact.model.TimbradoDetalle;
 import com.frcefact.repository.DocumentoElectronicoRepository;
 import com.frcefact.repository.FacturaLegalItemRepository;
+import com.frcefact.repository.NotaCreditoItemRepository;
 import com.frcefact.repository.LoteDERepository;
 import com.frcefact.repository.EventoCancelacionDERepository;
 import com.frcefact.repository.EventoNominacionDERepository;
@@ -24,6 +26,7 @@ import com.frcefact.service.XmlGeneratorService;
 import com.frcefact.sifen.util.SifenDocumentoLogger;
 import com.frcefact.sifen.util.SifenTotalsHelper;
 import com.frcefact.model.FacturaLegalItem;
+import com.frcefact.model.NotaCreditoItem;
 import com.frcefact.model.Producto;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.SifenConfig;
@@ -40,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +63,7 @@ public class SifenService {
     private final DocumentoElectronicoRepository documentoElectronicoRepository;
     private final LoteDERepository loteDERepository;
     private final FacturaLegalItemRepository facturaLegalItemRepository;
+    private final NotaCreditoItemRepository notaCreditoItemRepository;
     private final EventoCancelacionDERepository eventoCancelacionDERepository;
     private final EventoNominacionDERepository eventoNominacionDERepository;
     private final FacturaLegalRepository facturaLegalRepository;
@@ -69,6 +74,7 @@ public class SifenService {
     public SifenService(DocumentoElectronicoRepository documentoElectronicoRepository,
                         LoteDERepository loteDERepository,
                         FacturaLegalItemRepository facturaLegalItemRepository,
+                        NotaCreditoItemRepository notaCreditoItemRepository,
                         EventoCancelacionDERepository eventoCancelacionDERepository,
                         EventoNominacionDERepository eventoNominacionDERepository,
                         FacturaLegalRepository facturaLegalRepository,
@@ -78,6 +84,7 @@ public class SifenService {
         this.documentoElectronicoRepository = documentoElectronicoRepository;
         this.loteDERepository = loteDERepository;
         this.facturaLegalItemRepository = facturaLegalItemRepository;
+        this.notaCreditoItemRepository = notaCreditoItemRepository;
         this.eventoCancelacionDERepository = eventoCancelacionDERepository;
         this.eventoNominacionDERepository = eventoNominacionDERepository;
         this.facturaLegalRepository = facturaLegalRepository;
@@ -106,12 +113,34 @@ public class SifenService {
         log.info("📋 Lote contiene {} documento(s)", documentos.size());
 
         // Obtener timbrado y validar configuración
+        // El lote puede contener facturas, notas de crédito, débito o remisión
         DocumentoElectronico primerDoc = documentos.get(0);
-        FacturaLegal factura = primerDoc.getFacturaLegal();
-        TimbradoDetalle timbradoDetalle = factura.getTimbradoDetalle();
+        TimbradoDetalle timbradoDetalle = null;
+        String tipoDoc = primerDoc.getTipoDocumento();
         
-        if (timbradoDetalle == null) {
-            throw new BusinessException("La factura " + factura.getId() + " no tiene timbrado detalle configurado");
+        // Determinar el tipo de documento y obtener el timbrado detalle
+        if (primerDoc.getFacturaLegal() != null) {
+            timbradoDetalle = primerDoc.getFacturaLegal().getTimbradoDetalle();
+            if (timbradoDetalle == null) {
+                throw new BusinessException("La factura " + primerDoc.getFacturaLegal().getId() + " no tiene timbrado detalle configurado");
+            }
+        } else if (primerDoc.getNotaCredito() != null) {
+            timbradoDetalle = primerDoc.getNotaCredito().getTimbradoDetalle();
+            if (timbradoDetalle == null) {
+                throw new BusinessException("La nota de crédito " + primerDoc.getNotaCredito().getId() + " no tiene timbrado detalle configurado");
+            }
+        } else if (primerDoc.getNotaDebito() != null) {
+            timbradoDetalle = primerDoc.getNotaDebito().getTimbradoDetalle();
+            if (timbradoDetalle == null) {
+                throw new BusinessException("La nota de débito " + primerDoc.getNotaDebito().getId() + " no tiene timbrado detalle configurado");
+            }
+        } else if (primerDoc.getNotaRemision() != null) {
+            timbradoDetalle = primerDoc.getNotaRemision().getTimbradoDetalle();
+            if (timbradoDetalle == null) {
+                throw new BusinessException("La nota de remisión " + primerDoc.getNotaRemision().getId() + " no tiene timbrado detalle configurado");
+            }
+        } else {
+            throw new BusinessException("El documento electrónico ID: " + primerDoc.getId() + " no tiene ningún documento asociado (factura, nota de crédito, débito o remisión)");
         }
         
         Timbrado timbrado = timbradoDetalle.getTimbrado();
@@ -119,8 +148,8 @@ public class SifenService {
             throw new BusinessException("El timbrado detalle no tiene timbrado asociado");
         }
         
-        log.info("🔧 Configurando SIFEN para timbrado ID: {} (empresa ID: {})", 
-                timbrado.getId(), timbrado.getEmpresa().getId());
+        log.info("🔧 Configurando SIFEN para timbrado ID: {} (empresa ID: {}, tipo documento: {})", 
+                timbrado.getId(), timbrado.getEmpresa().getId(), tipoDoc);
         
         // Validar configuración antes de continuar
         SifenConfig config;
@@ -135,25 +164,23 @@ public class SifenService {
 
         List<com.roshka.sifen.core.beans.DocumentoElectronico> sifenDocs = new ArrayList<>();
         for (DocumentoElectronico de : documentos) {
-            FacturaLegal facturaDoc = de.getFacturaLegal();
-            log.info("📄 Procesando DE ID: {} para factura ID: {}", de.getId(), facturaDoc.getId());
-            
-            // Validar datos de la factura
-            log.debug("   - Empresa: {} (RUC: {})", 
-                    facturaDoc.getEmpresa().getId(), 
-                    facturaDoc.getEmpresa().getRuc());
-            log.debug("   - Cliente: {} (RUC: {})", 
-                    facturaDoc.getCliente() != null ? facturaDoc.getCliente().getId() : "null",
-                    facturaDoc.getCliente() != null ? facturaDoc.getCliente().getRuc() : "null");
-            log.debug("   - Timbrado: {}", timbradoDetalle != null ? timbradoDetalle.getId() : "null");
-            log.debug("   - Items: {}", facturaDoc.getItems() != null ? facturaDoc.getItems().size() : 0);
+            String tipoDocDe = de.getTipoDocumento();
+            log.info("📄 Procesando DE ID: {} (tipo: {})", de.getId(), tipoDocDe);
             
             String xmlOriginal = de.getXmlOriginal();
             if (xmlOriginal == null || xmlOriginal.isBlank()) {
-                log.warn("⚠️ DE ID: {} no tiene XML original, generando nuevo XML", de.getId());
-                xmlOriginal = xmlGeneratorService.generarXmlOriginal(facturaDoc);
-                de.setXmlOriginal(xmlOriginal);
-                documentoElectronicoRepository.save(de);
+                // Si no hay XML, necesitamos regenerarlo según el tipo de documento
+                if (de.getFacturaLegal() != null) {
+                    log.warn("⚠️ DE ID: {} no tiene XML original, generando nuevo XML desde factura", de.getId());
+                    xmlOriginal = xmlGeneratorService.generarXmlOriginal(de.getFacturaLegal());
+                    de.setXmlOriginal(xmlOriginal);
+                    documentoElectronicoRepository.save(de);
+                } else if (de.getNotaCredito() != null) {
+                    log.warn("⚠️ DE ID: {} no tiene XML original, no se puede regenerar automáticamente para nota de crédito", de.getId());
+                    throw new BusinessException("El DE de nota de crédito ID: " + de.getId() + " no tiene XML original y no se puede regenerar automáticamente. Debe generarse el DE nuevamente.");
+                } else {
+                    throw new BusinessException("El DE ID: " + de.getId() + " no tiene XML original y no se puede regenerar automáticamente para este tipo de documento.");
+                }
             }
             
             final String xmlFinal = xmlOriginal; // Hacer final para usar en lambda
@@ -184,23 +211,33 @@ public class SifenService {
                 }
             }
             
-            // FALLBACK: Construir directamente desde datos de la factura (método robusto)
+            // FALLBACK: Construir directamente desde datos del documento asociado (método robusto)
             if (deSifen == null) {
-                log.info("🔨 Construyendo objeto DocumentoElectronico de jsifenlib directamente desde datos de factura...");
+                log.info("🔨 Construyendo objeto DocumentoElectronico de jsifenlib directamente desde datos del documento...");
                 try {
-                    // Obtener items de la factura
-                    List<FacturaLegalItem> items = facturaLegalItemRepository.findByFacturaLegalId(facturaDoc.getId());
-                    if (items == null || items.isEmpty()) {
-                        throw new IllegalArgumentException("Factura sin items - no se puede construir DE");
+                    // Construir según el tipo de documento
+                    if (de.getFacturaLegal() != null) {
+                        List<FacturaLegalItem> items = facturaLegalItemRepository.findByFacturaLegalId(de.getFacturaLegal().getId());
+                        if (items == null || items.isEmpty()) {
+                            throw new IllegalArgumentException("Factura sin items - no se puede construir DE");
+                        }
+                        deSifen = construirDEDesdeFactura(de.getFacturaLegal(), items, config);
+                        log.debug("✅ Objeto DocumentoElectronico construido exitosamente desde datos de factura");
+                    } else if (de.getNotaCredito() != null) {
+                        List<NotaCreditoItem> items = notaCreditoItemRepository.findByNotaCreditoId(de.getNotaCredito().getId());
+                        if (items == null || items.isEmpty()) {
+                            throw new IllegalArgumentException("Nota de crédito sin items - no se puede construir DE");
+                        }
+                        deSifen = construirDEDesdeNotaCredito(de.getNotaCredito(), items, config);
+                        log.debug("✅ Objeto DocumentoElectronico construido exitosamente desde datos de nota de crédito");
+                    } else {
+                        throw new BusinessException("No se puede construir el DE automáticamente para el documento ID: " + de.getId() + ". Tipo de documento no soportado para construcción automática.");
                     }
-                    
-                    deSifen = construirDEDesdeFactura(facturaDoc, items, config);
-                    log.debug("✅ Objeto DocumentoElectronico construido exitosamente desde datos de factura");
                 } catch (Exception e) {
-                    log.error("❌ Error al construir DE desde factura ID: {}: {}", 
-                            facturaDoc.getId(), e.getMessage(), e);
-                    throw new BusinessException("No se pudo construir el DE para la factura "
-                            + facturaDoc.getId() + ": " + e.getMessage());
+                    log.error("❌ Error al construir DE desde documento ID: {}: {}", 
+                            de.getId(), e.getMessage(), e);
+                    throw new BusinessException("No se pudo construir el DE para el documento "
+                            + de.getId() + ": " + e.getMessage());
                 }
             }
             
@@ -236,8 +273,25 @@ public class SifenService {
             throw new BusinessException("El lote no contiene documentos asociados");
         }
 
-        var timbrado = documentos.get(0).getFacturaLegal().getTimbradoDetalle().getTimbrado();
-        SifenConfig config = sifenConfigFactory.buildForTimbrado(timbrado.getId());
+        // Identificar el tipo de documento y obtener el timbrado
+        DocumentoElectronico primerDoc = documentos.get(0);
+        TimbradoDetalle timbradoDetalle = null;
+
+        if (primerDoc.getFacturaLegal() != null) {
+            timbradoDetalle = primerDoc.getFacturaLegal().getTimbradoDetalle();
+        } else if (primerDoc.getNotaCredito() != null) {
+            timbradoDetalle = primerDoc.getNotaCredito().getTimbradoDetalle();
+        } else if (primerDoc.getNotaDebito() != null) {
+            timbradoDetalle = primerDoc.getNotaDebito().getTimbradoDetalle();
+        } else if (primerDoc.getNotaRemision() != null) {
+            timbradoDetalle = primerDoc.getNotaRemision().getTimbradoDetalle();
+        }
+
+        if (timbradoDetalle == null) {
+            throw new BusinessException("El documento electrónico ID: " + primerDoc.getId() + " no tiene ningún documento asociado (factura, nota de crédito, débito o remisión)");
+        }
+
+        SifenConfig config = sifenConfigFactory.buildForTimbrado(timbradoDetalle.getTimbrado().getId());
 
         log.info("🔍 Consultando lote ID: {} con protocolo: {}", lote.getId(), lote.getProtocolo());
         
@@ -393,8 +447,31 @@ public class SifenService {
      */
     @Transactional(readOnly = true)
     public DocumentoElectronico obtenerDocumentoPorFacturaId(Long facturaId) {
-        DocumentoElectronico documento = documentoElectronicoRepository.findByFacturaLegalId(facturaId)
+        DocumentoElectronico documento = documentoElectronicoRepository.findByFacturaLegalIdWithRelations(facturaId)
                 .orElseThrow(() -> new BusinessException("No se encontró documento electrónico para la factura ID: " + facturaId));
+        
+        // Si no tiene URL del QR guardada, intentar extraerla del XML original
+        if ((documento.getUrlQr() == null || documento.getUrlQr().isBlank()) 
+                && documento.getXmlOriginal() != null && !documento.getXmlOriginal().isBlank()) {
+            try {
+                String urlQr = com.frcefact.sifen.util.SifenResponseParser.extractUrlQr(documento.getXmlOriginal());
+                if (urlQr != null && !urlQr.isBlank()) {
+                    // Guardar la URL extraída (solo lectura, pero podemos actualizar en memoria)
+                    documento.setUrlQr(urlQr);
+                    log.debug("✅ URL QR extraída del XML original para DE ID: {}", documento.getId());
+                }
+            } catch (Exception e) {
+                log.warn("⚠️ No se pudo extraer URL QR del XML original para DE ID: {}: {}", documento.getId(), e.getMessage());
+            }
+        }
+        
+        return documento;
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentoElectronico obtenerDocumentoPorNotaCreditoId(Long notaCreditoId) {
+        DocumentoElectronico documento = documentoElectronicoRepository.findByNotaCreditoId(notaCreditoId)
+                .orElseThrow(() -> new BusinessException("No se encontró documento electrónico para la nota de crédito ID: " + notaCreditoId));
         
         // Si no tiene URL del QR guardada, intentar extraerla del XML original
         if ((documento.getUrlQr() == null || documento.getUrlQr().isBlank()) 
@@ -885,6 +962,94 @@ public class SifenService {
     }
 
     /**
+     * Crea un objeto DocumentoElectronico de SIFEN desde una nota de crédito y genera su XML.
+     * Similar a crearDocumentoElectronicoSifen para factura, pero para nota de crédito.
+     * 
+     * @param notaCredito La nota de crédito con todos sus datos
+     * @return Resultado con el objeto DE de SIFEN, CDC y XML generado
+     * @throws BusinessException Si hay error en la construcción
+     */
+    public CrearDEResult crearDocumentoElectronicoSifenDesdeNotaCredito(NotaCredito notaCredito) throws BusinessException {
+        log.info("📝 Creando Documento Electrónico de SIFEN para nota de crédito ID: {}", notaCredito.getId());
+        
+        try {
+            // 1. Obtener items de la nota de crédito
+            List<NotaCreditoItem> items = notaCreditoItemRepository.findByNotaCreditoId(notaCredito.getId());
+            if (items == null || items.isEmpty()) {
+                throw new IllegalArgumentException("Nota de crédito sin items - no se puede crear DE");
+            }
+            
+            // 2. Obtener configuración SIFEN para la empresa/timbrado
+            Timbrado timbrado = notaCredito.getTimbradoDetalle().getTimbrado();
+            SifenConfig config = sifenConfigFactory.buildForTimbrado(timbrado.getId());
+            
+            log.debug("🔧 Configuración SIFEN obtenida para empresa {} (timbrado {})", 
+                    notaCredito.getEmpresa().getId(), timbrado.getId());
+            
+            // 3. Construir el objeto DE de SIFEN completo
+            com.roshka.sifen.core.beans.DocumentoElectronico deSifen = 
+                construirDEDesdeNotaCredito(notaCredito, items, config);
+            
+            log.debug("   ✅ Objeto DE de SIFEN construido correctamente");
+            
+            // Validar que el DE tenga todos los grupos requeridos
+            validarDECompletoNotaCredito(deSifen, notaCredito);
+            
+            // 4. Obtener CDC del objeto DE
+            String cdc = deSifen.obtenerCDC();
+            deSifen.setId(cdc);
+            log.info("   CDC generado: {}", cdc);
+            
+            if (cdc == null || cdc.isBlank()) {
+                log.error("❌ Error: No se pudo generar el CDC del documento electrónico");
+                throw new BusinessException("No se pudo generar el CDC del documento electrónico. Verificar datos del documento.");
+            }
+            
+            // 5. Generar XML original usando el contexto de generación
+            String xmlOriginal = execute(config, () -> {
+                try {
+                    com.roshka.sifen.internal.ctx.GenerationCtx ctx = 
+                        com.roshka.sifen.internal.ctx.GenerationCtx.getDefaultFromConfig(config);
+                    log.debug("   ✅ Contexto de generación creado correctamente");
+                    
+                    log.debug("   🔨 Llamando a generarXml()...");
+                    String xml = deSifen.generarXml(ctx);
+                    
+                    if (xml == null || xml.isBlank()) {
+                        log.error("❌ Error: generarXml() retornó XML vacío");
+                        throw new BusinessException("No se pudo generar el XML del documento electrónico. El XML generado está vacío.");
+                    }
+                    
+                    log.info("   ✅ XML original generado ({} caracteres)", xml.length());
+                    return xml;
+                } catch (Exception e) {
+                    log.error("❌ Excepción al generar XML: {}", e.getMessage(), e);
+                    throw new BusinessException("Error al generar XML: " + e.getMessage(), e);
+                }
+            });
+            
+            // 6. Extraer URL QR del XML (si está disponible)
+            String urlQr = null;
+            try {
+                urlQr = com.frcefact.sifen.util.SifenResponseParser.extractUrlQr(xmlOriginal);
+                if (urlQr != null && !urlQr.isBlank()) {
+                    log.info("   ✅ URL QR extraída del XML ({} caracteres)", urlQr.length());
+                } else {
+                    log.warn("   ⚠️ URL QR no encontrada en XML - continuando sin URL QR");
+                }
+            } catch (Exception e) {
+                log.warn("   ⚠️ Error al extraer URL QR del XML: {} - continuando sin URL QR", e.getMessage());
+            }
+            
+            return new CrearDEResult(deSifen, cdc, xmlOriginal, urlQr);
+            
+        } catch (Exception e) {
+            log.error("❌ Error al crear DE de SIFEN para nota de crédito ID: {}: {}", notaCredito.getId(), e.getMessage(), e);
+            throw new BusinessException("Error al crear DE de SIFEN: " + e.getMessage());
+        }
+    }
+
+    /**
      * Resultado de la creación de un DE de SIFEN.
      */
     public record CrearDEResult(
@@ -929,9 +1094,16 @@ public class SifenService {
             gTimb.setiTiDE(TTiDE.FACTURA_ELECTRONICA);
             
             Timbrado timbrado = factura.getTimbradoDetalle().getTimbrado();
-            gTimb.setdNumTim(Integer.parseInt(timbrado.getNumero()));
-            gTimb.setdEst(factura.getTimbradoDetalle().getCodigoEstablecimientoFactura());
-            gTimb.setdPunExp(factura.getTimbradoDetalle().getPuntoExpedicion());
+            gTimb.setdNumTim(Integer.parseInt(timbrado.getNumero().trim()));
+            
+            // Formatear código de establecimiento con padding de 3 dígitos
+            String codEstablecimiento = factura.getTimbradoDetalle().getCodigoEstablecimientoFactura().trim();
+            gTimb.setdEst(String.format("%03d", Integer.parseInt(codEstablecimiento)));
+            
+            // Formatear punto de expedición con padding de 3 dígitos
+            String puntoExpedicion = factura.getTimbradoDetalle().getPuntoExpedicion().trim();
+            gTimb.setdPunExp(String.format("%03d", Integer.parseInt(puntoExpedicion)));
+            
             gTimb.setdNumDoc(String.format("%07d", factura.getNumeroFactura()));
             
             // Fecha de inicio del timbrado (requerida)
@@ -1358,6 +1530,497 @@ public class SifenService {
 
         gDtipDE.setgCamItemList(gCamItemList);
         return gDtipDE;
+    }
+
+    /**
+     * Construye un objeto DocumentoElectronico de jsifenlib directamente desde los datos de la nota de crédito.
+     * Similar a construirDEDesdeFactura, pero adaptado para Nota de Crédito.
+     * 
+     * @param notaCredito La nota de crédito con todos sus datos
+     * @param items Lista de items de la nota de crédito
+     * @param config Configuración SIFEN (necesaria para algunos cálculos)
+     * @return Objeto DocumentoElectronico de jsifenlib listo para enviar
+     * @throws BusinessException Si hay error en la construcción
+     */
+    private com.roshka.sifen.core.beans.DocumentoElectronico construirDEDesdeNotaCredito(
+            NotaCredito notaCredito, List<NotaCreditoItem> items, SifenConfig config) throws BusinessException {
+        
+        log.debug("🔨 Construyendo DE desde NotaCredito ID: {}", notaCredito.getId());
+        
+        try {
+            // Grupo A - Identificación del DE
+            com.roshka.sifen.core.beans.DocumentoElectronico DE = 
+                new com.roshka.sifen.core.beans.DocumentoElectronico();
+            DE.setdFecFirma(notaCredito.getFecha() != null ? notaCredito.getFecha() : LocalDateTime.now());
+            DE.setdSisFact((short) 1);
+
+            // Grupo B - Operación del DE
+            TgOpeDE gOpeDE = new TgOpeDE();
+            gOpeDE.setiTipEmi(TTipEmi.NORMAL);
+            String codigoSeguridad = xmlGeneratorService.generarCodigoSeguridad();
+            gOpeDE.setdCodSeg(codigoSeguridad);
+            log.debug("   Código de seguridad generado (dCodSeg): {}", codigoSeguridad);
+            DE.setgOpeDE(gOpeDE);
+
+            // Grupo C - Timbrado (Nota de Crédito)
+            TgTimb gTimb = new TgTimb();
+            gTimb.setiTiDE(TTiDE.NOTA_DE_CREDITO_ELECTRONICA); // Tipo 5 = Nota de Crédito Electrónica
+            
+            Timbrado timbrado = notaCredito.getTimbradoDetalle().getTimbrado();
+            String numTimbrado = timbrado.getNumero().trim();
+            gTimb.setdNumTim(Integer.parseInt(numTimbrado));
+            
+            // Formatear código de establecimiento con padding de 3 dígitos
+            String codEstablecimiento = notaCredito.getTimbradoDetalle().getCodigoEstablecimientoFactura().trim();
+            String codEstFormateado = String.format("%03d", Integer.parseInt(codEstablecimiento));
+            gTimb.setdEst(codEstFormateado);
+            
+            // Formatear punto de expedición con padding de 3 dígitos
+            String puntoExpedicion = notaCredito.getTimbradoDetalle().getPuntoExpedicion().trim();
+            String puntoExpFormateado = String.format("%03d", Integer.parseInt(puntoExpedicion));
+            gTimb.setdPunExp(puntoExpFormateado);
+            
+            String numDocFormateado = String.format("%07d", notaCredito.getNumeroNotaCredito());
+            gTimb.setdNumDoc(numDocFormateado);
+            
+            // Fecha de inicio del timbrado (requerida)
+            LocalDate fechaInicioTimbrado;
+            if (timbrado.getFechaInicio() != null) {
+                fechaInicioTimbrado = timbrado.getFechaInicio();
+                gTimb.setdFeIniT(fechaInicioTimbrado);
+            } else {
+                log.warn("⚠️ Timbrado sin fecha de inicio - usando fecha actual");
+                fechaInicioTimbrado = LocalDateTime.now().toLocalDate();
+                gTimb.setdFeIniT(fechaInicioTimbrado);
+            }
+            
+            DE.setgTimb(gTimb);
+            
+            log.info("📋 Timbrado configurado para Nota de Crédito:");
+            log.info("   - Tipo DE (iTiDE): {} ({})", TTiDE.NOTA_DE_CREDITO_ELECTRONICA.getVal(), TTiDE.NOTA_DE_CREDITO_ELECTRONICA.getDescripcion());
+            log.info("   - Número Timbrado (dNumTim): {} (tipo: {})", numTimbrado, Integer.class.getSimpleName());
+            log.info("   - Establecimiento (dEst): '{}' (original: '{}', longitud: {})", codEstFormateado, codEstablecimiento, codEstFormateado.length());
+            log.info("   - Punto Expedición (dPunExp): '{}' (original: '{}', longitud: {})", puntoExpFormateado, puntoExpedicion, puntoExpFormateado.length());
+            log.info("   - Número Documento (dNumDoc): '{}' (longitud: {})", numDocFormateado, numDocFormateado.length());
+            log.info("   - Fecha Inicio Timbrado (dFeIniT): {} (tipo: LocalDate)", fechaInicioTimbrado);
+            log.info("   - Fecha Emisión DE: {}", notaCredito.getFecha());
+            
+            // Validar que los campos tengan el formato correcto
+            if (codEstFormateado.length() != 3) {
+                log.error("❌ ERROR: dEst debe tener exactamente 3 caracteres, tiene: {}", codEstFormateado.length());
+            }
+            if (puntoExpFormateado.length() != 3) {
+                log.error("❌ ERROR: dPunExp debe tener exactamente 3 caracteres, tiene: {}", puntoExpFormateado.length());
+            }
+            if (numDocFormateado.length() != 7) {
+                log.error("❌ ERROR: dNumDoc debe tener exactamente 7 caracteres, tiene: {}", numDocFormateado.length());
+            }
+
+            // Grupo D - Datos Generales de la Operación
+            TdDatGralOpe dDatGralOpe = new TdDatGralOpe();
+            dDatGralOpe.setdFeEmiDE(notaCredito.getFecha());
+
+            TgOpeCom gOpeCom = new TgOpeCom();
+            gOpeCom.setiTipTra(TTipTra.VENTA_MERCADERIA);
+            gOpeCom.setiTImp(TTImp.IVA);
+            
+            // Configurar moneda de operación
+            String monedaExtranjera = notaCredito.getMonedaExtranjera();
+            BigDecimal cambio = notaCredito.getCambio();
+            
+            if (monedaExtranjera != null && !monedaExtranjera.trim().isEmpty() && !monedaExtranjera.equals("PYG")) {
+                try {
+                    CMondT moneda = CMondT.valueOf(monedaExtranjera.toUpperCase());
+                    gOpeCom.setcMoneOpe(moneda);
+                    gOpeCom.setdCondTiCam(TdCondTiCam.GLOBAL);
+                    if (cambio != null && cambio.compareTo(BigDecimal.ZERO) > 0) {
+                        gOpeCom.setdTiCam(cambio.setScale(6, RoundingMode.HALF_UP));
+                    } else {
+                        throw new BusinessException("Tipo de cambio es requerido y debe ser mayor a 0 para moneda extranjera");
+                    }
+                    log.debug("✅ Moneda extranjera configurada: {} con tipo de cambio: {}", monedaExtranjera, cambio);
+                } catch (IllegalArgumentException e) {
+                    log.error("❌ Código de moneda no válido: {}", monedaExtranjera);
+                    throw new BusinessException("Código de moneda no válido: " + monedaExtranjera);
+                }
+            } else {
+                gOpeCom.setcMoneOpe(CMondT.PYG);
+            }
+            
+            dDatGralOpe.setgOpeCom(gOpeCom);
+
+            // Datos del Emisor (usar método existente pero adaptado)
+            TgEmis gEmis = construirDatosEmisorNotaCredito(notaCredito);
+            dDatGralOpe.setgEmis(gEmis);
+
+            // Datos del Receptor (usar método existente pero adaptado)
+            TgDatRec gDatRec = construirDatosReceptorNotaCredito(notaCredito);
+            dDatGralOpe.setgDatRec(gDatRec);
+            
+            DE.setgDatGralOpe(dDatGralOpe);
+
+            // Grupo E - Items y condiciones (específico para Nota de Crédito)
+            TgDtipDE gDtipDE = construirDatosItemsNotaCredito(notaCredito, items);
+            DE.setgDtipDE(gDtipDE);
+
+            // Grupo H - Documento Asociado (obligatorio para Nota de Crédito)
+            if (notaCredito.getFacturaLegal() == null) {
+                throw new BusinessException("Nota de crédito debe tener una factura asociada");
+            }
+            
+            FacturaLegal facturaAsociada = notaCredito.getFacturaLegal();
+            List<TgCamDEAsoc> gCamDEAsocList = new ArrayList<>();
+            TgCamDEAsoc gCamDEAsoc = new TgCamDEAsoc();
+            
+            // Buscar el DE de la factura asociada
+            DocumentoElectronico deFactura = documentoElectronicoRepository.findByFacturaLegalId(facturaAsociada.getId())
+                    .orElseThrow(() -> new BusinessException("La factura asociada no tiene un documento electrónico. " +
+                            "La nota de crédito debe referenciar una factura electrónica."));
+            
+            if (deFactura.getCdc() == null || deFactura.getCdc().isBlank()) {
+                throw new BusinessException("La factura asociada no tiene CDC. No se puede crear la nota de crédito.");
+            }
+            
+            gCamDEAsoc.setiTipDocAso(TiTipDocAso.ELECTRONICO); // 1 = Electrónico
+            String cdcFacturaAsociada = deFactura.getCdc();
+            gCamDEAsoc.setdCdCDERef(cdcFacturaAsociada);
+            gCamDEAsocList.add(gCamDEAsoc);
+            DE.setgCamDEAsocList(gCamDEAsocList);
+            
+            log.info("📄 Documento asociado configurado:");
+            log.info("   - Tipo documento asociado (iTipDocAso): {} ({})", TiTipDocAso.ELECTRONICO.getVal(), TiTipDocAso.ELECTRONICO.getDescripcion());
+            log.info("   - CDC factura asociada (dCdCDERef): '{}' (longitud: {})", cdcFacturaAsociada, cdcFacturaAsociada != null ? cdcFacturaAsociada.length() : 0);
+            
+            // Validar que el CDC tenga el formato correcto (44 caracteres)
+            if (cdcFacturaAsociada == null || cdcFacturaAsociada.length() != 44) {
+                log.error("❌ ERROR: CDC de factura asociada debe tener exactamente 44 caracteres, tiene: {}", 
+                    cdcFacturaAsociada != null ? cdcFacturaAsociada.length() : 0);
+            }
+
+            // Grupo F - Totales
+            TgTotSub gTotSub = new TgTotSub();
+            DE.setgTotSub(gTotSub);
+            aplicarFixTotalesIVA(gTotSub);
+            
+            log.debug("✅ DE construido exitosamente desde nota de crédito ID: {}", notaCredito.getId());
+            log.debug("   - Items procesados: {}", items.size());
+            log.debug("   - Documento asociado: CDC {}", deFactura.getCdc());
+            
+            return DE;
+            
+        } catch (Exception e) {
+            log.error("❌ Error al construir DE desde nota de crédito ID: {}: {}", notaCredito.getId(), e.getMessage(), e);
+            throw new BusinessException("Error al construir DE desde nota de crédito: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Construye los datos del emisor desde la nota de crédito.
+     */
+    private TgEmis construirDatosEmisorNotaCredito(NotaCredito notaCredito) {
+        TgEmis gEmis = new TgEmis();
+        
+        Empresa empresa = notaCredito.getEmpresa();
+        
+        // RUC del emisor
+        String rucCompleto = empresa.getRuc();
+        String[] rucPartes = rucCompleto.split("-");
+        gEmis.setdRucEm(rucPartes[0]);
+        gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
+        
+        gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
+        gEmis.setdNomEmi(empresa.getRazonSocial());
+        gEmis.setdDirEmi(notaCredito.getTimbradoDetalle().getDireccion() != null 
+                ? notaCredito.getTimbradoDetalle().getDireccion() : "");
+        gEmis.setdNumCas("0");
+        gEmis.setdTelEmi(notaCredito.getTimbradoDetalle().getTelefono() != null 
+                ? notaCredito.getTimbradoDetalle().getTelefono() : "");
+        gEmis.setdEmailE(empresa.getEmail() != null ? empresa.getEmail() : "");
+        
+        // Datos geográficos
+        if (notaCredito.getTimbradoDetalle().getCiudad() != null) {
+            com.frcefact.model.Ciudad ciudad = notaCredito.getTimbradoDetalle().getCiudad();
+            
+            if (ciudad.getDistrito() != null && ciudad.getDistrito().getDepartamento() != null) {
+                com.frcefact.model.Departamento departamento = ciudad.getDistrito().getDepartamento();
+                TDepartamento tdep = mapearDepartamento(departamento.getNombre());
+                gEmis.setcDepEmi(tdep);
+            } else {
+                gEmis.setcDepEmi(TDepartamento.CAPITAL);
+            }
+            
+            try {
+                String codigoCiudad = ciudad.getCodigo();
+                if (codigoCiudad != null && !codigoCiudad.isBlank()) {
+                    gEmis.setcCiuEmi(Integer.parseInt(codigoCiudad));
+                } else {
+                    gEmis.setcCiuEmi(0);
+                }
+            } catch (NumberFormatException e) {
+                gEmis.setcCiuEmi(0);
+            }
+            
+            gEmis.setdDesCiuEmi(ciudad.getNombre());
+        } else {
+            gEmis.setcDepEmi(TDepartamento.CAPITAL);
+            gEmis.setcCiuEmi(0);
+            gEmis.setdDesCiuEmi("");
+        }
+        
+        // Actividades económicas
+        List<TgActEco> gActEcoList = construirActividadesEconomicas(empresa);
+        gEmis.setgActEcoList(gActEcoList);
+        
+        return gEmis;
+    }
+
+    /**
+     * Construye los datos del receptor desde la nota de crédito.
+     * Para Nota de Crédito, el receptor NO puede ser innominado según SIFEN.
+     */
+    private TgDatRec construirDatosReceptorNotaCredito(NotaCredito notaCredito) {
+        TgDatRec gDatRec = new TgDatRec();
+        
+        // Usar datos del snapshot del cliente guardado en la nota
+        String nombre = notaCredito.getNombre();
+        String ruc = notaCredito.getRuc();
+        
+        if (nombre == null || nombre.isBlank() || ruc == null || ruc.isBlank()) {
+            throw new BusinessException("Nota de crédito debe tener cliente identificado (nombre y RUC). No se permite receptor innominado.");
+        }
+        
+        // Determinar si es contribuyente
+        boolean esContribuyente = ruc != null && ruc.length() >= 6; // RUC tiene al menos 6 dígitos
+        
+        if (esContribuyente) {
+            gDatRec.setiNatRec(TiNatRec.CONTRIBUYENTE);
+            gDatRec.setiTiOpe(TiTiOpe.B2B);
+            gDatRec.setiTiContRec(TiTipCont.PERSONA_JURIDICA);
+            
+            String[] rucPartes = ruc.split("-");
+            gDatRec.setdRucRec(rucPartes[0]);
+            if (rucPartes.length > 1) {
+                gDatRec.setdDVRec(Short.parseShort(rucPartes[1]));
+            }
+            
+            gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
+            gDatRec.setdNumIDRec(rucPartes[0]);
+        } else {
+            gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
+            gDatRec.setiTiOpe(TiTiOpe.B2C);
+            gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
+            gDatRec.setdNumIDRec(ruc != null ? ruc.replaceAll("[^0-9]", "") : "0");
+        }
+        
+        gDatRec.setdNomRec(nombre);
+        gDatRec.setcPaisRec(PaisType.PRY);
+        
+        return gDatRec;
+    }
+
+    /**
+     * Construye los datos de items y condiciones para Nota de Crédito.
+     */
+    private TgDtipDE construirDatosItemsNotaCredito(NotaCredito notaCredito, List<NotaCreditoItem> items) {
+        TgDtipDE gDtipDE = new TgDtipDE();
+
+        // Grupo específico de Nota de Crédito
+        TgCamNCDE gCamNCDE = new TgCamNCDE();
+        
+        // Mapear motivo de emisión
+        String motivoEmision = notaCredito.getMotivoEmision();
+        TiMotEmi tiMotEmi = TiMotEmi.DEVOLUCION_Y_AJUSTES_DE_PRECIOS; // Por defecto
+        
+        if (motivoEmision != null && !motivoEmision.isBlank()) {
+            try {
+                // Intentar mapear el motivo de emisión al enum
+                tiMotEmi = TiMotEmi.valueOf(motivoEmision.toUpperCase().replace(" ", "_"));
+            } catch (IllegalArgumentException e) {
+                log.warn("⚠️ Motivo de emisión '{}' no reconocido, usando DEVOLUCION_Y_AJUSTES_DE_PRECIOS por defecto", motivoEmision);
+            }
+        }
+        
+        gCamNCDE.setiMotEmi(tiMotEmi);
+        // La descripción se genera automáticamente desde el enum TiMotEmi
+        gDtipDE.setgCamNCDE(gCamNCDE);
+
+        // NOTA: El documento asociado (gCamDEAsocList) se agrega directamente al objeto DocumentoElectronico
+        // en el método construirDEDesdeNotaCredito, no aquí en TgDtipDE
+
+        // Condiciones de pago (similar a factura)
+        TgCamCond gCamCond = new TgCamCond();
+        gCamCond.setiCondOpe(TiCondOpe.CONTADO); // Nota de crédito generalmente es contado
+
+        List<TgPaConEIni> gPaConEIniList = new ArrayList<>();
+        TgPaConEIni gPaConEIni = new TgPaConEIni();
+        gPaConEIni.setiTiPago(TiTiPago.EFECTIVO);
+        
+        String monedaExtranjera = notaCredito.getMonedaExtranjera();
+        BigDecimal cambio = notaCredito.getCambio();
+        
+        if (monedaExtranjera != null && !monedaExtranjera.trim().isEmpty() && !monedaExtranjera.equals("PYG")) {
+            try {
+                CMondT moneda = CMondT.valueOf(monedaExtranjera.toUpperCase());
+                gPaConEIni.setcMoneTiPag(moneda);
+                if (cambio != null && cambio.compareTo(BigDecimal.ZERO) > 0) {
+                    gPaConEIni.setdTiCamTiPag(cambio.setScale(6, RoundingMode.HALF_UP));
+                }
+            } catch (IllegalArgumentException e) {
+                gPaConEIni.setcMoneTiPag(CMondT.PYG);
+            }
+        } else {
+            gPaConEIni.setcMoneTiPag(CMondT.PYG);
+        }
+        
+        BigDecimal montoPago;
+        if (monedaExtranjera != null && !monedaExtranjera.trim().isEmpty() && !monedaExtranjera.equals("PYG") 
+            && cambio != null && cambio.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal montoGs = notaCredito.getTotalFinal();
+            BigDecimal montoPagoCalculado = montoGs.divide(cambio, 6, RoundingMode.HALF_UP);
+            montoPago = montoPagoCalculado.setScale(4, RoundingMode.HALF_UP);
+        } else {
+            montoPago = normalizarMontoPago(notaCredito.getTotalFinal());
+        }
+        gPaConEIni.setdMonTiPag(montoPago);
+        
+        gPaConEIniList.add(gPaConEIni);
+        gCamCond.setgPaConEIniList(gPaConEIniList);
+        gDtipDE.setgCamCond(gCamCond);
+
+        // Items
+        List<TgCamItem> gCamItemList = new ArrayList<>();
+        String monedaExtranjeraItem = monedaExtranjera;
+        BigDecimal cambioItem = cambio;
+        
+        for (int i = 0; i < items.size(); i++) {
+            NotaCreditoItem item = items.get(i);
+            TgCamItem gCamItem = new TgCamItem();
+            gCamItem.setdCodInt(String.format("%03d", i + 1));
+            gCamItem.setdDesProSer(item.getDescripcion());
+
+            Producto producto = item.getProducto();
+            BigDecimal cantidad;
+            
+            if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
+                gCamItem.setcUniMed(TcUniMed.kg);
+                cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP);
+            } else {
+                gCamItem.setcUniMed(TcUniMed.UNI);
+                cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);
+            }
+            gCamItem.setdCantProSer(cantidad);
+            
+            TgValorItem gValorItem = new TgValorItem();
+            
+            BigDecimal precioUnitario;
+            if (monedaExtranjeraItem != null && !monedaExtranjeraItem.trim().isEmpty() && !monedaExtranjeraItem.equals("PYG") 
+                && cambioItem != null && cambioItem.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal precioGs = item.getPrecioUnitario();
+                precioUnitario = precioGs.divide(cambioItem, 6, RoundingMode.HALF_UP);
+            } else {
+                precioUnitario = item.getPrecioUnitario();
+            }
+            
+            gValorItem.setdPUniProSer(precioUnitario);
+            
+            TgValorRestaItem gValorRestaItem = new TgValorRestaItem();
+            if (item.getDescuento() != null && item.getDescuento().compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal descuento;
+                if (monedaExtranjeraItem != null && !monedaExtranjeraItem.trim().isEmpty() && !monedaExtranjeraItem.equals("PYG") 
+                    && cambioItem != null && cambioItem.compareTo(BigDecimal.ZERO) > 0) {
+                    descuento = item.getDescuento().divide(cambioItem, 6, RoundingMode.HALF_UP);
+                } else {
+                    descuento = item.getDescuento();
+                }
+                gValorRestaItem.setdDescItem(descuento);
+            }
+            gValorItem.setgValorRestaItem(gValorRestaItem);
+            gCamItem.setgValorItem(gValorItem);
+
+            // IVA
+            TgCamIVA gCamIVA = new TgCamIVA();
+            Integer iva = item.getIva() != null ? item.getIva() : 10;
+            
+            switch (iva) {
+                case 5:
+                    gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
+                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
+                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(5));
+                    break;
+                case 0:
+                    gCamIVA.setiAfecIVA(TiAfecIVA.EXENTO);
+                    gCamIVA.setdPropIVA(BigDecimal.ZERO);
+                    gCamIVA.setdTasaIVA(BigDecimal.ZERO);
+                    break;
+                case 10:
+                default:
+                    gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
+                    gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
+                    gCamIVA.setdTasaIVA(BigDecimal.valueOf(10));
+                    break;
+            }
+            gCamItem.setgCamIVA(gCamIVA);
+
+            gCamItemList.add(gCamItem);
+        }
+
+        gDtipDE.setgCamItemList(gCamItemList);
+        return gDtipDE;
+    }
+
+    /**
+     * Valida que el DE tenga todos los grupos requeridos antes de generar el XML (para Nota de Crédito).
+     */
+    private void validarDECompletoNotaCredito(com.roshka.sifen.core.beans.DocumentoElectronico de, NotaCredito notaCredito) {
+        if (de == null) {
+            throw new BusinessException("El objeto DE es null");
+        }
+        
+        if (de.getgOpeDE() == null) {
+            throw new BusinessException("Grupo B (gOpeDE) no está configurado");
+        }
+        
+        if (de.getgTimb() == null) {
+            throw new BusinessException("Grupo C (gTimb) no está configurado");
+        }
+        
+        if (de.getgTimb().getiTiDE() != TTiDE.NOTA_DE_CREDITO_ELECTRONICA) {
+            throw new BusinessException("El tipo de documento debe ser NOTA_DE_CREDITO_ELECTRONICA");
+        }
+        
+        if (de.getgDatGralOpe() == null) {
+            throw new BusinessException("Grupo D (gDatGralOpe) no está configurado");
+        }
+        
+        if (de.getgDatGralOpe().getgEmis() == null) {
+            throw new BusinessException("Datos del emisor (gEmis) no están configurados");
+        }
+        
+        if (de.getgDatGralOpe().getgDatRec() == null) {
+            throw new BusinessException("Datos del receptor (gDatRec) no están configurados");
+        }
+        
+        if (de.getgDtipDE() == null) {
+            throw new BusinessException("Grupo E (gDtipDE) no está configurado");
+        }
+        
+        if (de.getgDtipDE().getgCamNCDE() == null) {
+            throw new BusinessException("Grupo gCamNCDE (específico de Nota de Crédito) no está configurado");
+        }
+        
+        if (de.getgCamDEAsocList() == null || de.getgCamDEAsocList().isEmpty()) {
+            throw new BusinessException("Documento asociado (gCamDEAsocList) es obligatorio para Nota de Crédito");
+        }
+        
+        if (de.getgDtipDE().getgCamItemList() == null || de.getgDtipDE().getgCamItemList().isEmpty()) {
+            throw new BusinessException("No hay items en el documento electrónico");
+        }
+        
+        if (de.getgTotSub() == null) {
+            throw new BusinessException("Grupo F (gTotSub) no está configurado");
+        }
+        
+        log.debug("   ✅ Validación de DE completa - todos los grupos están presentes");
     }
 
     /**

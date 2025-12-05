@@ -8,11 +8,16 @@ import com.frcefact.dto.LoteDeDto;
 import com.frcefact.dto.mapper.DocumentoElectronicoMapper;
 import com.frcefact.model.Cliente;
 import com.frcefact.model.DocumentoElectronico;
+import com.frcefact.model.EstadoEvento;
+import com.frcefact.model.EventoCancelacionDE;
 import com.frcefact.model.EventoInutilizacionDE;
 import com.frcefact.model.EventoNominacionDE;
 import com.frcefact.model.LoteDE;
 import com.frcefact.model.Timbrado;
 import com.frcefact.repository.ClienteRepository;
+import com.frcefact.repository.EventoCancelacionDERepository;
+import com.frcefact.repository.EventoNominacionDERepository;
+import com.frcefact.repository.EventoInutilizacionDERepository;
 import com.frcefact.repository.TimbradoRepository;
 import com.frcefact.service.sifen.SifenEventoService;
 import com.frcefact.service.sifen.SifenService;
@@ -23,9 +28,16 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/sifen")
@@ -39,17 +51,26 @@ public class SifenController {
     private final DocumentoElectronicoMapper documentoElectronicoMapper;
     private final ClienteRepository clienteRepository;
     private final TimbradoRepository timbradoRepository;
+    private final EventoCancelacionDERepository eventoCancelacionDERepository;
+    private final EventoNominacionDERepository eventoNominacionDERepository;
+    private final EventoInutilizacionDERepository eventoInutilizacionDERepository;
 
     public SifenController(SifenService sifenService,
                            SifenEventoService sifenEventoService,
                            DocumentoElectronicoMapper documentoElectronicoMapper,
                            ClienteRepository clienteRepository,
-                           TimbradoRepository timbradoRepository) {
+                           TimbradoRepository timbradoRepository,
+                           EventoCancelacionDERepository eventoCancelacionDERepository,
+                           EventoNominacionDERepository eventoNominacionDERepository,
+                           EventoInutilizacionDERepository eventoInutilizacionDERepository) {
         this.sifenService = sifenService;
         this.sifenEventoService = sifenEventoService;
         this.documentoElectronicoMapper = documentoElectronicoMapper;
         this.clienteRepository = clienteRepository;
         this.timbradoRepository = timbradoRepository;
+        this.eventoCancelacionDERepository = eventoCancelacionDERepository;
+        this.eventoNominacionDERepository = eventoNominacionDERepository;
+        this.eventoInutilizacionDERepository = eventoInutilizacionDERepository;
     }
 
     @PostMapping("/lotes/{loteId}/enviar")
@@ -103,6 +124,16 @@ public class SifenController {
         return ResponseEntity.ok(documentoElectronicoMapper.toDto(documento));
     }
 
+    @GetMapping("/documentos/nota-credito/{notaCreditoId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @Operation(summary = "Obtener documento electrónico por ID de nota de crédito")
+    public ResponseEntity<DocumentoElectronicoDto> obtenerDocumentoPorNotaCredito(
+            @Parameter(description = "ID de la nota de crédito") @PathVariable Long notaCreditoId) {
+        log.info("🔍 Obteniendo documento electrónico para nota de crédito {}", notaCreditoId);
+        DocumentoElectronico documento = sifenService.obtenerDocumentoPorNotaCreditoId(notaCreditoId);
+        return ResponseEntity.ok(documentoElectronicoMapper.toDto(documento));
+    }
+
     @PostMapping("/documentos/{deId}/reenviar")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
     @Operation(summary = "Reenviar un documento electrónico en un nuevo lote")
@@ -147,6 +178,60 @@ public class SifenController {
                 request.getTimbradoDetalleId()
         );
         return ResponseEntity.ok(EventoInutilizacionDeDto.fromEntity(evento));
+    }
+
+    @GetMapping("/eventos/cancelacion")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    @Operation(summary = "Listar eventos de cancelación con filtros y paginación")
+    public ResponseEntity<Page<EventoCancelacionDeDto>> listarEventosCancelacion(
+            @Parameter(description = "ID de la empresa") @RequestParam(required = false) Long empresaId,
+            @Parameter(description = "Estado del evento") @RequestParam(required = false) EstadoEvento estado,
+            @Parameter(description = "CDC del documento (búsqueda parcial)") @RequestParam(required = false) String cdcDocumento,
+            @Parameter(description = "Fecha inicio (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @Parameter(description = "Fecha fin (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
+            @PageableDefault(size = 20, sort = "creadoEn", direction = Sort.Direction.DESC) Pageable pageable) {
+        log.info("📋 Listando eventos de cancelación - Empresa: {}, Estado: {}, CDC: {}", empresaId, estado, cdcDocumento);
+        // Normalizar cdcDocumento: convertir string vacío a null
+        String normalizedCdcDocumento = (cdcDocumento != null && cdcDocumento.trim().isEmpty()) ? null : cdcDocumento;
+        Page<EventoCancelacionDE> eventosPage = eventoCancelacionDERepository.findWithFilters(
+                empresaId, estado, normalizedCdcDocumento, fechaInicio, fechaFin, pageable);
+        Page<EventoCancelacionDeDto> dtosPage = eventosPage.map(EventoCancelacionDeDto::fromEntity);
+        return ResponseEntity.ok(dtosPage);
+    }
+
+    @GetMapping("/eventos/nominacion")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    @Operation(summary = "Listar eventos de nominación con filtros y paginación")
+    public ResponseEntity<Page<EventoNominacionDeDto>> listarEventosNominacion(
+            @Parameter(description = "ID de la empresa") @RequestParam(required = false) Long empresaId,
+            @Parameter(description = "Estado del evento") @RequestParam(required = false) EstadoEvento estado,
+            @Parameter(description = "CDC del documento (búsqueda parcial)") @RequestParam(required = false) String cdcDocumento,
+            @Parameter(description = "Nombre del receptor (búsqueda parcial)") @RequestParam(required = false) String nombreReceptor,
+            @Parameter(description = "Fecha inicio (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @Parameter(description = "Fecha fin (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
+            @PageableDefault(size = 20, sort = "creadoEn", direction = Sort.Direction.DESC) Pageable pageable) {
+        log.info("📋 Listando eventos de nominación - Empresa: {}, Estado: {}, CDC: {}", empresaId, estado, cdcDocumento);
+        Page<EventoNominacionDE> eventosPage = eventoNominacionDERepository.findWithFilters(
+                empresaId, estado, cdcDocumento, nombreReceptor, fechaInicio, fechaFin, pageable);
+        Page<EventoNominacionDeDto> dtosPage = eventosPage.map(EventoNominacionDeDto::fromEntity);
+        return ResponseEntity.ok(dtosPage);
+    }
+
+    @GetMapping("/eventos/inutilizacion")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    @Operation(summary = "Listar eventos de inutilización con filtros y paginación")
+    public ResponseEntity<Page<EventoInutilizacionDeDto>> listarEventosInutilizacion(
+            @Parameter(description = "ID de la empresa") @RequestParam(required = false) Long empresaId,
+            @Parameter(description = "ID del timbrado") @RequestParam(required = false) Long timbradoId,
+            @Parameter(description = "Estado del evento") @RequestParam(required = false) EstadoEvento estado,
+            @Parameter(description = "Fecha inicio (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
+            @Parameter(description = "Fecha fin (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
+            @PageableDefault(size = 20, sort = "creadoEn", direction = Sort.Direction.DESC) Pageable pageable) {
+        log.info("📋 Listando eventos de inutilización - Empresa: {}, Timbrado: {}, Estado: {}", empresaId, timbradoId, estado);
+        Page<EventoInutilizacionDE> eventosPage = eventoInutilizacionDERepository.findWithFilters(
+                empresaId, timbradoId, estado, fechaInicio, fechaFin, pageable);
+        Page<EventoInutilizacionDeDto> dtosPage = eventosPage.map(EventoInutilizacionDeDto::fromEntity);
+        return ResponseEntity.ok(dtosPage);
     }
 
     public static class CancelarRequest {

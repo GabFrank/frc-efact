@@ -13,6 +13,8 @@ import { FacturaApiService } from '../../core/api/factura-api.service';
 import { FacturaLegal } from '../../models/factura.model';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { NotaCreditoFormDialogComponent } from '../notas/nota-credito-form-dialog.component';
+import { NotaDebitoFormDialogComponent } from '../notas/nota-debito-form-dialog.component';
 
 @Component({
   selector: 'app-factura-view',
@@ -63,6 +65,14 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
             <button mat-raised-button (click)="imprimir()">
               <mat-icon>print</mat-icon>
               Imprimir PDF
+            </button>
+            <button mat-raised-button color="primary" (click)="crearNotaCredito()">
+              <mat-icon>add_circle</mat-icon>
+              Nota de Crédito
+            </button>
+            <button mat-raised-button color="accent" (click)="crearNotaDebito()">
+              <mat-icon>remove_circle</mat-icon>
+              Nota de Débito
             </button>
           </div>
         </div>
@@ -458,8 +468,12 @@ export class FacturaViewComponent implements OnInit {
 
   ngOnInit(): void {
     const id = this.route.snapshot.params['id'];
-    if (id) {
+    // Validar que el ID sea un número válido y no sea una palabra reservada
+    if (id && !isNaN(Number(id)) && Number(id) > 0 && id !== 'nueva' && id !== 'editar') {
       this.cargarFactura(Number(id));
+    } else {
+      // Si el ID no es válido, redirigir al listado
+      this.router.navigate(['/facturacion']);
     }
   }
 
@@ -621,6 +635,54 @@ export class FacturaViewComponent implements OnInit {
       error: (error) => {
         this.snackBar.open('Error al descargar PDF', 'Cerrar', { duration: 3000 });
         this.loading.set(false);
+      }
+    });
+  }
+
+  crearNotaCredito(): void {
+    const factura = this.factura();
+    if (!factura || !factura.id || !factura.empresaId) {
+      this.snackBar.open('La factura no tiene la información necesaria', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(NotaCreditoFormDialogComponent, {
+      width: '900px',
+      data: {
+        empresaId: factura.empresaId,
+        facturaLegalId: factura.id
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.snackBar.open('Nota de crédito creada exitosamente', 'Cerrar', { duration: 3000 });
+        // Recargar la factura para ver actualizaciones si es necesario
+        this.cargarFactura(factura.id!);
+      }
+    });
+  }
+
+  crearNotaDebito(): void {
+    const factura = this.factura();
+    if (!factura || !factura.id || !factura.empresaId) {
+      this.snackBar.open('La factura no tiene la información necesaria', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(NotaDebitoFormDialogComponent, {
+      width: '900px',
+      data: {
+        empresaId: factura.empresaId,
+        facturaLegalId: factura.id
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.snackBar.open('Nota de débito creada exitosamente', 'Cerrar', { duration: 3000 });
+        // Recargar la factura para ver actualizaciones si es necesario
+        this.cargarFactura(factura.id!);
       }
     });
   }

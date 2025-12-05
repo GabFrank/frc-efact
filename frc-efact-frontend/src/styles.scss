@@ -1,7 +1,14 @@
 /* You can add global styles to this file, and also import other style files */
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
 
 /* Global density and sizing adjustments */
 :root {
@@ -9,7 +16,8 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   font-size: 14px;
 
   /* Material Design density tokens */
-  --mdc-density-scale: -1; /* Compact density */
+  --mdc-density-scale: -1;
+  /* Compact density */
 }
 
 /* Global font size reduction */
@@ -19,24 +27,9 @@ body {
 }
 
 /* Reduce Angular Material component sizes globally */
-.mat-mdc-button {
-  font-size: 14px !important;
-  min-height: 36px !important;
-  padding: 8px 16px !important;
-}
-
-.mat-mdc-raised-button {
-  font-size: 14px !important;
-  min-height: 36px !important;
-  padding: 8px 16px !important;
-}
-
-.mat-mdc-stroked-button {
-  font-size: 14px !important;
-  min-height: 36px !important;
-  padding: 8px 16px !important;
-}
-
+.mat-mdc-button,
+.mat-mdc-raised-button,
+.mat-mdc-stroked-button,
 .mat-mdc-flat-button {
   font-size: 14px !important;
   min-height: 36px !important;
@@ -271,42 +264,212 @@ body {
   height: 18px !important;
 }
 
-/* Snackbar styles */
+/* Snackbar styles - Using CSS variables for better theme support */
 .error-snackbar {
-  background-color: #f44336 !important;
-  color: white !important;
-
-  .mat-mdc-snack-bar-label {
-    color: white !important;
-  }
-
-  .mat-mdc-button {
-    color: white !important;
-  }
+  --mdc-snackbar-container-color: #f44336;
+  --mdc-snackbar-supporting-text-color: white;
+  --mat-snack-bar-button-color: white;
 }
 
 .success-snackbar {
-  background-color: #4caf50 !important;
-  color: white !important;
-
-  .mat-mdc-snack-bar-label {
-    color: white !important;
-  }
-
-  .mat-mdc-button {
-    color: white !important;
-  }
+  --mdc-snackbar-container-color: #4caf50;
+  --mdc-snackbar-supporting-text-color: white;
+  --mat-snack-bar-button-color: white;
 }
 
 .warning-snackbar {
-  background-color: #ff9800 !important;
-  color: white !important;
+  --mdc-snackbar-container-color: #ff9800;
+  --mdc-snackbar-supporting-text-color: white;
+  --mat-snack-bar-button-color: white;
+}
 
-  .mat-mdc-snack-bar-label {
-    color: white !important;
+/* Dark Theme Global Styles */
+body.dark-theme {
+  background-color: #121212;
+  color: #e0e0e0;
+
+  .main-content {
+    background: #121212 !important;
+    color: #e0e0e0 !important;
   }
 
-  .mat-mdc-button {
-    color: white !important;
+  .navbar {
+    background: #1a1a1a !important;
+    border-bottom: 1px solid #333 !important;
+  }
+
+  .sidebar {
+    background: #1e1e1e !important;
+    border-right: 1px solid #333 !important;
+  }
+
+  .sidebar-logo {
+    border-bottom-color: #333 !important;
+  }
+
+  .nav-item {
+    display: block !important;
+  }
+
+  .nav-link {
+    color: #b0b0b0 !important;
+  }
+
+  .nav-link i {
+    color: #b0b0b0 !important;
+  }
+
+  .nav-link:hover {
+    background: #2a2a2a !important;
+    color: #64b5f6 !important;
+  }
+
+  .nav-link:hover i {
+    color: #64b5f6 !important;
+  }
+
+  .nav-link.active {
+    background: #2a2a2a !important;
+    color: #64b5f6 !important;
+  }
+
+  .nav-link.active i {
+    color: #64b5f6 !important;
+  }
+
+  .nav-section-content {
+    background: rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .nav-sub-section-content {
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .company-menu {
+    background: #2a2a2a !important;
+    border: 1px solid #444 !important;
+  }
+
+  .company-menu-item {
+    color: #e0e0e0 !important;
+  }
+
+  .company-menu-item:hover {
+    background: #333 !important;
+  }
+
+  .company-menu-item.selected {
+    background: #1e3a5f !important;
+    color: #64b5f6 !important;
+  }
+
+  .company-menu-item.selected i.fa-building {
+    color: #64b5f6 !important;
+  }
+
+  .company-menu-item i.fa-check {
+    color: #64b5f6 !important;
+  }
+
+  .company-menu-item-ruc {
+    color: #999 !important;
+  }
+
+  .company-menu-divider {
+    background: #444 !important;
+  }
+
+  .company-menu-empty {
+    color: #999 !important;
+  }
+
+  .user-menu {
+    background: #2a2a2a !important;
+    border: 1px solid #444 !important;
+  }
+
+  .user-menu-header {
+    background: #333 !important;
+  }
+
+  .user-menu-name {
+    color: #e0e0e0 !important;
+  }
+
+  .user-menu-role {
+    color: #999 !important;
+  }
+
+  .user-menu-divider {
+    background: #444 !important;
+  }
+
+  .user-menu-item {
+    color: #e0e0e0 !important;
+  }
+
+  .user-menu-item:hover {
+    background: #333 !important;
+  }
+
+  .user-menu-item:active {
+    background: #3a3a3a !important;
+  }
+
+  /* Material Expansion Panel Dark Theme */
+  .nav-expansion-panel {
+    display: block !important;
+  }
+
+  .nav-expansion-panel .mat-expansion-panel-header {
+    color: #b0b0b0 !important;
+  }
+
+  .nav-expansion-panel .mat-expansion-panel-header i {
+    color: #b0b0b0 !important;
+  }
+
+  .nav-expansion-panel .mat-expansion-panel-header:hover {
+    background: #2a2a2a !important;
+    color: #e0e0e0 !important;
+  }
+
+  .nav-expansion-panel .mat-expansion-panel-header:hover i {
+    color: #e0e0e0 !important;
+  }
+
+  .nav-expansion-panel .mat-expansion-panel-header.mat-expanded {
+    background: #2a2a2a !important;
+    color: #64b5f6 !important;
+  }
+
+  .nav-expansion-panel .mat-expansion-panel-header.mat-expanded i {
+    color: #64b5f6 !important;
+  }
+
+  .nav-sub-expansion-panel .mat-expansion-panel-header {
+    color: #b0b0b0 !important;
+  }
+
+  .nav-sub-expansion-panel .mat-expansion-panel-header i {
+    color: #b0b0b0 !important;
+  }
+
+  .nav-sub-expansion-panel .mat-expansion-panel-header:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #e0e0e0 !important;
+  }
+
+  .nav-sub-expansion-panel .mat-expansion-panel-header:hover i {
+    color: #e0e0e0 !important;
+  }
+
+  .nav-sub-expansion-panel .mat-expansion-panel-header.mat-expanded {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #64b5f6 !important;
+  }
+
+  .nav-sub-expansion-panel .mat-expansion-panel-header.mat-expanded i {
+    color: #64b5f6 !important;
   }
 }

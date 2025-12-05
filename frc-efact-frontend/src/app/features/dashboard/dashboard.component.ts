@@ -46,19 +46,11 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
           <div class="quick-actions-section">
             <h2>Acciones Rápidas</h2>
             <div class="actions-grid">
-              <button class="action-card" (click)="navigateTo('/facturacion/nueva')">
+              <button class="action-card" (click)="navigateToFacturacion('')">
                 <i class="fas fa-file-invoice"></i>
                 <span>Factura Electrónica</span>
               </button>
-              <button class="action-card" (click)="navigateTo('/facturacion/nueva?tipo=nota-credito')">
-                <i class="fas fa-file-invoice-dollar"></i>
-                <span>Nota de Crédito</span>
-              </button>
-              <button class="action-card" (click)="navigateTo('/facturacion/nueva?tipo=nota-debito')">
-                <i class="fas fa-file-invoice-dollar"></i>
-                <span>Nota de Débito</span>
-              </button>
-              <button class="action-card" (click)="navigateTo('/facturacion/nueva?tipo=nota-remision')">
+              <button class="action-card" (click)="navigateToFacturacion('nota-remision')">
                 <i class="fas fa-file-alt"></i>
                 <span>Nota de Remisión</span>
               </button>
@@ -133,7 +125,13 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
           <!-- Últimas Facturas -->
           <div class="lists-section">
             <div class="list-container full-width">
+              <div class="list-header">
               <h2>Últimas Facturas</h2>
+                <button class="btn-view-all" (click)="navigateToFacturasList()">
+                  <i class="fas fa-list"></i>
+                  Ver todas las facturas
+                </button>
+              </div>
               <div class="table-container" *ngIf="!loadingFacturas">
                 <table class="facturas-table">
                   <thead>
@@ -441,10 +439,43 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
       width: 100%;
     }
 
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
     .list-container h2 {
-      margin: 0 0 15px 0;
+      margin: 0;
       color: #2c3e50;
       font-size: 1.25rem;
+    }
+
+    .btn-view-all {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .btn-view-all:hover {
+      background: #2980b9;
+      transform: translateY(-2px);
+    }
+
+    .btn-view-all i {
+      font-size: 1rem;
     }
 
     mat-paginator {
@@ -670,6 +701,16 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
       .facturas-table {
         font-size: 0.85rem;
       }
+
+      .list-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .btn-view-all {
+        width: 100%;
+        justify-content: center;
+      }
     }
   `]
 })
@@ -802,6 +843,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   navigateTo(route: string): void {
     this.router.navigate([route]);
+  }
+
+  navigateToFacturacion(tipo: string): void {
+    this.selectedEmpresa$.pipe(takeUntil(this.destroy$)).subscribe(empresa => {
+      if (empresa) {
+        const queryParams: any = { empresaId: empresa.id };
+        if (tipo) {
+          queryParams.tipo = tipo;
+        }
+        this.router.navigate(['/facturacion/nueva'], { queryParams });
+      }
+    });
+  }
+
+  navigateToFacturasList(): void {
+    this.selectedEmpresa$.pipe(takeUntil(this.destroy$)).subscribe(empresa => {
+      if (empresa) {
+        const queryParams: any = { empresaId: empresa.id };
+        this.router.navigate(['/facturacion'], { queryParams });
+      }
+    });
   }
 
   viewFactura(id: number): void {

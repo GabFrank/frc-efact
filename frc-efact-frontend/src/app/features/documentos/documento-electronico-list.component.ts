@@ -1,7 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter, takeUntil, distinctUntilChanged } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -227,13 +229,15 @@ import { CancelarDeDialogComponent } from './cancelar-de-dialog.component';
     }
   `]
 })
-export class DocumentoElectronicoListComponent implements OnInit {
+export class DocumentoElectronicoListComponent implements OnInit, OnDestroy {
   loading = signal(false);
   documentos = signal<DocumentoElectronico[]>([]);
   estadoFiltro: EstadoDE | null = null;
   
   // Expose enum to template
   EstadoDE = EstadoDE;
+  
+  private destroy$ = new Subject<void>();
 
   columns: TableColumn[] = [
     { 
@@ -325,6 +329,26 @@ export class DocumentoElectronicoListComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarDocumentos();
+    
+    // Suscribirse a cambios de ruta para recargar cuando se navega a esta ruta
+    // Usar distinctUntilChanged para evitar múltiples llamadas con la misma URL
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        distinctUntilChanged((prev, curr) => prev.urlAfterRedirects === curr.urlAfterRedirects),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((event) => {
+        // Si la ruta es /documentos/lista, recargar los datos solo si no está cargando
+        if ((event.urlAfterRedirects === '/documentos/lista' || event.urlAfterRedirects.startsWith('/documentos/lista?')) && !this.loading()) {
+          this.cargarDocumentos();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   cargarDocumentos(): void {
@@ -332,11 +356,14 @@ export class DocumentoElectronicoListComponent implements OnInit {
     
     this.deApi.getAll(this.estadoFiltro || undefined).subscribe({
       next: (documentos) => {
-        this.documentos.set(documentos);
+        // Asegurar que siempre sea un array
+        this.documentos.set(Array.isArray(documentos) ? documentos : []);
         this.loading.set(false);
       },
       error: (error) => {
         this.snackBar.open('Error al cargar documentos electrónicos', 'Cerrar', { duration: 3000 });
+        // En caso de error, establecer un array vacío
+        this.documentos.set([]);
         this.loading.set(false);
       }
     });
@@ -360,7 +387,12 @@ export class DocumentoElectronicoListComponent implements OnInit {
   }
 
   getCountByEstado(estado: EstadoDE): number {
-    return this.documentos().filter(d => d.estado === estado).length;
+    const docs = this.documentos();
+    // Asegurar que siempre sea un array
+    if (!Array.isArray(docs)) {
+      return 0;
+    }
+    return docs.filter(d => d.estado === estado).length;
   }
 
   onFilterChange(): void {
@@ -374,7 +406,13 @@ export class DocumentoElectronicoListComponent implements OnInit {
 
   crearLote(): void {
     // Filtrar documentos pendientes
-    const pendientes = this.documentos().filter(d => d.estado === EstadoDE.PENDIENTE);
+    const docs = this.documentos();
+    // Asegurar que siempre sea un array
+    if (!Array.isArray(docs)) {
+      this.snackBar.open('Error: No se pueden cargar los documentos', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    const pendientes = docs.filter(d => d.estado === EstadoDE.PENDIENTE);
     
     if (pendientes.length === 0) {
       this.snackBar.open('No hay documentos pendientes para crear un lote', 'Cerrar', { duration: 3000 });

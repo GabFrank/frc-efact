@@ -1,5 +1,5 @@
 import { ApplicationConfig, LOCALE_ID, isDevMode } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
@@ -22,6 +22,7 @@ import { documentosReducer } from './core/state/documentos/documentos.reducer';
 import { usuariosReducer } from './core/state/usuarios/usuarios.reducer';
 import { timbradosReducer } from './core/state/timbrados/timbrados.reducer';
 import { timbradoDetallesReducer } from './core/state/timbrado-detalles/timbrado-detalles.reducer';
+import { notasReducer } from './core/state/notas/notas.reducer';
 
 // Effects
 import { AuthEffects } from './core/state/auth/auth.effects';
@@ -31,10 +32,15 @@ import { DocumentosEffects } from './core/state/documentos/documentos.effects';
 import { UsuariosEffects } from './core/state/usuarios/usuarios.effects';
 import { TimbradosEffects } from './core/state/timbrados/timbrados.effects';
 import { TimbradoDetallesEffects } from './core/state/timbrado-detalles/timbrado-detalles.effects';
+import { NotasEffects } from './core/state/notas/notas.effects';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideRouter(routes),
+    provideRouter(
+      routes, 
+      withComponentInputBinding(),
+      withRouterConfig({ onSameUrlNavigation: 'reload' })
+    ),
     provideAnimationsAsync(),
     provideAuth0({
       domain: environment.auth0.domain,
@@ -55,7 +61,8 @@ export const appConfig: ApplicationConfig = {
       documentos: documentosReducer,
       usuarios: usuariosReducer,
       timbrados: timbradosReducer,
-      timbradoDetalles: timbradoDetallesReducer
+      timbradoDetalles: timbradoDetallesReducer,
+      notas: notasReducer
     }),
     provideEffects([
       AuthEffects,
@@ -64,7 +71,8 @@ export const appConfig: ApplicationConfig = {
       DocumentosEffects,
       UsuariosEffects,
       TimbradosEffects,
-      TimbradoDetallesEffects
+      TimbradoDetallesEffects,
+      NotasEffects
     ]),
     provideStoreDevtools({
       maxAge: 25,

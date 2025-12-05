@@ -313,7 +313,7 @@ export class LoteListComponent implements OnInit {
   }
 
   volver(): void {
-    this.router.navigate(['/documentos']);
+    this.router.navigate(['/documentos/lista']);
   }
 
   onActionClick(event: { action: string; row: any }): void {

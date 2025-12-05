@@ -22,11 +22,6 @@ export const FACTURACION_ROUTES: Routes = [
         }
       },
       {
-        path: ':id',
-        loadComponent: () => import('./factura-view.component').then(m => m.FacturaViewComponent),
-        data: { title: 'Ver Factura' }
-      },
-      {
         path: ':id/editar',
         loadComponent: () => import('./factura-form.component').then(m => m.FacturaFormComponent),
         canActivate: [roleGuard],
@@ -34,6 +29,11 @@ export const FACTURACION_ROUTES: Routes = [
           title: 'Editar Factura',
           roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']
         }
+      },
+      {
+        path: ':id',
+        loadComponent: () => import('./factura-view.component').then(m => m.FacturaViewComponent),
+        data: { title: 'Ver Factura' }
       }
     ]
   }

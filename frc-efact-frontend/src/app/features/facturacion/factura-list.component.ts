@@ -33,6 +33,8 @@ import { InutilizarNumerosDialogComponent } from './inutilizar-numeros-dialog.co
 import { ClienteFormComponent } from '../clientes/cliente-form.component';
 import { ClienteApiService } from '../../core/api/cliente-api.service';
 import { Cliente } from '../../models/cliente.model';
+import { NotaCreditoFormDialogComponent } from '../notas/nota-credito-form-dialog.component';
+import { NotaDebitoFormDialogComponent } from '../notas/nota-debito-form-dialog.component';
 import * as FacturacionActions from '../../core/state/facturacion/facturacion.actions';
 import {
   selectAllFacturas,
@@ -749,6 +751,23 @@ export class FacturaListComponent implements OnInit, OnDestroy {
       color: 'warn',
       tooltip: 'Eliminar factura',
       group: 'Gestión DE'
+    },
+    // Grupo: Notas
+    {
+      icon: 'add_circle',
+      label: 'Crear Nota de Crédito',
+      color: 'primary',
+      tooltip: 'Crear nota de crédito para esta factura',
+      visible: (row: any) => row.id != null,
+      group: 'Notas'
+    },
+    {
+      icon: 'remove_circle',
+      label: 'Crear Nota de Débito',
+      color: 'accent',
+      tooltip: 'Crear nota de débito para esta factura',
+      visible: (row: any) => row.id != null,
+      group: 'Notas'
     }
   ];
 
@@ -1015,6 +1034,12 @@ export class FacturaListComponent implements OnInit, OnDestroy {
         break;
       case 'Eliminar':
         this.eliminarFactura(factura);
+        break;
+      case 'Crear Nota de Crédito':
+        this.crearNotaCredito(factura);
+        break;
+      case 'Crear Nota de Débito':
+        this.crearNotaDebito(factura);
         break;
     }
   }
@@ -1436,6 +1461,50 @@ export class FacturaListComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(result => {
       if (result) {
+        this.cargarFacturas();
+      }
+    });
+  }
+
+  crearNotaCredito(factura: FacturaLegal): void {
+    if (!factura.id || !factura.empresaId) {
+      this.snackBar.open('La factura no tiene la información necesaria', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(NotaCreditoFormDialogComponent, {
+      width: '900px',
+      data: {
+        empresaId: factura.empresaId,
+        facturaLegalId: factura.id
+      }
+    });
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(result => {
+      if (result) {
+        this.snackBar.open('Nota de crédito creada exitosamente', 'Cerrar', { duration: 3000 });
+        this.cargarFacturas();
+      }
+    });
+  }
+
+  crearNotaDebito(factura: FacturaLegal): void {
+    if (!factura.id || !factura.empresaId) {
+      this.snackBar.open('La factura no tiene la información necesaria', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(NotaDebitoFormDialogComponent, {
+      width: '900px',
+      data: {
+        empresaId: factura.empresaId,
+        facturaLegalId: factura.id
+      }
+    });
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(result => {
+      if (result) {
+        this.snackBar.open('Nota de débito creada exitosamente', 'Cerrar', { duration: 3000 });
         this.cargarFacturas();
       }
     });

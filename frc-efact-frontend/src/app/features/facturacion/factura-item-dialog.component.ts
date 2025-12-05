@@ -5,17 +5,20 @@ import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/materia
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FacturaLegalItem } from '../../models/factura.model';
 import { Producto } from '../../models/producto.model';
 import { AutocompleteOption, AutocompleteSelectComponent } from '../../shared/components/autocomplete-select/autocomplete-select.component';
 
 interface FacturaItemDialogData {
-  item?: FacturaLegalItem;
+  item?: FacturaLegalItem | any; // Permite NotaItem también
   productos: Producto[];
   monedaExtranjera?: string;
   tipoCambio?: number; // Siempre un número (1 si no hay moneda extranjera)
   simboloMoneda?: string;
+  showIva?: boolean; // Si true, muestra campo de IVA
+  showDescuento?: boolean; // Si true, muestra campo de descuento
 }
 
 @Component({
@@ -28,6 +31,7 @@ interface FacturaItemDialogData {
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     AutocompleteSelectComponent
   ],
   template: `
@@ -77,6 +81,31 @@ interface FacturaItemDialogData {
             </mat-error>
             <mat-error *ngIf="form.get('precioUnitario')?.hasError('min')">
               EL PRECIO UNITARIO NO PUEDE SER NEGATIVO
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="dialog-row" *ngIf="data.showDescuento">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>DESCUENTO</mat-label>
+            <span matPrefix>{{ simboloMoneda }}&nbsp;</span>
+            <input matInput type="number" formControlName="descuento" min="0" [step]="monedaExtranjera === 'PYG' ? 100 : 0.01">
+            <mat-error *ngIf="form.get('descuento')?.hasError('min')">
+              EL DESCUENTO NO PUEDE SER NEGATIVO
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="dialog-row" *ngIf="data.showIva">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>IVA</mat-label>
+            <mat-select formControlName="iva">
+              <mat-option [value]="0">0%</mat-option>
+              <mat-option [value]="5">5%</mat-option>
+              <mat-option [value]="10">10%</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('iva')?.hasError('required')">
+              EL IVA ES OBLIGATORIO
             </mat-error>
           </mat-form-field>
         </div>
@@ -170,7 +199,7 @@ export class FacturaItemDialogComponent implements OnInit {
       totalParaMostrar
     });
     
-    this.form = this.fb.group({
+    const formGroupConfig: any = {
       id: [data.item?.id],
       productoId: [data.item?.productoId ?? null, Validators.required],
       descripcion: [data.item?.descripcion ?? '', [Validators.required, Validators.maxLength(500)]],
@@ -178,7 +207,20 @@ export class FacturaItemDialogComponent implements OnInit {
       // El formulario guarda valores en la moneda que el usuario ve (extranjera o PYG)
       // Al guardar, convertiremos a guaraníes multiplicando por tipoCambio
       precioUnitario: [precioUnitarioParaMostrar, [Validators.required, Validators.min(0)]]
-    });
+    };
+
+    // Agregar campos opcionales si se requieren
+    if (data.showDescuento) {
+      const descuentoGs = data.item?.descuento || 0;
+      const descuentoParaMostrar = descuentoGs / this.tipoCambio;
+      formGroupConfig.descuento = [descuentoParaMostrar, [Validators.min(0)]];
+    }
+
+    if (data.showIva) {
+      formGroupConfig.iva = [data.item?.iva ?? 10, Validators.required];
+    }
+
+    this.form = this.fb.group(formGroupConfig);
     
     // Verificar que el valor se estableció correctamente
     console.log('🔍 Diálogo - Formulario inicializado:', {
@@ -236,15 +278,17 @@ export class FacturaItemDialogComponent implements OnInit {
       return;
     }
 
-    const { id, productoId, descripcion, cantidad, precioUnitario } = this.form.getRawValue();
+    const formValue = this.form.getRawValue();
+    const { id, productoId, descripcion, cantidad, precioUnitario, descuento, iva } = formValue;
     const total = this.total();
 
     // IMPORTANTE: El formulario tiene valores en la moneda que el usuario ve (extranjera o PYG)
     // Convertir a guaraníes antes de devolver (multiplicar por tipoCambio, que es 1 si no hay moneda extranjera)
     const precioUnitarioGs = precioUnitario * this.tipoCambio;
+    const descuentoGs = (descuento || 0) * this.tipoCambio;
     const totalGs = total * this.tipoCambio;
 
-    const item: FacturaLegalItem = {
+    const item: any = {
       id,
       productoId,
       descripcion,
@@ -253,13 +297,23 @@ export class FacturaItemDialogComponent implements OnInit {
       total: totalGs // Siempre en guaraníes
     };
 
+    // Agregar campos opcionales si existen
+    if (descuento !== undefined && descuento !== null) {
+      item.descuento = descuentoGs;
+    }
+    if (iva !== undefined && iva !== null) {
+      item.iva = iva;
+    }
+
     this.dialogRef.close(item);
   }
 
   private actualizarTotal(): void {
     const cantidad = Number(this.form.get('cantidad')?.value) || 0;
     const precioUnitario = Number(this.form.get('precioUnitario')?.value) || 0;
-    this.total.set(cantidad * precioUnitario);
+    const descuento = Number(this.form.get('descuento')?.value) || 0;
+    const subtotal = cantidad * precioUnitario;
+    this.total.set(Math.max(0, subtotal - descuento));
   }
 }
 

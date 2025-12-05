@@ -17,13 +17,23 @@ public interface TimbradoDetalleRepository extends JpaRepository<TimbradoDetalle
 
     /**
      * Busca todos los detalles de un timbrado ordenados por punto de expedición.
+     * Usa JOIN FETCH para cargar la relación timbrado.
      */
-    List<TimbradoDetalle> findByTimbradoIdOrderByPuntoExpedicionAsc(Long timbradoId);
+    @Query("SELECT td FROM TimbradoDetalle td " +
+           "JOIN FETCH td.timbrado " +
+           "WHERE td.timbrado.id = :timbradoId " +
+           "ORDER BY td.puntoExpedicion ASC")
+    List<TimbradoDetalle> findByTimbradoIdOrderByPuntoExpedicionAsc(@Param("timbradoId") Long timbradoId);
 
     /**
      * Busca todos los detalles activos de un timbrado.
+     * Usa JOIN FETCH para cargar la relación timbrado.
      */
-    List<TimbradoDetalle> findByTimbradoIdAndActivoTrue(Long timbradoId);
+    @Query("SELECT td FROM TimbradoDetalle td " +
+           "JOIN FETCH td.timbrado " +
+           "WHERE td.timbrado.id = :timbradoId " +
+           "AND td.activo = true")
+    List<TimbradoDetalle> findByTimbradoIdAndActivoTrue(@Param("timbradoId") Long timbradoId);
 
     /**
      * Busca un detalle específico por timbrado y punto de expedición.
@@ -43,8 +53,11 @@ public interface TimbradoDetalleRepository extends JpaRepository<TimbradoDetalle
 
     /**
      * Busca detalles que están por agotarse (porcentaje de uso alto).
+     * Usa JOIN FETCH para cargar la relación timbrado.
      */
-    @Query("SELECT td FROM TimbradoDetalle td WHERE td.timbrado.id = :timbradoId " +
+    @Query("SELECT td FROM TimbradoDetalle td " +
+           "JOIN FETCH td.timbrado " +
+           "WHERE td.timbrado.id = :timbradoId " +
            "AND td.activo = true " +
            "AND ((td.numeroActual - td.rangoDesde) * 100.0 / td.cantidad) >= :umbralPorcentaje")
     List<TimbradoDetalle> findDetallesPorAgotarse(@Param("timbradoId") Long timbradoId, 
@@ -64,8 +77,11 @@ public interface TimbradoDetalleRepository extends JpaRepository<TimbradoDetalle
 
     /**
      * Busca todos los detalles activos de una empresa.
+     * Usa JOIN FETCH para cargar la relación timbrado y evitar LazyInitializationException.
      */
-    @Query("SELECT td FROM TimbradoDetalle td WHERE td.timbrado.empresa.id = :empresaId " +
+    @Query("SELECT td FROM TimbradoDetalle td " +
+           "JOIN FETCH td.timbrado t " +
+           "WHERE t.empresa.id = :empresaId " +
            "AND td.activo = true " +
            "ORDER BY td.puntoExpedicion ASC")
     List<TimbradoDetalle> findByEmpresaIdAndActivoTrue(@Param("empresaId") Long empresaId);

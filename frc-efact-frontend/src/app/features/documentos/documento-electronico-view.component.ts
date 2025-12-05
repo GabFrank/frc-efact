@@ -566,6 +566,6 @@ export class DocumentoElectronicoViewComponent implements OnInit {
   }
 
   volver(): void {
-    this.router.navigate(['/documentos']);
+    this.router.navigate(['/documentos/lista']);
   }
 }
