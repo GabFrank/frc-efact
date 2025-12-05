@@ -1,11 +1,11 @@
 import { inject } from '@angular/core';
-import { Router, CanActivateFn, UrlTree } from '@angular/router';
+import { Router, CanActivateFn } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { AuthService as Auth0Service } from '@auth0/auth0-angular';
 import { map, take, switchMap } from 'rxjs/operators';
 import { of, Observable } from 'rxjs';
 
-export const authGuard: CanActivateFn = (route, state): Observable<boolean | UrlTree> | boolean | UrlTree => {
+export const authGuard: CanActivateFn = (route, state): Observable<boolean> | boolean => {
   const authService = inject(AuthService);
   const auth0 = inject(Auth0Service);
   const router = inject(Router);
@@ -22,11 +22,19 @@ export const authGuard: CanActivateFn = (route, state): Observable<boolean | Url
       if (isAuthenticated) {
         // Si Auth0 está autenticado, verificar que el token esté guardado
         return authService.getTokenAsync().pipe(
-          map(token => token ? true : router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } }))
+          map(token => {
+            if (token) {
+              return true;
+            }
+            // Si no hay token, redirigir al login
+            router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+            return false;
+          })
         );
       }
-      // Redirigir al login cuando no está autenticado
-      return of(router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } }));
+  // Redirect to login page with return url
+  router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+      return of(false);
     })
   );
 };

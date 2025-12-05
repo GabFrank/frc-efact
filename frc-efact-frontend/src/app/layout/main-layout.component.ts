@@ -4,7 +4,6 @@ import { RouterOutlet, Router, RouterModule, NavigationEnd } from '@angular/rout
 import { Store } from '@ngrx/store';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil, map, filter } from 'rxjs/operators';
-import { MatExpansionModule } from '@angular/material/expansion';
 import { selectUserRole, selectCurrentUser, selectHasRole, selectUserRoles } from '../core/state/auth/auth.selectors';
 import { selectAllEmpresas, selectSelectedEmpresa, selectEmpresasLoading } from '../core/state/empresas/empresas.selectors';
 import { loadMisEmpresas, selectEmpresa } from '../core/state/empresas/empresas.actions';
@@ -12,14 +11,11 @@ import { User } from '../models/user.model';
 import { Empresa } from '../models/empresa.model';
 import { AuthService } from '../services/auth.service';
 import { ConnectionStatusBannerComponent } from '../components/connection-status-banner/connection-status-banner.component';
-import { ThemeService } from '../core/services/theme.service';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterModule, MatExpansionModule, ConnectionStatusBannerComponent, MatButtonModule, MatIconModule],
+  imports: [CommonModule, RouterOutlet, RouterModule, ConnectionStatusBannerComponent],
   template: `
     <div class="main-layout">
       <!-- Top Navigation Bar -->
@@ -46,8 +42,8 @@ import { MatIconModule } from '@angular/material/icon';
                   <span>Crear nueva empresa</span>
                 </li>
                 <li class="company-menu-divider" *ngIf="empresas.length > 0"></li>
-                <li
-                  class="company-menu-item"
+                <li 
+                  class="company-menu-item" 
                   *ngFor="let empresa of empresas"
                   [class.selected]="selectedEmpresa?.id === empresa.id"
                   (click)="selectEmpresaById(empresa.id)">
@@ -89,7 +85,7 @@ import { MatIconModule } from '@angular/material/icon';
               </div>
               <div class="user-menu-divider"></div>
               <ul class="user-menu-list">
-                <li class="user-menu-item" (click)="navigateToEmpresas()" title="Gestión de empresas" *ngIf="canAccessEmpresas$ | async">
+                <li class="user-menu-item" (click)="navigateToEmpresas()" title="Gestión de empresas" *ngIf="canAccessEmpresas">
                   <i class="fas fa-building"></i>
                   <span>Gestión de Empresas</span>
                 </li>
@@ -100,10 +96,6 @@ import { MatIconModule } from '@angular/material/icon';
                 <li class="user-menu-item" (click)="navigateToSettings()" title="Configuración del sistema">
                   <i class="fas fa-cog"></i>
                   <span>Configuración</span>
-                </li>
-                <li class="user-menu-item" (click)="toggleTheme()" [title]="(isDarkMode() ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro')">
-                  <i class="fas" [ngClass]="isDarkMode() ? 'fa-sun' : 'fa-moon'"></i>
-                  <span>{{ isDarkMode() ? 'Modo Claro' : 'Modo Oscuro' }}</span>
                 </li>
               </ul>
               <div class="user-menu-divider"></div>
@@ -134,47 +126,46 @@ import { MatIconModule } from '@angular/material/icon';
               </li>
 
               <!-- Sección: Gestión de Empresa -->
-              <li class="nav-item" *ngIf="selectedEmpresa">
-                <mat-expansion-panel
-                  class="nav-expansion-panel"
-                  [expanded]="expandedSections['gestionEmpresa']"
-                  (opened)="toggleSection('gestionEmpresa')"
-                  (closed)="toggleSection('gestionEmpresa')"
-                  [disabled]="!selectedEmpresa">
-                  <mat-expansion-panel-header class="nav-expansion-header">
-                    <mat-panel-title>
-                      <i class="fas fa-building"></i>
-                      <span>Gestión de Empresa</span>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <ul class="nav-section-content">
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? ['/timbrados'] : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-stamp"></i>
-                        <span>Timbrados</span>
-                      </a>
-                    </li>
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? ['/empresas', selectedEmpresa.id, 'productos'] : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [class.disabled]="!selectedEmpresa">
-                        <i class="fas fa-box"></i>
-                        <span>Productos</span>
-                      </a>
-                    </li>
-                  </ul>
-                </mat-expansion-panel>
+              <li class="nav-item nav-section" 
+                  [class.expanded]="expandedSections['gestionEmpresa']"
+                  [class.disabled]="!selectedEmpresa"
+                  *ngIf="selectedEmpresa">
+                <button 
+                  class="nav-section-header" 
+                  (click)="toggleSection('gestionEmpresa')"
+                  [disabled]="!selectedEmpresa"
+                  [title]="!selectedEmpresa ? 'Selecciona una empresa primero' : ''">
+                  <i class="fas fa-building"></i>
+                  <span>Gestión de Empresa</span>
+                  <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['gestionEmpresa']"></i>
+                </button>
+                <ul class="nav-section-content" *ngIf="expandedSections['gestionEmpresa']">
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? ['/timbrados'] : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-stamp"></i>
+                      <span>Timbrados</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? ['/empresas', selectedEmpresa.id, 'productos'] : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [class.disabled]="!selectedEmpresa">
+                      <i class="fas fa-box"></i>
+                      <span>Productos</span>
+                    </a>
+                  </li>
+                </ul>
               </li>
 
               <!-- Item Simple: Clientes -->
-              <li class="nav-item" *ngIf="canAccessClientes$ | async">
-                <a
-                  [routerLink]="selectedEmpresa ? '/clientes' : null"
-                  routerLinkActive="active"
+              <li class="nav-item" *ngIf="canAccessClientes">
+                <a 
+                  [routerLink]="selectedEmpresa ? '/clientes' : null" 
+                  routerLinkActive="active" 
                   class="nav-link"
                   [class.disabled]="!selectedEmpresa"
                   [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
@@ -185,191 +176,188 @@ import { MatIconModule } from '@angular/material/icon';
               </li>
 
               <!-- Sección: Facturación -->
-              <li class="nav-item" *ngIf="canAccessFacturacion$ | async">
-                <mat-expansion-panel
-                  class="nav-expansion-panel"
-                  [expanded]="expandedSections['facturacion']"
-                  (opened)="toggleSection('facturacion')"
-                  (closed)="toggleSection('facturacion')"
-                  [disabled]="!selectedEmpresa">
-                  <mat-expansion-panel-header class="nav-expansion-header">
-                    <mat-panel-title>
-                      <i class="fas fa-file-invoice"></i>
-                      <span>Facturación</span>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <ul class="nav-section-content">
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/facturacion' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-list"></i>
-                        <span>Lista de Facturas</span>
-                      </a>
-                    </li>
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/notas-credito' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                        <span>Notas de Crédito</span>
-                      </a>
-                    </li>
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/notas-debito' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                        <span>Notas de Débito</span>
-                      </a>
-                    </li>
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/notas-remision' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-file-alt"></i>
-                        <span>Notas de Remisión</span>
-                      </a>
-                    </li>
-                  </ul>
-                </mat-expansion-panel>
+              <li class="nav-item nav-section" 
+                  [class.expanded]="expandedSections['facturacion']"
+                  [class.disabled]="!selectedEmpresa"
+                  *ngIf="canAccessFacturacion">
+                <button 
+                  class="nav-section-header" 
+                  (click)="toggleSection('facturacion')"
+                  [disabled]="!selectedEmpresa"
+                  [title]="!selectedEmpresa ? 'Selecciona una empresa primero' : ''">
+                  <i class="fas fa-file-invoice"></i>
+                  <span>Facturación</span>
+                  <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['facturacion']"></i>
+                </button>
+                <ul class="nav-section-content" *ngIf="expandedSections['facturacion']">
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? '/facturacion' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-list"></i>
+                      <span>Lista de Facturas</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? '/facturacion/nueva' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-plus-circle"></i>
+                      <span>Nueva Factura</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a class="nav-link disabled" [attr.tabindex]="-1">
+                      <i class="fas fa-file-invoice-dollar"></i>
+                      <span>Notas de Crédito</span>
+                      <span class="badge-coming-soon">Próximamente</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a class="nav-link disabled" [attr.tabindex]="-1">
+                      <i class="fas fa-file-invoice-dollar"></i>
+                      <span>Notas de Débito</span>
+                      <span class="badge-coming-soon">Próximamente</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a class="nav-link disabled" [attr.tabindex]="-1">
+                      <i class="fas fa-file-alt"></i>
+                      <span>Notas de Remisión</span>
+                      <span class="badge-coming-soon">Próximamente</span>
+                    </a>
+                  </li>
+                </ul>
               </li>
 
               <!-- Sección: Documentos Electrónicos -->
-              <li class="nav-item" *ngIf="canAccessDocumentos$ | async">
-                <mat-expansion-panel
-                  class="nav-expansion-panel"
-                  [expanded]="expandedSections['documentos']"
-                  (opened)="toggleSection('documentos')"
-                  (closed)="toggleSection('documentos')"
-                  [disabled]="!selectedEmpresa">
-                  <mat-expansion-panel-header class="nav-expansion-header">
-                    <mat-panel-title>
-                      <i class="fas fa-file-alt"></i>
-                      <span>Documentos Electrónicos</span>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <ul class="nav-section-content">
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/documentos/lista' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-list"></i>
-                        <span>Lista de Documentos</span>
-                      </a>
-                    </li>
-                    <li class="nav-sub-item">
-                      <mat-expansion-panel
-                        class="nav-sub-expansion-panel"
-                        [expanded]="expandedSections['eventos']"
-                        (opened)="toggleSection('eventos')"
-                        (closed)="toggleSection('eventos')">
-                        <mat-expansion-panel-header class="nav-sub-expansion-header">
-                          <mat-panel-title>
-                            <i class="fas fa-cog"></i>
-                            <span>Gestión de Eventos</span>
-                          </mat-panel-title>
-                        </mat-expansion-panel-header>
-                        <ul class="nav-sub-section-content">
-                          <li class="nav-sub-sub-item">
-                            <a [routerLink]="selectedEmpresa ? '/documentos/cancelacion' : null"
-                               routerLinkActive="active"
-                               class="nav-link"
-                               [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                              <i class="fas fa-ban"></i>
-                              <span>Cancelación</span>
-                            </a>
-                          </li>
-                          <li class="nav-sub-sub-item">
-                            <a [routerLink]="selectedEmpresa ? '/documentos/nominacion' : null"
-                               routerLinkActive="active"
-                               class="nav-link"
-                               [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                              <i class="fas fa-user-tag"></i>
-                              <span>Nominación</span>
-                            </a>
-                          </li>
-                          <li class="nav-sub-sub-item">
-                            <a [routerLink]="selectedEmpresa ? '/documentos/inutilizacion' : null"
-                               routerLinkActive="active"
-                               class="nav-link"
-                               [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                              <i class="fas fa-times-circle"></i>
-                              <span>Inutilización</span>
-                            </a>
-                          </li>
-                        </ul>
-                      </mat-expansion-panel>
-                    </li>
-                  </ul>
-                </mat-expansion-panel>
+              <li class="nav-item nav-section" 
+                  [class.expanded]="expandedSections['documentos']"
+                  [class.disabled]="!selectedEmpresa"
+                  *ngIf="canAccessDocumentos">
+                <button 
+                  class="nav-section-header" 
+                  (click)="toggleSection('documentos')"
+                  [disabled]="!selectedEmpresa"
+                  [title]="!selectedEmpresa ? 'Selecciona una empresa primero' : ''">
+                  <i class="fas fa-file-alt"></i>
+                  <span>Documentos Electrónicos</span>
+                  <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['documentos']"></i>
+                </button>
+                <ul class="nav-section-content" *ngIf="expandedSections['documentos']">
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? '/documentos' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-list"></i>
+                      <span>Lista de Documentos</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <div class="nav-sub-section" [class.expanded]="expandedSections['eventos']">
+                      <button 
+                        class="nav-sub-section-header" 
+                        (click)="toggleSection('eventos')">
+                        <i class="fas fa-cog"></i>
+                        <span>Gestión de Eventos</span>
+                        <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['eventos']"></i>
+                      </button>
+                      <ul class="nav-sub-section-content" *ngIf="expandedSections['eventos']">
+                        <li class="nav-sub-sub-item">
+                          <a [routerLink]="selectedEmpresa ? '/documentos/cancelacion' : null" 
+                             routerLinkActive="active" 
+                             class="nav-link"
+                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                            <i class="fas fa-ban"></i>
+                            <span>Cancelación</span>
+                          </a>
+                        </li>
+                        <li class="nav-sub-sub-item">
+                          <a [routerLink]="selectedEmpresa ? '/documentos/nominacion' : null" 
+                             routerLinkActive="active" 
+                             class="nav-link"
+                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                            <i class="fas fa-user-tag"></i>
+                            <span>Nominación</span>
+                          </a>
+                        </li>
+                        <li class="nav-sub-sub-item">
+                          <a [routerLink]="selectedEmpresa ? '/documentos/inutilizacion' : null" 
+                             routerLinkActive="active" 
+                             class="nav-link"
+                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                            <i class="fas fa-times-circle"></i>
+                            <span>Inutilización</span>
+                          </a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+                </ul>
               </li>
 
               <!-- Sección: Reportes -->
-              <li class="nav-item" *ngIf="canAccessReportes$ | async">
-                <mat-expansion-panel
-                  class="nav-expansion-panel"
-                  [expanded]="expandedSections['reportes']"
-                  (opened)="toggleSection('reportes')"
-                  (closed)="toggleSection('reportes')"
-                  [disabled]="!selectedEmpresa">
-                  <mat-expansion-panel-header class="nav-expansion-header">
-                    <mat-panel-title>
-                      <i class="fas fa-chart-bar"></i>
-                      <span>Reportes</span>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <ul class="nav-section-content">
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/reportes/facturas' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-file-invoice"></i>
-                        <span>Reporte de Facturas</span>
-                      </a>
-                    </li>
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/reportes/clientes' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-users"></i>
-                        <span>Reporte de Clientes</span>
-                      </a>
-                    </li>
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/reportes/productos' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-box"></i>
-                        <span>Reporte de Productos</span>
-                      </a>
-                    </li>
-                    <li class="nav-sub-item">
-                      <a [routerLink]="selectedEmpresa ? '/reportes/usuarios' : null"
-                         routerLinkActive="active"
-                         class="nav-link"
-                         [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                        <i class="fas fa-user-cog"></i>
-                        <span>Reporte de Usuarios</span>
-                      </a>
-                    </li>
-                  </ul>
-                </mat-expansion-panel>
+              <li class="nav-item nav-section" 
+                  [class.expanded]="expandedSections['reportes']"
+                  [class.disabled]="!selectedEmpresa"
+                  *ngIf="canAccessReportes">
+                <button 
+                  class="nav-section-header" 
+                  (click)="toggleSection('reportes')"
+                  [disabled]="!selectedEmpresa"
+                  [title]="!selectedEmpresa ? 'Selecciona una empresa primero' : ''">
+                  <i class="fas fa-chart-bar"></i>
+                  <span>Reportes</span>
+                  <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['reportes']"></i>
+                </button>
+                <ul class="nav-section-content" *ngIf="expandedSections['reportes']">
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? '/reportes/facturas' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-file-invoice"></i>
+                      <span>Reporte de Facturas</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? '/reportes/clientes' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-users"></i>
+                      <span>Reporte de Clientes</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? '/reportes/productos' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-box"></i>
+                      <span>Reporte de Productos</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? '/reportes/usuarios' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-user-cog"></i>
+                      <span>Reporte de Usuarios</span>
+                    </a>
+                  </li>
+                </ul>
               </li>
 
               <!-- Item Simple: Auditoría -->
-              <li class="nav-item" *ngIf="canAccessAuditoria$ | async">
-                <a
-                  [routerLink]="selectedEmpresa ? '/auditoria' : null"
-                  routerLinkActive="active"
+              <li class="nav-item" *ngIf="canAccessAuditoria">
+                <a 
+                  [routerLink]="selectedEmpresa ? '/auditoria' : null" 
+                  routerLinkActive="active" 
                   class="nav-link"
                   [class.disabled]="!selectedEmpresa"
                   [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
@@ -380,27 +368,24 @@ import { MatIconModule } from '@angular/material/icon';
               </li>
 
               <!-- Sección: Administración -->
-              <li class="nav-item" *ngIf="isAdmin$ | async">
-                <mat-expansion-panel
-                  class="nav-expansion-panel"
-                  [expanded]="expandedSections['administracion']"
-                  (opened)="toggleSection('administracion')"
-                  (closed)="toggleSection('administracion')">
-                  <mat-expansion-panel-header class="nav-expansion-header">
-                    <mat-panel-title>
-                      <i class="fas fa-cog"></i>
-                      <span>Administración</span>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-                  <ul class="nav-section-content">
-                    <li class="nav-sub-item">
-                      <a routerLink="/usuarios" routerLinkActive="active" class="nav-link">
-                        <i class="fas fa-user-cog"></i>
-                        <span>Usuarios</span>
-                      </a>
-                    </li>
-                  </ul>
-                </mat-expansion-panel>
+              <li class="nav-item nav-section" 
+                  [class.expanded]="expandedSections['administracion']"
+                  *ngIf="isAdmin">
+                <button 
+                  class="nav-section-header" 
+                  (click)="toggleSection('administracion')">
+                  <i class="fas fa-cog"></i>
+                  <span>Administración</span>
+                  <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['administracion']"></i>
+                </button>
+                <ul class="nav-section-content" *ngIf="expandedSections['administracion']">
+                  <li class="nav-sub-item">
+                    <a routerLink="/usuarios" routerLinkActive="active" class="nav-link">
+                      <i class="fas fa-user-cog"></i>
+                      <span>Usuarios</span>
+                    </a>
+                  </li>
+                </ul>
               </li>
 
               <!-- Item Simple: Perfil -->
@@ -419,7 +404,7 @@ import { MatIconModule } from '@angular/material/icon';
           <router-outlet></router-outlet>
         </main>
       </div>
-
+      
       <!-- Connection Status Banner -->
       <app-connection-status-banner></app-connection-status-banner>
     </div>
@@ -794,6 +779,7 @@ import { MatIconModule } from '@angular/material/icon';
       flex-direction: column;
     }
 
+    /* Logo en la sidebar */
     .sidebar-logo {
       display: flex;
       justify-content: center;
@@ -837,12 +823,6 @@ import { MatIconModule } from '@angular/material/icon';
       border-left: 3px solid transparent;
     }
 
-    .nav-link i {
-      width: 20px;
-      text-align: center;
-      color: inherit;
-    }
-
     .nav-link:hover {
       background: #2c3e50;
       color: white;
@@ -856,64 +836,65 @@ import { MatIconModule } from '@angular/material/icon';
       font-weight: 600;
     }
 
-    .nav-link.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      pointer-events: none;
+    .nav-link.disabled:hover {
+      background: transparent;
+      color: #bdc3c7;
+      border-left-color: transparent;
     }
 
-    /* Material Expansion Panel */
-    .nav-expansion-panel {
-      background: transparent !important;
-      box-shadow: none !important;
-      margin: 0 !important;
-      border-radius: 0 !important;
-      display: block;
+    .nav-link i {
+      width: 20px;
+      text-align: center;
     }
 
-    .nav-expansion-panel ::ng-deep .mat-expansion-panel-header {
-      padding: 0.75rem 1.5rem !important;
-      height: auto !important;
-      color: #bdc3c7 !important;
-      border-left: 3px solid transparent;
-    }
-
-    .nav-expansion-panel ::ng-deep .mat-expansion-panel-header:hover {
-      background: #2c3e50 !important;
-      color: white !important;
-      border-left-color: #3498db;
-    }
-
-    .nav-expansion-panel ::ng-deep .mat-expansion-panel-header[aria-disabled="true"] {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .nav-expansion-panel ::ng-deep .mat-expansion-panel-header.mat-expanded {
-      background: #2c3e50 !important;
-      color: #3498db !important;
-      border-left-color: #3498db;
-    }
-
-    .nav-expansion-panel ::ng-deep .mat-expansion-panel-body {
-      padding: 0 !important;
-    }
-
-    .nav-expansion-header ::ng-deep .mat-expansion-panel-header-title {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
+    /* Secciones Expandibles */
+    .nav-section {
       margin: 0;
     }
 
-    .nav-expansion-header ::ng-deep .mat-expansion-panel-header-title i {
+    .nav-section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.5rem;
+      color: #bdc3c7;
+      text-decoration: none;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      font-size: inherit;
+      font-family: inherit;
+    }
+
+    .nav-section-header:hover:not(:disabled) {
+      background: #2c3e50;
+      color: white;
+      border-left-color: #3498db;
+    }
+
+    .nav-section-header:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .nav-section-header i {
       width: 20px;
       text-align: center;
       color: inherit;
     }
 
-    .nav-expansion-panel ::ng-deep .mat-expansion-indicator {
-      color: white !important;
+    .nav-chevron {
+      margin-left: auto;
+      font-size: 0.75rem;
+      transition: transform 0.3s ease;
+    }
+
+    .nav-chevron.rotated {
+      transform: rotate(90deg);
     }
 
     .nav-section-content {
@@ -921,6 +902,13 @@ import { MatIconModule } from '@angular/material/icon';
       margin: 0;
       padding: 0;
       background: rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s ease;
+    }
+
+    .nav-section.expanded .nav-section-content {
+      max-height: 1000px;
     }
 
     .nav-sub-item {
@@ -932,50 +920,41 @@ import { MatIconModule } from '@angular/material/icon';
       font-size: 0.9rem;
     }
 
-    .nav-sub-expansion-panel {
-      background: transparent !important;
-      box-shadow: none !important;
-      margin: 0 !important;
-      border-radius: 0 !important;
-      display: block;
+    .nav-sub-item .nav-link.active {
+      background: #2c3e50;
+      color: #3498db;
+      border-left-color: #3498db;
     }
 
-    .nav-sub-expansion-panel ::ng-deep .mat-expansion-panel-header {
-      padding: 0.5rem 3rem !important;
-      height: auto !important;
-      color: #bdc3c7 !important;
-      font-size: 0.9rem;
-    }
-
-    .nav-sub-expansion-panel ::ng-deep .mat-expansion-panel-header:hover {
-      background: rgba(255, 255, 255, 0.05) !important;
-      color: white !important;
-    }
-
-    .nav-sub-expansion-panel ::ng-deep .mat-expansion-panel-header.mat-expanded {
-      background: rgba(255, 255, 255, 0.05) !important;
-      color: #3498db !important;
-    }
-
-    .nav-sub-expansion-panel ::ng-deep .mat-expansion-panel-body {
-      padding: 0 !important;
-    }
-
-    .nav-sub-expansion-header ::ng-deep .mat-expansion-panel-header-title {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
+    /* Sub-secciones anidadas (Gestión de Eventos) */
+    .nav-sub-section {
       margin: 0;
     }
 
-    .nav-sub-expansion-header ::ng-deep .mat-expansion-panel-header-title i {
+    .nav-sub-section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 3rem;
+      color: #bdc3c7;
+      background: transparent;
+      border: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .nav-sub-section-header:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+    }
+
+    .nav-sub-section-header i {
       width: 20px;
       text-align: center;
       color: inherit;
-    }
-
-    .nav-sub-expansion-panel ::ng-deep .mat-expansion-indicator {
-      color: white !important;
     }
 
     .nav-sub-section-content {
@@ -983,6 +962,13 @@ import { MatIconModule } from '@angular/material/icon';
       margin: 0;
       padding: 0;
       background: rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s ease;
+    }
+
+    .nav-sub-section.expanded .nav-sub-section-content {
+      max-height: 500px;
     }
 
     .nav-sub-sub-item {
@@ -992,6 +978,29 @@ import { MatIconModule } from '@angular/material/icon';
     .nav-sub-sub-item .nav-link {
       padding-left: 4.5rem;
       font-size: 0.85rem;
+    }
+
+    .nav-sub-sub-item .nav-link.active {
+      background: #2c3e50;
+      color: #3498db;
+      border-left-color: #3498db;
+    }
+
+    /* Badge para items pendientes */
+    .badge-coming-soon {
+      margin-left: auto;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .nav-link.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
     }
 
     /* Main Content */
@@ -1067,7 +1076,6 @@ import { MatIconModule } from '@angular/material/icon';
         margin-left: 0;
       }
     }
-
   `]
 })
 export class MainLayoutComponent implements OnInit, OnDestroy {
@@ -1077,32 +1085,16 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   empresas$: Observable<Empresa[]>;
   selectedEmpresa$: Observable<Empresa | null>;
   empresasLoading$: Observable<boolean>;
-
-  // Permission Observables
-  canAccessEmpresas$: Observable<boolean>;
-  canAccessClientes$: Observable<boolean>;
-  canAccessFacturacion$: Observable<boolean>;
-  canAccessDocumentos$: Observable<boolean>;
-  canAccessReportes$: Observable<boolean>;
-  canAccessAuditoria$: Observable<boolean>;
-
+  
   showUserMenu = false;
   showCompanyMenu = false;
   currentUser: User | null = null;
   userRole: string | null = null;
-  isAdmin = false;
+  isAdminUser = false;
   empresas: Empresa[] = [];
   selectedEmpresa: Empresa | null = null;
   empresasLoading = false;
-
-  // Permission flags (Removed manual flags, using async pipe)
-  // canAccessEmpresas = false;
-  // canAccessClientes = false;
-  // canAccessFacturacion = false;
-  // canAccessDocumentos = false;
-  // canAccessReportes = false;
-  // canAccessAuditoria = false;
-
+  
   // Estado de secciones expandidas
   expandedSections: { [key: string]: boolean } = {
     gestionEmpresa: false,
@@ -1112,39 +1104,32 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     reportes: false,
     administracion: false
   };
-
+  
   private destroy$ = new Subject<void>();
-
-  isDarkMode = this.themeService.darkMode;
-  private readonly SELECTED_EMPRESA_KEY = 'selected_empresa_id';
 
   constructor(
     private store: Store,
     private router: Router,
-    private authService: AuthService,
-    private themeService: ThemeService
+    private authService: AuthService
   ) {
     this.currentUser$ = this.store.select(selectCurrentUser);
     this.userRole$ = this.store.select(selectUserRole);
-    this.isAdmin$ = this.store.select(selectHasRole(['ADMIN', 'SUPERADMIN']));
+    this.isAdmin$ = this.store.select(selectHasRole('ADMIN'));
     this.empresas$ = this.store.select(selectAllEmpresas);
     this.selectedEmpresa$ = this.store.select(selectSelectedEmpresa).pipe(
-      map(e => e ?? null)
+      map(empresa => empresa ?? null)
     );
     this.empresasLoading$ = this.store.select(selectEmpresasLoading);
-
-    // Verificar permisos
-    this.canAccessEmpresas$ = this.store.select(selectHasRole(['ADMIN', 'SUPERADMIN', 'EMPRESA_ADMIN']));
-    this.canAccessClientes$ = this.store.select(selectHasRole(['ADMIN', 'SUPERADMIN', 'EMPRESA_ADMIN', 'OPERADOR']));
-    this.canAccessFacturacion$ = this.store.select(selectHasRole(['ADMIN', 'SUPERADMIN', 'EMPRESA_ADMIN', 'OPERADOR']));
-    this.canAccessDocumentos$ = this.store.select(selectHasRole(['ADMIN', 'SUPERADMIN', 'EMPRESA_ADMIN', 'OPERADOR']));
-    this.canAccessReportes$ = this.store.select(selectHasRole(['ADMIN', 'SUPERADMIN', 'EMPRESA_ADMIN']));
-    this.canAccessAuditoria$ = this.store.select(selectHasRole(['ADMIN', 'SUPERADMIN', 'EMPRESA_ADMIN']));
   }
 
   ngOnInit(): void {
-    // Suscribirse a los selectores
-    this.currentUser$.pipe(takeUntil(this.destroy$)).subscribe(user => {
+    // Cargar empresas del usuario al inicializar
+    this.store.dispatch(loadMisEmpresas());
+
+    // Suscribirse al usuario actual desde el store
+    this.currentUser$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(user => {
       this.currentUser = user;
       // Si hay usuario, cargar empresas
       if (user) {
@@ -1152,54 +1137,63 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.userRole$.pipe(takeUntil(this.destroy$)).subscribe(role => {
+    // Suscribirse al rol del usuario desde el store
+    this.userRole$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(role => {
       this.userRole = role;
-      this.isAdmin = role === 'ADMIN' || role === 'SUPERADMIN';
     });
 
-    this.empresas$.pipe(takeUntil(this.destroy$)).subscribe(empresas => {
+    // Suscribirse al estado de admin
+    this.isAdmin$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(isAdmin => {
+      this.isAdminUser = isAdmin;
+    });
+
+    // Suscribirse a las empresas
+    this.empresas$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(empresas => {
       this.empresas = empresas;
       
-      // Intentar recuperar la empresa seleccionada del almacenamiento local
-      const savedEmpresaId = localStorage.getItem(this.SELECTED_EMPRESA_KEY);
-      
-      if (!this.selectedEmpresa && empresas.length > 0) {
-        if (savedEmpresaId) {
-          const id = parseInt(savedEmpresaId, 10);
-          const empresaExists = empresas.find(e => e.id === id);
-          
-          if (empresaExists) {
-            this.selectEmpresaById(id);
-          } else {
-            // Si la empresa guardada ya no existe o el usuario no tiene acceso, seleccionar la primera
-            this.selectEmpresaById(empresas[0].id);
-          }
-        } else if (empresas.length === 1) {
-          // Auto-seleccionar la primera empresa si solo hay una
-          this.selectEmpresaById(empresas[0].id);
+      // Intentar restaurar empresa seleccionada desde localStorage
+      const savedEmpresaId = localStorage.getItem('selectedEmpresaId');
+      if (savedEmpresaId && !this.selectedEmpresa) {
+        const id = parseInt(savedEmpresaId, 10);
+        const empresa = empresas.find(e => e.id === id);
+        if (empresa) {
+          this.selectEmpresaById(id);
+          return; // Ya seleccionamos, salimos
         }
+      }
+
+      // Auto-seleccionar la primera empresa si solo hay una y no hay empresa seleccionada
+      if (empresas.length === 1 && !this.selectedEmpresa) {
+        this.selectEmpresaById(empresas[0].id);
       }
     });
 
-    this.selectedEmpresa$.pipe(takeUntil(this.destroy$)).subscribe(empresa => {
+    // Suscribirse a la empresa seleccionada
+    this.selectedEmpresa$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(empresa => {
       this.selectedEmpresa = empresa;
     });
 
-    this.empresasLoading$.pipe(takeUntil(this.destroy$)).subscribe(loading => {
+    // Suscribirse al estado de carga
+    this.empresasLoading$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(loading => {
       this.empresasLoading = loading;
     });
 
-    // Eliminar suscripciones manuales a permisos, ahora se usa async pipe en el template
-    // this.canAccessEmpresas$.pipe...
-    // this.canAccessClientes$.pipe...
-    // etc.
-
     // Cerrar los menús al hacer clic fuera
     document.addEventListener('click', this.handleDocumentClick.bind(this));
-
+    
     // Expandir sección según ruta actual
     this.expandSectionByRoute();
-
+    
     // Suscribirse a cambios de ruta para expandir sección correspondiente
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),
@@ -1208,19 +1202,19 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       this.expandSectionByRoute();
     });
   }
-
+  
   expandSectionByRoute(): void {
     const url = this.router.url;
-
+    
     // Resetear todas las secciones
     Object.keys(this.expandedSections).forEach(key => {
       this.expandedSections[key] = false;
     });
-
+    
     // Expandir según la ruta actual
     if (url.startsWith('/empresas') || url.startsWith('/timbrados') || url.includes('/productos')) {
       this.expandedSections['gestionEmpresa'] = true;
-    } else if (url.startsWith('/facturacion') || url.startsWith('/notas-credito') || url.startsWith('/notas-debito') || url.startsWith('/notas-remision')) {
+    } else if (url.startsWith('/facturacion')) {
       this.expandedSections['facturacion'] = true;
     } else if (url.startsWith('/documentos')) {
       this.expandedSections['documentos'] = true;
@@ -1234,19 +1228,17 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       this.expandedSections['administracion'] = true;
     }
   }
-
+  
   toggleSection(section: string): void {
-    // Actualizar el estado cuando el panel se abre o cierra
-    // El mat-expansion-panel ya cambió su estado, solo sincronizamos
-    this.expandedSections[section] = !this.expandedSections[section];
-
     // Si es la sub-sección de eventos, manejar de forma especial
     if (section === 'eventos') {
+      this.expandedSections['eventos'] = !this.expandedSections['eventos'];
       // Si se expande eventos, también expandir documentos
       if (this.expandedSections['eventos']) {
         this.expandedSections['documentos'] = true;
       }
     } else {
+      this.expandedSections[section] = !this.expandedSections[section];
       // Si se colapsa documentos, también colapsar eventos
       if (section === 'documentos' && !this.expandedSections['documentos']) {
         this.expandedSections['eventos'] = false;
@@ -1260,13 +1252,34 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     document.removeEventListener('click', this.handleDocumentClick.bind(this));
   }
 
-  toggleTheme() {
-    this.themeService.toggleTheme();
-    this.showUserMenu = false; // Cerrar el menú después de cambiar el tema
+  get isAdmin(): boolean {
+    return this.isAdminUser;
   }
 
+  // Métodos de acceso basados en roles
+  get canAccessEmpresas(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN']);
+  }
 
-  // Métodos de acceso basados en roles (Removed getters, using properties updated via subscription)
+  get canAccessClientes(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessFacturacion(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessDocumentos(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canAccessReportes(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canAccessAuditoria(): boolean {
+    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN']);
+  }
 
   private hasAnyRole(roles: string[]): boolean {
     if (!this.currentUser?.roles) return false;
@@ -1307,8 +1320,8 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   }
 
   selectEmpresaById(empresaId: number): void {
+    localStorage.setItem('selectedEmpresaId', empresaId.toString());
     this.store.dispatch(selectEmpresa({ empresaId }));
-    localStorage.setItem(this.SELECTED_EMPRESA_KEY, empresaId.toString());
     this.showCompanyMenu = false;
   }
 
@@ -1344,8 +1357,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.showUserMenu = false;
-    // Limpiar empresa seleccionada al cerrar sesión
-    localStorage.removeItem(this.SELECTED_EMPRESA_KEY);
+    localStorage.removeItem('selectedEmpresaId'); // Limpiar empresa seleccionada
     this.authService.logout().subscribe(() => {
       // Reiniciar la aplicación para limpiar completamente el estado
       window.location.href = '/login';

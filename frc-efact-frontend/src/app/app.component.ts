@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { RouterOutlet, Router, NavigationError } from '@angular/router';
+import { RouterOutlet, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { AuthService as Auth0Service } from '@auth0/auth0-angular';
 import { filter, take } from 'rxjs/operators';
@@ -7,7 +7,6 @@ import * as AuthActions from './core/state/auth/auth.actions';
 import { AuthService } from './services/auth.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../environments/environment';
-import { ThemeService } from './core/services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -23,21 +22,10 @@ export class AppComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly http = inject(HttpClient);
-  private readonly themeService = inject(ThemeService);
 
   ngOnInit(): void {
     // Inicializar auth desde localStorage al cargar la aplicación
     this.store.dispatch(AuthActions.initializeAuth());
-
-    // Loggear navegaciones con error para depurar loops/errores de carga
-    this.router.events.subscribe(event => {
-      if (event instanceof NavigationError) {
-        console.error('NAV_ERROR', {
-          url: event.url,
-          error: event.error
-        });
-      }
-    });
 
     // Manejar callback de Auth0 SOLO si la URL contiene parámetros de callback de Auth0
     // Esto evita que se active cuando el usuario hace login tradicional
@@ -70,7 +58,7 @@ export class AppComponent implements OnInit {
       next: (token) => {
         // Guardar el token de Auth0 en localStorage INMEDIATAMENTE
         localStorage.setItem('auth_token', token);
-
+        
         // Obtener información del usuario desde el backend usando el interceptor
         // Usar el token directamente en el header para asegurar que funcione
         this.http.get(`${environment.apiUrl}/usuarios/perfil`, {
@@ -81,17 +69,17 @@ export class AppComponent implements OnInit {
           next: (user: any) => {
             // Mapear y guardar usuario
             const mappedUser = this.authService.mapBackendUserToFrontend(user);
-
+            
             localStorage.setItem('current_user', JSON.stringify(mappedUser));
             this.authService.updateCurrentUser(mappedUser);
-
+            
             // IMPORTANTE: Despachar loginSuccess al store de NgRx para que MainLayoutComponent tenga acceso al usuario
             this.store.dispatch(AuthActions.loginSuccess({
               user: mappedUser,
               token: token,
               refreshToken: '' // Auth0 no usa refresh token de la misma forma
             }));
-
+            
             // Esperar un momento para asegurar que todo esté guardado antes de navegar
             setTimeout(() => {
               // Redirigir al dashboard
@@ -104,8 +92,8 @@ export class AppComponent implements OnInit {
             console.error('Error completo:', err);
             // Si hay un error, limpiar y redirigir al login
             localStorage.removeItem('auth_token');
-            this.router.navigate(['/login'], {
-              queryParams: { error: 'Error al obtener perfil. Por favor, intente nuevamente.' }
+            this.router.navigate(['/login'], { 
+              queryParams: { error: 'Error al obtener perfil. Por favor, intente nuevamente.' } 
             });
           }
         });
@@ -113,8 +101,8 @@ export class AppComponent implements OnInit {
       error: (err) => {
         console.error('Error obteniendo token de Auth0:', err);
         // Si hay un error obteniendo el token, redirigir al login
-        this.router.navigate(['/login'], {
-          queryParams: { error: 'Error de autenticación. Por favor, intente nuevamente.' }
+        this.router.navigate(['/login'], { 
+          queryParams: { error: 'Error de autenticación. Por favor, intente nuevamente.' } 
         });
       }
     });

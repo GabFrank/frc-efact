@@ -1,11 +1,10 @@
 import { ApplicationConfig, LOCALE_ID, isDevMode } from '@angular/core';
-import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { provideAuth0 } from '@auth0/auth0-angular';
-import { GLOBAL_ERROR_HANDLER_PROVIDER } from './app.module.error-handler';
 
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
@@ -37,11 +36,7 @@ import { NotasEffects } from './core/state/notas/notas.effects';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideRouter(
-      routes, 
-      withComponentInputBinding(),
-      withRouterConfig({ onSameUrlNavigation: 'reload' })
-    ),
+    provideRouter(routes),
     provideAnimationsAsync(),
     provideAuth0({
       domain: environment.auth0.domain,
@@ -82,7 +77,6 @@ export const appConfig: ApplicationConfig = {
       trace: false,
       traceLimit: 75
     }),
-    GLOBAL_ERROR_HANDLER_PROVIDER,
     { provide: LOCALE_ID, useValue: 'es-PY' }
   ]
 };

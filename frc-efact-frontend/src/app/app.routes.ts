@@ -42,14 +42,9 @@ export const routes: Routes = [
         loadChildren: () => import('./features/facturacion/facturacion.routes').then(m => m.FACTURACION_ROUTES)
       },
       {
-        path: '',
-        canActivate: [empresaSelectedGuard],
-        loadChildren: () => import('./features/notas/notas.routes').then(m => m.NOTAS_ROUTES)
-      },
-      {
         path: 'documentos',
         canActivate: [empresaSelectedGuard],
-        loadChildren: () => import('./features/documentos/documentos.routes').then(m => m.DOCUMENTOS_ROUTES)
+        loadComponent: () => import('./features/documentos/documento-electronico-list.component').then(m => m.DocumentoElectronicoListComponent)
       },
       {
         path: 'reportes',

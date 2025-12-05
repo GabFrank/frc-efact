@@ -47,7 +47,7 @@ export class AuthService {
     // También cerrar sesión de Auth0 si está activo
     this.auth0.logout({
       logoutParams: {
-        returnTo: window.location.origin + '/login'
+        returnTo: window.location.origin
       }
     }).subscribe();
     
