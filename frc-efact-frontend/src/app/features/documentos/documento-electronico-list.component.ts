@@ -1,9 +1,9 @@
 import { Component, OnInit, OnDestroy, AfterViewInit, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router, NavigationEnd, ActivatedRoute, Params } from '@angular/router';
 import { filter, takeUntil, distinctUntilChanged } from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { Subject, Observable, combineLatest } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -12,12 +12,16 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatChipsModule } from '@angular/material/chips';
+import { PageEvent } from '@angular/material/paginator';
+import { Store } from '@ngrx/store';
 import { DocumentoElectronicoApiService } from '../../core/api/documento-electronico-api.service';
 import { DocumentoElectronico, EstadoDE } from '../../models/documento-electronico.model';
 import { DataTableComponent, TableColumn, TableAction } from '../../shared/components/data-table/data-table.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { CancelarDeDialogComponent } from './cancelar-de-dialog.component';
+import { selectSelectedEmpresa } from '../../core/state/empresas/empresas.selectors';
+import { Empresa } from '../../models/empresa.model';
 
 @Component({
   selector: 'app-documento-electronico-list',
@@ -112,7 +116,11 @@ import { CancelarDeDialogComponent } from './cancelar-de-dialog.component';
             [columns]="columns"
             [data]="documentos()"
             [actions]="tableActions"
+            [pageSize]="pageSize"
+            [pageIndex]="pageIndex"
+            [totalItems]="totalElements()"
             (actionClick)="onActionClick($event)"
+            (pageChange)="onPageChange($event)"
           />
         </mat-card-content>
       </mat-card>
@@ -232,7 +240,14 @@ import { CancelarDeDialogComponent } from './cancelar-de-dialog.component';
 export class DocumentoElectronicoListComponent implements OnInit, AfterViewInit, OnDestroy {
   loading = signal(false);
   documentos = signal<DocumentoElectronico[]>([]);
+  totalElements = signal(0);
   estadoFiltro: EstadoDE | null = null;
+  selectedEmpresa$: Observable<Empresa | null | undefined>;
+  empresaId: number | null = null;
+  
+  // Paginación
+  pageSize = 20;
+  pageIndex = 0;
   
   // Expose enum to template
   EstadoDE = EstadoDE;
@@ -325,11 +340,25 @@ export class DocumentoElectronicoListComponent implements OnInit, AfterViewInit,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private router: Router,
+    private route: ActivatedRoute,
+    private store: Store,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) {
+    this.selectedEmpresa$ = this.store.select(selectSelectedEmpresa);
+  }
 
   ngOnInit(): void {
-    this.cargarDocumentos();
+    // Combinar query params y empresa del store para determinar empresaId
+    combineLatest([
+      this.route.queryParams,
+      this.selectedEmpresa$
+    ]).pipe(takeUntil(this.destroy$)).subscribe(([params, empresa]: [Params, Empresa | null | undefined]) => {
+      // Priorizar empresaId de query params, si no existe usar el del store
+      this.empresaId = params['empresaId'] ? +params['empresaId'] : (empresa?.id || null);
+      // Cargar documentos con el empresaId
+      this.cargarDocumentos();
+    });
+
     // Suscribirse a cambios de ruta para recargar cuando se navega a esta ruta
     // Usar distinctUntilChanged para evitar múltiples llamadas con la misma URL
     this.router.events
@@ -341,7 +370,13 @@ export class DocumentoElectronicoListComponent implements OnInit, AfterViewInit,
       .subscribe((event) => {
         // Si la ruta es /documentos/lista, recargar los datos solo si no está cargando
         if ((event.urlAfterRedirects === '/documentos/lista' || event.urlAfterRedirects.startsWith('/documentos/lista?')) && !this.loading()) {
-          this.cargarDocumentos();
+          // Actualizar empresaId y recargar
+          combineLatest([this.route.queryParams, this.selectedEmpresa$])
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(([params, empresa]: [Params, Empresa | null | undefined]) => {
+              this.empresaId = params['empresaId'] ? +params['empresaId'] : (empresa?.id || null);
+              this.cargarDocumentos();
+            });
         }
       });
   }
@@ -358,19 +393,30 @@ export class DocumentoElectronicoListComponent implements OnInit, AfterViewInit,
   cargarDocumentos(): void {
     this.loading.set(true);
     
-    this.deApi.getAll(this.estadoFiltro || undefined).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (documentos) => {
-        // Asegurar que siempre sea un array
-        this.documentos.set(Array.isArray(documentos) ? documentos : []);
+    this.deApi.getAllPaginated(
+      this.estadoFiltro || undefined,
+      this.empresaId || undefined,
+      this.pageIndex,
+      this.pageSize
+    ).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (response) => {
+        this.documentos.set(response.content || []);
+        this.totalElements.set(response.totalElements || 0);
         this.loading.set(false);
       },
       error: (error) => {
         this.snackBar.open('Error al cargar documentos electrónicos', 'Cerrar', { duration: 3000 });
-        // En caso de error, establecer un array vacío
         this.documentos.set([]);
+        this.totalElements.set(0);
         this.loading.set(false);
       }
     });
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.cargarDocumentos();
   }
 
   formatEstado(estado: EstadoDE): string {
@@ -400,11 +446,15 @@ export class DocumentoElectronicoListComponent implements OnInit, AfterViewInit,
   }
 
   onFilterChange(): void {
+    // Resetear paginación al cambiar filtros
+    this.pageIndex = 0;
     this.cargarDocumentos();
   }
 
   limpiarFiltros(): void {
     this.estadoFiltro = null;
+    // Resetear paginación al limpiar filtros
+    this.pageIndex = 0;
     this.cargarDocumentos();
   }
 
@@ -534,11 +584,21 @@ export class DocumentoElectronicoListComponent implements OnInit, AfterViewInit,
             this.cargarDocumentos();
           },
           error: (error) => {
-            this.snackBar.open(
-              error.error?.message || 'Error al cancelar documento',
-              'Cerrar',
-              { duration: 5000 }
-            );
+            // Extraer el mensaje de error del backend
+            let errorMessage = 'Error al cancelar documento';
+            
+            if (error.error?.message) {
+              errorMessage = error.error.message;
+            } else if (error.message) {
+              errorMessage = error.message;
+            }
+            
+            // Decodificar entidades HTML si existen (ej: &#243; -> ó)
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = errorMessage;
+            errorMessage = tempDiv.textContent || tempDiv.innerText || errorMessage;
+            
+            this.snackBar.open(errorMessage, 'Cerrar', { duration: 7000 });
             this.loading.set(false);
           }
         });

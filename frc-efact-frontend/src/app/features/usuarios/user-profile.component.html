@@ -15,7 +15,8 @@
             <div class="profile-header">
               <div class="avatar-section">
                 <div class="avatar-circle">
-                  <mat-icon>person</mat-icon>
+                  <img *ngIf="user.imagenPerfil" [src]="user.imagenPerfil" [alt]="user.username" class="avatar-img" />
+                  <mat-icon *ngIf="!user.imagenPerfil">person</mat-icon>
                 </div>
               </div>
               <div class="profile-info">
@@ -192,13 +193,24 @@
                     <small style="color: rgba(0,0,0,0.5); font-size: 12px;">ID: {{ user.auth0Id }}</small>
                   </div>
                 </div>
-                <button 
-                  mat-stroked-button 
-                  color="warn" 
-                  (click)="onUnlinkAccount()">
-                  <mat-icon>link_off</mat-icon>
-                  Desvincular
-                </button>
+                <div style="display: flex; gap: 8px;">
+                  <button 
+                    mat-stroked-button 
+                    color="primary" 
+                    (click)="onUpdateFromAuth0()"
+                    [disabled]="updatingFromAuth0()">
+                    <mat-icon *ngIf="!updatingFromAuth0()">refresh</mat-icon>
+                    <mat-spinner *ngIf="updatingFromAuth0()" diameter="20" class="inline-spinner"></mat-spinner>
+                    {{ updatingFromAuth0() ? 'Actualizando...' : 'Actualizar desde Google' }}
+                  </button>
+                  <button 
+                    mat-stroked-button 
+                    color="warn" 
+                    (click)="onUnlinkAccount()">
+                    <mat-icon>link_off</mat-icon>
+                    Desvincular
+                  </button>
+                </div>
               </div>
 
               <div class="account-item" *ngIf="!user.auth0Id || user.auth0Id.trim() === ''">

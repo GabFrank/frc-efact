@@ -74,9 +74,24 @@ export class UserProfileComponent implements OnInit {
   profileSaving = signal(false);
   passwordChanging = signal(false);
   linkingAccount = signal(false);
+  updatingFromAuth0 = signal(false);
 
   // Activity table columns
   displayedColumns: string[] = ['fechaHora', 'accion', 'entidad', 'descripcion'];
+
+  constructor() {
+    // Inicializar formularios con valores por defecto para evitar errores en el template
+    this.profileForm = this.fb.group({
+      username: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(100)]]
+    });
+
+    this.passwordForm = this.fb.group({
+      currentPassword: ['', [Validators.required]],
+      newPassword: ['', [Validators.required, Validators.minLength(8)]],
+      confirmPassword: ['', [Validators.required]]
+    }, { validators: this.passwordMatchValidator });
+  }
 
   ngOnInit(): void {
     // Recargar usuario desde el backend para asegurar que tenemos los datos más actualizados (especialmente auth0Id)
@@ -101,16 +116,12 @@ export class UserProfileComponent implements OnInit {
   private initForms(): void {
     this.user$.pipe(take(1)).subscribe(user => {
       if (user) {
-        this.profileForm = this.fb.group({
-          username: [user.username, [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
-          email: [user.email, [Validators.required, Validators.email, Validators.maxLength(100)]]
+        this.profileForm.patchValue({
+          username: user.username,
+          email: user.email
         });
 
-        this.passwordForm = this.fb.group({
-          currentPassword: ['', [Validators.required]],
-          newPassword: ['', [Validators.required, Validators.minLength(8)]],
-          confirmPassword: ['', [Validators.required]]
-        }, { validators: this.passwordMatchValidator });
+        // El passwordForm no necesita actualizarse ya que siempre empieza vacío
       }
     });
   }
@@ -243,6 +254,43 @@ export class UserProfileComponent implements OnInit {
         console.error('Error login popup', err);
         this.snackBar.open('Error al iniciar sesión con Auth0', 'Cerrar', { duration: 5000 });
         this.linkingAccount.set(false);
+      }
+    });
+  }
+
+  onUpdateFromAuth0(): void {
+    this.updatingFromAuth0.set(true);
+    
+    // Obtener el token de Auth0 (de localStorage o directamente de Auth0)
+    this.authService.getTokenAsync().subscribe({
+      next: (token) => {
+        if (!token) {
+          this.snackBar.open('No se pudo obtener el token de Auth0. Por favor, inicie sesión nuevamente.', 'Cerrar', { duration: 5000 });
+          this.updatingFromAuth0.set(false);
+          return;
+        }
+        
+        // Enviar el token en la request
+        this.profileApi.updateFromAuth0(token).subscribe({
+          next: (updatedUser) => {
+            const mappedUser = this.authService.mapBackendUserToFrontend(updatedUser);
+            this.store.dispatch(AuthActions.loadUserSuccess({ user: mappedUser }));
+            this.authService.updateCurrentUser(mappedUser);
+            localStorage.setItem('current_user', JSON.stringify(mappedUser));
+            this.snackBar.open('Información actualizada desde Google exitosamente', 'Cerrar', { duration: 3000 });
+            this.updatingFromAuth0.set(false);
+            this.initForms(); // Reinitialize forms with new user data
+          },
+          error: (err) => {
+            const errorMsg = err.error?.error || 'Error al actualizar información desde Google';
+            this.snackBar.open(errorMsg, 'Cerrar', { duration: 5000 });
+            this.updatingFromAuth0.set(false);
+          }
+        });
+      },
+      error: (err) => {
+        this.snackBar.open('Error al obtener el token de Auth0. Por favor, inicie sesión nuevamente.', 'Cerrar', { duration: 5000 });
+        this.updatingFromAuth0.set(false);
       }
     });
   }

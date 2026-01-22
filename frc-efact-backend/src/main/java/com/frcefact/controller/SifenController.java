@@ -19,6 +19,9 @@ import com.frcefact.repository.EventoCancelacionDERepository;
 import com.frcefact.repository.EventoNominacionDERepository;
 import com.frcefact.repository.EventoInutilizacionDERepository;
 import com.frcefact.repository.TimbradoRepository;
+import com.frcefact.repository.specification.EventoCancelacionDESpecification;
+import com.frcefact.repository.specification.EventoNominacionDESpecification;
+import com.frcefact.repository.specification.EventoInutilizacionDESpecification;
 import com.frcefact.service.sifen.SifenEventoService;
 import com.frcefact.service.sifen.SifenService;
 import com.roshka.sifen.core.exceptions.SifenException;
@@ -29,9 +32,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -189,12 +193,18 @@ public class SifenController {
             @Parameter(description = "CDC del documento (búsqueda parcial)") @RequestParam(required = false) String cdcDocumento,
             @Parameter(description = "Fecha inicio (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
             @Parameter(description = "Fecha fin (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
-            @PageableDefault(size = 20, sort = "creadoEn", direction = Sort.Direction.DESC) Pageable pageable) {
+            @Parameter(description = "Número de página") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamaño de página") @RequestParam(defaultValue = "20") int size) {
         log.info("📋 Listando eventos de cancelación - Empresa: {}, Estado: {}, CDC: {}", empresaId, estado, cdcDocumento);
         // Normalizar cdcDocumento: convertir string vacío a null
         String normalizedCdcDocumento = (cdcDocumento != null && cdcDocumento.trim().isEmpty()) ? null : cdcDocumento;
-        Page<EventoCancelacionDE> eventosPage = eventoCancelacionDERepository.findWithFilters(
-                empresaId, estado, normalizedCdcDocumento, fechaInicio, fechaFin, pageable);
+        // Crear Specification con los filtros
+        Specification<EventoCancelacionDE> spec = EventoCancelacionDESpecification.withFilters(
+                empresaId, estado, normalizedCdcDocumento, fechaInicio, fechaFin);
+        // Crear Pageable con ordenamiento
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "creadoEn"));
+        // Buscar eventos usando Specification
+        Page<EventoCancelacionDE> eventosPage = eventoCancelacionDERepository.findAll(spec, pageable);
         Page<EventoCancelacionDeDto> dtosPage = eventosPage.map(EventoCancelacionDeDto::fromEntity);
         return ResponseEntity.ok(dtosPage);
     }
@@ -209,10 +219,19 @@ public class SifenController {
             @Parameter(description = "Nombre del receptor (búsqueda parcial)") @RequestParam(required = false) String nombreReceptor,
             @Parameter(description = "Fecha inicio (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
             @Parameter(description = "Fecha fin (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
-            @PageableDefault(size = 20, sort = "creadoEn", direction = Sort.Direction.DESC) Pageable pageable) {
+            @Parameter(description = "Número de página") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamaño de página") @RequestParam(defaultValue = "20") int size) {
         log.info("📋 Listando eventos de nominación - Empresa: {}, Estado: {}, CDC: {}", empresaId, estado, cdcDocumento);
-        Page<EventoNominacionDE> eventosPage = eventoNominacionDERepository.findWithFilters(
-                empresaId, estado, cdcDocumento, nombreReceptor, fechaInicio, fechaFin, pageable);
+        // Normalizar cdcDocumento y nombreReceptor: convertir string vacío a null
+        String normalizedCdcDocumento = (cdcDocumento != null && cdcDocumento.trim().isEmpty()) ? null : cdcDocumento;
+        String normalizedNombreReceptor = (nombreReceptor != null && nombreReceptor.trim().isEmpty()) ? null : nombreReceptor;
+        // Crear Specification con los filtros
+        Specification<EventoNominacionDE> spec = EventoNominacionDESpecification.withFilters(
+                empresaId, estado, normalizedCdcDocumento, normalizedNombreReceptor, fechaInicio, fechaFin);
+        // Crear Pageable con ordenamiento
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "creadoEn"));
+        // Buscar eventos usando Specification
+        Page<EventoNominacionDE> eventosPage = eventoNominacionDERepository.findAll(spec, pageable);
         Page<EventoNominacionDeDto> dtosPage = eventosPage.map(EventoNominacionDeDto::fromEntity);
         return ResponseEntity.ok(dtosPage);
     }
@@ -226,10 +245,16 @@ public class SifenController {
             @Parameter(description = "Estado del evento") @RequestParam(required = false) EstadoEvento estado,
             @Parameter(description = "Fecha inicio (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaInicio,
             @Parameter(description = "Fecha fin (formato: yyyy-MM-ddTHH:mm:ss)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaFin,
-            @PageableDefault(size = 20, sort = "creadoEn", direction = Sort.Direction.DESC) Pageable pageable) {
+            @Parameter(description = "Número de página") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamaño de página") @RequestParam(defaultValue = "20") int size) {
         log.info("📋 Listando eventos de inutilización - Empresa: {}, Timbrado: {}, Estado: {}", empresaId, timbradoId, estado);
-        Page<EventoInutilizacionDE> eventosPage = eventoInutilizacionDERepository.findWithFilters(
-                empresaId, timbradoId, estado, fechaInicio, fechaFin, pageable);
+        // Crear Specification con los filtros
+        Specification<EventoInutilizacionDE> spec = EventoInutilizacionDESpecification.withFilters(
+                empresaId, timbradoId, estado, fechaInicio, fechaFin);
+        // Crear Pageable con ordenamiento
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "creadoEn"));
+        // Buscar eventos usando Specification
+        Page<EventoInutilizacionDE> eventosPage = eventoInutilizacionDERepository.findAll(spec, pageable);
         Page<EventoInutilizacionDeDto> dtosPage = eventosPage.map(EventoInutilizacionDeDto::fromEntity);
         return ResponseEntity.ok(dtosPage);
     }

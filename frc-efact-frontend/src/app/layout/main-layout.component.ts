@@ -66,7 +66,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
           <div class="user-avatar-container" *ngIf="currentUser">
             <button class="avatar-btn" (click)="toggleUserMenu($event)" [title]="currentUser.username">
               <div class="avatar-circle">
-                <i class="fas fa-user"></i>
+                <img *ngIf="currentUser.imagenPerfil" [src]="currentUser.imagenPerfil" [alt]="currentUser.username" class="avatar-img" />
+                <i *ngIf="!currentUser.imagenPerfil" class="fas fa-user"></i>
               </div>
               <span class="user-name-desktop">{{ currentUser.username }}</span>
               <i class="fas fa-chevron-down"></i>
@@ -76,7 +77,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
             <div class="user-menu" *ngIf="showUserMenu" (click)="$event.stopPropagation()">
               <div class="user-menu-header">
                 <div class="avatar-circle-large">
-                  <i class="fas fa-user"></i>
+                  <img *ngIf="currentUser.imagenPerfil" [src]="currentUser.imagenPerfil" [alt]="currentUser.username" class="avatar-img" />
+                  <i *ngIf="!currentUser.imagenPerfil" class="fas fa-user"></i>
                 </div>
                 <div class="user-menu-info">
                   <span class="user-menu-name">{{ currentUser.username }}</span>
@@ -636,6 +638,7 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       justify-content: center;
       color: white;
       font-size: 1rem;
+      overflow: hidden;
     }
 
     .avatar-circle-large {
@@ -648,6 +651,14 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       justify-content: center;
       color: white;
       font-size: 1.25rem;
+      overflow: hidden;
+    }
+
+    .avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
     }
 
     .user-name-desktop {

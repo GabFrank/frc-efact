@@ -44,7 +44,7 @@ export const routes: Routes = [
       {
         path: 'documentos',
         canActivate: [empresaSelectedGuard],
-        loadComponent: () => import('./features/documentos/documento-electronico-list.component').then(m => m.DocumentoElectronicoListComponent)
+        loadChildren: () => import('./features/documentos/documentos.routes').then(m => m.DOCUMENTOS_ROUTES)
       },
       {
         path: 'reportes',

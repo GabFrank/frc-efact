@@ -17,7 +17,7 @@ import java.util.List;
  * Los registros de auditoría son inmutables y solo permiten operaciones de lectura.
  */
 @Repository
-public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
+public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, AuditLogRepositoryCustom {
 
     /**
      * Busca registros de auditoría por usuario
@@ -94,24 +94,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
            "ORDER BY a.fechaHora DESC")
     List<AuditLog> findUltimasActividadesEmpresa(@Param("empresaId") Long empresaId, Pageable pageable);
 
-    /**
-     * Búsqueda avanzada con múltiples filtros
-     */
-    @Query("SELECT a FROM AuditLog a " +
-           "WHERE (:usuarioId IS NULL OR a.usuario.id = :usuarioId) " +
-           "AND (:empresaId IS NULL OR a.empresa.id = :empresaId) " +
-           "AND (:entidadTipo IS NULL OR a.entidadTipo = :entidadTipo) " +
-           "AND (:accion IS NULL OR a.accion = :accion) " +
-           "AND (:fechaInicio IS NULL OR a.fechaHora >= :fechaInicio) " +
-           "AND (:fechaFin IS NULL OR a.fechaHora <= :fechaFin) " +
-           "ORDER BY a.fechaHora DESC")
-    Page<AuditLog> buscarConFiltros(@Param("usuarioId") Long usuarioId,
-                                     @Param("empresaId") Long empresaId,
-                                     @Param("entidadTipo") String entidadTipo,
-                                     @Param("accion") AccionEnum accion,
-                                     @Param("fechaInicio") LocalDateTime fechaInicio,
-                                     @Param("fechaFin") LocalDateTime fechaFin,
-                                     Pageable pageable);
+    // El método buscarConFiltros está implementado en AuditLogRepositoryImpl usando Criteria Builder
+    // para evitar problemas con enums de PostgreSQL en queries JPQL
 
     /**
      * Cuenta registros de auditoría por usuario

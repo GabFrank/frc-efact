@@ -526,7 +526,46 @@ public class FacturaLegalService {
             return;
         }
 
+        // Inicializar items y sus productos
         factura.getItems().size();
+        for (FacturaLegalItem item : factura.getItems()) {
+            if (item.getProducto() != null) {
+                // Inicializar producto y sus campos necesarios para evitar LazyInitializationException
+                item.getProducto().getId();
+                item.getProducto().getCodigo();
+                item.getProducto().getIva();
+                item.getProducto().getUnidadMedida();
+            }
+        }
+        
+        // Inicializar timbradoDetalle y su timbrado
+        TimbradoDetalle timbradoDetalle = factura.getTimbradoDetalle();
+        if (timbradoDetalle != null) {
+            timbradoDetalle.getId();
+            Timbrado timbrado = timbradoDetalle.getTimbrado();
+            if (timbrado != null) {
+                timbrado.getId();
+            }
+        }
+        
+        // Inicializar cliente y sus relaciones anidadas (ciudad, distrito, departamento)
+        Cliente cliente = factura.getCliente();
+        if (cliente != null) {
+            cliente.getId();
+            Ciudad ciudad = cliente.getCiudad();
+            if (ciudad != null) {
+                ciudad.getId();
+                Distrito distrito = ciudad.getDistrito();
+                if (distrito != null) {
+                    distrito.getId();
+                    Departamento departamento = distrito.getDepartamento();
+                    if (departamento != null) {
+                        departamento.getId();
+                    }
+                }
+            }
+        }
+        
         DocumentoElectronico documento = factura.getDocumentoElectronico();
         if (documento != null) {
             documento.getId();

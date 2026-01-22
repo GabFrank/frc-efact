@@ -2,14 +2,12 @@ package com.frcefact.repository;
 
 import com.frcefact.model.EstadoEvento;
 import com.frcefact.model.EventoInutilizacionDE;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,7 +15,8 @@ import java.util.Optional;
  * Repositorio para la gestión de Eventos de Inutilización de Numeración de Documentos Electrónicos.
  */
 @Repository
-public interface EventoInutilizacionDERepository extends JpaRepository<EventoInutilizacionDE, Long> {
+public interface EventoInutilizacionDERepository extends JpaRepository<EventoInutilizacionDE, Long>,
+        JpaSpecificationExecutor<EventoInutilizacionDE> {
 
     /**
      * Busca un evento por su ID único
@@ -69,25 +68,10 @@ public interface EventoInutilizacionDERepository extends JpaRepository<EventoInu
     List<EventoInutilizacionDE> findByEmpresaId(@Param("empresaId") Long empresaId);
 
     /**
-     * Busca eventos con filtros
+     * Busca eventos con filtros usando Specification.
+     * Este método se implementa usando JpaSpecificationExecutor.
+     * Usar EventoInutilizacionDESpecification.withFilters() para crear la specification.
      */
-    @Query("SELECT e FROM EventoInutilizacionDE e " +
-           "JOIN e.timbrado t " +
-           "WHERE (:empresaId IS NULL OR t.empresa.id = :empresaId) AND " +
-           "(:timbradoId IS NULL OR e.timbrado.id = :timbradoId) AND " +
-           "(:estado IS NULL OR e.estado = :estado) AND " +
-           "(:fechaInicio IS NULL OR e.creadoEn >= :fechaInicio) AND " +
-           "(:fechaFin IS NULL OR e.creadoEn <= :fechaFin) AND " +
-           "(e.activo = true) " +
-           "ORDER BY e.creadoEn DESC")
-    Page<EventoInutilizacionDE> findWithFilters(
-            @Param("empresaId") Long empresaId,
-            @Param("timbradoId") Long timbradoId,
-            @Param("estado") EstadoEvento estado,
-            @Param("fechaInicio") LocalDateTime fechaInicio,
-            @Param("fechaFin") LocalDateTime fechaFin,
-            Pageable pageable
-    );
 }
 
 

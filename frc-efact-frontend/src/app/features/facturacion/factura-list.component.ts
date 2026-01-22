@@ -578,7 +578,11 @@ export class FacturaListComponent implements OnInit, OnDestroy {
   pageSize = 10;
   pageIndex = 0;
 
-  filtro: FacturaFiltro = {
+  // Tipo local que permite Date para las fechas (viene del datepicker)
+  filtro: Omit<FacturaFiltro, 'fechaDesde' | 'fechaHasta'> & {
+    fechaDesde?: Date | string;
+    fechaHasta?: Date | string;
+  } = {
     empresaId: undefined, // Se obtiene de query params
     fechaDesde: undefined,
     fechaHasta: undefined,
@@ -861,8 +865,42 @@ export class FacturaListComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  /**
+   * Convierte un objeto Date a string en formato ISO_LOCAL_DATE_TIME
+   * Para fechaDesde: establece la hora a 00:00:00
+   * Para fechaHasta: establece la hora a 23:59:59
+   * Usa la hora local (no UTC) para evitar problemas de zona horaria
+   */
+  private convertirFechaAString(fecha: Date | string | undefined, esFechaHasta: boolean = false): string | undefined {
+    if (!fecha) return undefined;
+    
+    // Si ya es un string, retornarlo tal cual (asumiendo que ya está en el formato correcto)
+    if (typeof fecha === 'string') return fecha;
+    
+    // Si es un objeto Date, convertirlo al formato ISO_LOCAL_DATE_TIME
+    // Usar métodos locales (getFullYear, getMonth, getDate) en lugar de UTC
+    // para evitar problemas de zona horaria
+    if (!(fecha instanceof Date) || isNaN(fecha.getTime())) return undefined;
+    
+    // Obtener año, mes y día usando métodos locales
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    
+    // Para fechaDesde: 00:00:00, para fechaHasta: 23:59:59
+    const time = esFechaHasta ? '23:59:59' : '00:00:00';
+    
+    return `${year}-${month}-${day}T${time}`;
+  }
+
   cargarFacturas(): void {
-    this.store.dispatch(FacturacionActions.loadFacturas({ filtro: this.filtro }));
+    // Convertir las fechas a formato string antes de enviar
+    const filtroConvertido: FacturaFiltro = {
+      ...this.filtro,
+      fechaDesde: this.convertirFechaAString(this.filtro.fechaDesde, false),
+      fechaHasta: this.convertirFechaAString(this.filtro.fechaHasta, true)
+    };
+    this.store.dispatch(FacturacionActions.loadFacturas({ filtro: filtroConvertido }));
   }
 
   getEstadoDE(factura: FacturaLegal): string {
@@ -919,10 +957,14 @@ export class FacturaListComponent implements OnInit, OnDestroy {
     if (!this.filtro.empresaId) return;
 
     this.cargandoResumen.set(true);
+    // Convertir las fechas a formato string antes de enviar
+    const fechaDesdeStr = this.convertirFechaAString(this.filtro.fechaDesde, false);
+    const fechaHastaStr = this.convertirFechaAString(this.filtro.fechaHasta, true);
+    
     this.facturaApi.getResumen(
       this.filtro.empresaId,
-      this.filtro.fechaDesde,
-      this.filtro.fechaHasta
+      fechaDesdeStr,
+      fechaHastaStr
     ).pipe(takeUntil(this.destroy$)).subscribe({
       next: (resumen) => {
         this.resumen.set(resumen);
@@ -1383,8 +1425,21 @@ export class FacturaListComponent implements OnInit, OnDestroy {
               this.cargarFacturas();
             },
             error: (error) => {
-              const errorMessage = error.error?.message || error.message || 'Error al cancelar documento electrónico';
-              this.snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
+              // Extraer el mensaje de error del backend
+              let errorMessage = 'Error al cancelar documento electrónico';
+              
+              if (error.error?.message) {
+                errorMessage = error.error.message;
+              } else if (error.message) {
+                errorMessage = error.message;
+              }
+              
+              // Decodificar entidades HTML si existen (ej: &#243; -> ó)
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = errorMessage;
+              errorMessage = tempDiv.textContent || tempDiv.innerText || errorMessage;
+              
+              this.snackBar.open(errorMessage, 'Cerrar', { duration: 7000 });
             }
           });
       }

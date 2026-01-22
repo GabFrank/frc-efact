@@ -139,6 +139,23 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Manejar errores de estado ilegal (usado para errores de negocio como cancelaciones rechazadas por SIFEN).
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException ex) {
+        logger.warn("Estado ilegal: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                null,
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
      * Manejar errores de recurso no encontrado.
      */
     @ExceptionHandler({ResourceNotFoundException.class, EntityNotFoundException.class})

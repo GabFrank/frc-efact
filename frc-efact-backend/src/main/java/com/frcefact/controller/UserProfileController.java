@@ -5,6 +5,7 @@ import com.frcefact.dto.UpdateProfileRequest;
 import com.frcefact.dto.UsuarioDto;
 import com.frcefact.dto.mapper.UsuarioMapper;
 import com.frcefact.model.AuditLog;
+import com.frcefact.security.OAuth2TokenFilter;
 import com.frcefact.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -16,8 +17,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 @RestController
@@ -99,14 +104,88 @@ public class UserProfileController {
             @PageableDefault(size = 20, sort = "fechaHora", direction = Sort.Direction.DESC) Pageable pageable) {
         String username = authentication.getName();
         try {
-            Page<AuditLog> actividad = usuarioService.obtenerActividadUsuario(
-                    username, 
-                    pageable.getPageNumber(), 
-                    pageable.getPageSize()
-            );
+            Page<AuditLog> actividad = usuarioService.obtenerActividadUsuario(username, pageable);
             return ResponseEntity.ok(actividad);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping("/actualizar-desde-auth0")
+    @Operation(summary = "Actualizar información desde Auth0", description = "Actualiza la información del usuario (imagen de perfil, email, etc.) desde el token JWT de Auth0/Google. El token puede venir en el body de la request o en el header Authorization.")
+    public ResponseEntity<?> actualizarDesdeAuth0(
+            @RequestBody(required = false) Map<String, String> requestBody,
+            Authentication authentication,
+            HttpServletRequest request) {
+        String username = authentication.getName();
+        
+        try {
+            Jwt jwt = null;
+            String jwtTokenString = null;
+            
+            // 1. Intentar obtener el token del body de la request (si el frontend lo envía)
+            if (requestBody != null && requestBody.containsKey("token")) {
+                jwtTokenString = requestBody.get("token");
+                System.out.println("DEBUG: Token obtenido del body de la request");
+            }
+            
+            // 2. Si no está en el body, intentar obtener el JWT del Authentication object
+            if (jwtTokenString == null) {
+                if (authentication instanceof JwtAuthenticationToken) {
+                    JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
+                    jwt = jwtAuth.getToken();
+                    System.out.println("DEBUG: JWT obtenido de JwtAuthenticationToken");
+                } else if (authentication.getPrincipal() instanceof Jwt) {
+                    jwt = (Jwt) authentication.getPrincipal();
+                    System.out.println("DEBUG: JWT obtenido del Principal");
+                } else if (authentication.getCredentials() instanceof Jwt) {
+                    jwt = (Jwt) authentication.getCredentials();
+                    System.out.println("DEBUG: JWT obtenido de Credentials");
+                } else if (authentication.getDetails() instanceof Jwt) {
+                    jwt = (Jwt) authentication.getDetails();
+                    System.out.println("DEBUG: JWT obtenido de Details");
+                } else {
+                    // Intentar obtener el JWT del ThreadLocal (guardado por OAuth2TokenFilter)
+                    jwt = OAuth2TokenFilter.getJwtFromThreadLocal();
+                    if (jwt != null) {
+                        System.out.println("DEBUG: JWT obtenido de ThreadLocal");
+                    }
+                }
+            }
+            
+            // 3. Si no se encontró en el Authentication, intentar del header
+            if (jwtTokenString == null && jwt == null) {
+                String bearerToken = request.getHeader("Authorization");
+                if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+                    jwtTokenString = bearerToken.substring(7);
+                    System.out.println("DEBUG: Token obtenido del header Authorization");
+                }
+            }
+            
+            // 4. Si tenemos el token como String, decodificarlo y usar el servicio
+            if (jwtTokenString != null) {
+                var usuario = usuarioService.actualizarDesdeAuth0(username, jwtTokenString);
+                UsuarioDto usuarioDto = usuarioMapper.toDto(usuario);
+                return ResponseEntity.ok(usuarioDto);
+            }
+            
+            // 5. Si tenemos el JWT del Authentication, usarlo directamente
+            if (jwt != null) {
+                var usuario = usuarioService.actualizarDesdeAuth0Jwt(username, jwt);
+                UsuarioDto usuarioDto = usuarioMapper.toDto(usuario);
+                return ResponseEntity.ok(usuarioDto);
+            }
+            
+            // Si no se encontró el token en ningún lugar
+            return ResponseEntity.badRequest().body(Map.of("error", "Token JWT no encontrado. Por favor, envíe el token en el body de la request con la clave 'token', o asegúrese de estar autenticado con Auth0/Google."));
+            
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(Map.of("error", "Error al actualizar información desde Auth0: " + e.getMessage()));
         }
     }
 }

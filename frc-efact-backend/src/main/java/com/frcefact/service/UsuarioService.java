@@ -17,11 +17,19 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -39,17 +47,20 @@ public class UsuarioService {
     private final UsuarioRolRepository usuarioRolRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
+    private final JwtDecoder jwtDecoder;
 
     public UsuarioService(UsuarioRepository usuarioRepository, 
                          RolRepository rolRepository,
                          UsuarioRolRepository usuarioRolRepository,
                          PasswordEncoder passwordEncoder,
-                         AuditLogService auditLogService) {
+                         AuditLogService auditLogService,
+                         JwtDecoder jwtDecoder) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
+        this.jwtDecoder = jwtDecoder;
     }
 
     /**
@@ -654,17 +665,169 @@ public class UsuarioService {
      * Obtener actividad del usuario con paginación.
      *
      * @param username el username del usuario
-     * @param page número de página (0-indexed)
-     * @param size tamaño de página
+     * @param pageable configuración de paginación
      * @return página de registros de auditoría del usuario
      */
     @Transactional(readOnly = true)
-    public Page<AuditLog> obtenerActividadUsuario(String username, int page, int size) {
+    public Page<AuditLog> obtenerActividadUsuario(String username, Pageable pageable) {
         Usuario usuario = usuarioRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "fechaHora"));
-        return auditLogService.buscarConFiltros(usuario.getId(), null, null, null, null, null, pageable);
+        // Crear un Pageable sin sort ya que la consulta JPQL ya tiene ORDER BY
+        Pageable pageableSinSort = PageRequest.of(
+                pageable.getPageNumber(), 
+                pageable.getPageSize()
+        );
+        return auditLogService.buscarConFiltros(usuario.getId(), null, null, null, null, null, pageableSinSort);
+    }
+
+    /**
+     * Actualizar información del usuario desde el token JWT de Auth0.
+     * Extrae información como imagen de perfil, email, etc. del token y actualiza el usuario.
+     *
+     * @param username el username del usuario autenticado
+     * @param jwtTokenString el token JWT como String
+     * @return el usuario actualizado
+     * @throws IllegalArgumentException si el usuario no se encuentra, no tiene cuenta Auth0 vinculada,
+     *                                  o si el token no es válido o no es de Auth0
+     */
+    public Usuario actualizarDesdeAuth0(String username, String jwtTokenString) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
+
+        // Verificar que el usuario tenga cuenta Auth0 vinculada
+        if (usuario.getAuth0Id() == null || usuario.getAuth0Id().isEmpty()) {
+            throw new IllegalArgumentException("El usuario no tiene una cuenta Auth0/Google vinculada.");
+        }
+
+        try {
+            // Decodificar el token JWT sin validar la firma (solo para leer los claims)
+            // Esto es seguro porque el usuario ya está autenticado y solo estamos leyendo información
+            // Dividimos el JWT en sus partes: header.payload.signature
+            String[] parts = jwtTokenString.split("\\.");
+            if (parts.length != 3) {
+                throw new IllegalArgumentException("Token JWT inválido: formato incorrecto");
+            }
+            
+            // Decodificar el payload (segunda parte)
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, Object> claims = objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {});
+            
+            // Extraer información del token
+            String auth0IdFromToken = (String) claims.get("sub");
+            String email = (String) claims.get("email");
+            Boolean emailVerified = claims.get("email_verified") instanceof Boolean 
+                ? (Boolean) claims.get("email_verified")
+                : Boolean.parseBoolean(String.valueOf(claims.get("email_verified")));
+            String picture = (String) claims.get("picture");
+            
+            // Verificar que el token pertenezca al usuario
+            // Verificamos tanto el auth0Id como el email para mayor flexibilidad
+            boolean tokenBelongsToUser = false;
+            if (auth0IdFromToken != null && auth0IdFromToken.equals(usuario.getAuth0Id())) {
+                tokenBelongsToUser = true;
+            } else if (email != null && email.equals(usuario.getEmail()) && Boolean.TRUE.equals(emailVerified)) {
+                // Si el email coincide y está verificado, también es válido
+                tokenBelongsToUser = true;
+                // Si el auth0Id del token es diferente pero el email coincide, actualizar el auth0Id
+                if (auth0IdFromToken != null && !auth0IdFromToken.equals(usuario.getAuth0Id())) {
+                    usuario.setAuth0Id(auth0IdFromToken);
+                }
+            }
+            
+            if (!tokenBelongsToUser) {
+                throw new IllegalArgumentException("El token no pertenece a este usuario. Auth0Id del token: " + auth0IdFromToken + ", Auth0Id del usuario: " + usuario.getAuth0Id());
+            }
+
+            boolean needsUpdate = false;
+
+            // Actualizar email si está verificado y es diferente
+            if (email != null && Boolean.TRUE.equals(emailVerified) && !email.equals(usuario.getEmail())) {
+                // Verificar que el email no esté en uso por otro usuario
+                Optional<Usuario> existingUser = usuarioRepository.findByEmail(email);
+                if (existingUser.isPresent() && !existingUser.get().getId().equals(usuario.getId())) {
+                    throw new IllegalArgumentException("El email ya está en uso por otro usuario.");
+                }
+                usuario.setEmail(email);
+                needsUpdate = true;
+            }
+
+            // Actualizar imagen de perfil si está disponible y es diferente
+            if (picture != null && !picture.equals(usuario.getImagenPerfil())) {
+                usuario.setImagenPerfil(picture);
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                usuario = usuarioRepository.save(usuario);
+            }
+
+            return usuario;
+        } catch (JwtException e) {
+            throw new IllegalArgumentException("Token JWT inválido o no es de Auth0: " + e.getMessage());
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Error al decodificar el token JWT: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            // Re-lanzar IllegalArgumentException sin modificar
+            throw e;
+        }
+    }
+
+    /**
+     * Actualizar información del usuario desde el objeto JWT de Auth0.
+     * Versión sobrecargada que recibe directamente el objeto Jwt.
+     *
+     * @param username el username del usuario autenticado
+     * @param jwt el objeto Jwt ya decodificado
+     * @return el usuario actualizado
+     * @throws IllegalArgumentException si el usuario no se encuentra, no tiene cuenta Auth0 vinculada,
+     *                                  o si el token no pertenece al usuario
+     */
+    public Usuario actualizarDesdeAuth0Jwt(String username, Jwt jwt) {
+        Usuario usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + username));
+
+        // Verificar que el usuario tenga cuenta Auth0 vinculada
+        if (usuario.getAuth0Id() == null || usuario.getAuth0Id().isEmpty()) {
+            throw new IllegalArgumentException("El usuario no tiene una cuenta Auth0/Google vinculada.");
+        }
+
+        // Verificar que el token pertenezca al usuario
+        String auth0Id = jwt.getSubject();
+        if (!auth0Id.equals(usuario.getAuth0Id())) {
+            throw new IllegalArgumentException("El token no pertenece a este usuario.");
+        }
+
+        // Extraer información del token
+        String email = jwt.getClaimAsString("email");
+        Boolean emailVerified = jwt.getClaim("email_verified");
+        String picture = jwt.getClaimAsString("picture");
+
+        boolean needsUpdate = false;
+
+        // Actualizar email si está verificado y es diferente
+        if (email != null && Boolean.TRUE.equals(emailVerified) && !email.equals(usuario.getEmail())) {
+            // Verificar que el email no esté en uso por otro usuario
+            Optional<Usuario> existingUser = usuarioRepository.findByEmail(email);
+            if (existingUser.isPresent() && !existingUser.get().getId().equals(usuario.getId())) {
+                throw new IllegalArgumentException("El email ya está en uso por otro usuario.");
+            }
+            usuario.setEmail(email);
+            needsUpdate = true;
+        }
+
+        // Actualizar imagen de perfil si está disponible y es diferente
+        if (picture != null && !picture.equals(usuario.getImagenPerfil())) {
+            usuario.setImagenPerfil(picture);
+            needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+            usuario = usuarioRepository.save(usuario);
+        }
+
+        return usuario;
     }
 
     /**

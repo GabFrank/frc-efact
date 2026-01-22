@@ -155,11 +155,17 @@ public interface FacturaLegalRepository extends JpaRepository<FacturaLegal, Long
     /**
      * Obtiene una factura por ID con todas las relaciones necesarias cargadas.
      * Usa JOIN FETCH para evitar LazyInitializationException.
-     * Carga: empresa, cliente (si existe), documentoElectronico (si existe) y sus items.
+     * Carga: empresa, timbradoDetalle, timbradoDetalle.timbrado, cliente (si existe) 
+     * con ciudad.distrito.departamento, documentoElectronico (si existe) y sus items.
      */
     @Query("SELECT DISTINCT f FROM FacturaLegal f " +
            "JOIN FETCH f.empresa " +
-           "LEFT JOIN FETCH f.cliente " +
+           "JOIN FETCH f.timbradoDetalle td " +
+           "LEFT JOIN FETCH td.timbrado " +
+           "LEFT JOIN FETCH f.cliente c " +
+           "LEFT JOIN FETCH c.ciudad ci " +
+           "LEFT JOIN FETCH ci.distrito d " +
+           "LEFT JOIN FETCH d.departamento " +
            "LEFT JOIN FETCH f.documentoElectronico de " +
            "LEFT JOIN FETCH de.loteDE " +
            "LEFT JOIN FETCH f.items " +

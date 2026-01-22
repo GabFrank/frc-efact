@@ -48,6 +48,20 @@ export class ProfileApiService {
   }
 
   /**
+   * Actualizar información del usuario desde Auth0/Google
+   * Actualiza la imagen de perfil, email, etc. desde el token JWT de Auth0
+   * @param token El token JWT de Auth0 (opcional, se obtiene de localStorage si no se proporciona)
+   */
+  updateFromAuth0(token?: string): Observable<User> {
+    // Si no se proporciona el token, intentar obtenerlo de localStorage
+    if (!token) {
+      token = localStorage.getItem('auth_token') || '';
+    }
+    // Enviar el token en el body de la request
+    return this.http.post<User>(`${this.baseUrl}/actualizar-desde-auth0`, { token });
+  }
+
+  /**
    * Obtener actividad del usuario con paginación
    */
   getActivity(page: number = 0, size: number = 20): Observable<AuditLogPage> {

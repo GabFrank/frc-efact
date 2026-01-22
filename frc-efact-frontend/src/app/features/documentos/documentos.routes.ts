@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '../../guards/auth.guard';
 import { roleGuard } from '../../guards/role.guard';
+import { empresaSelectedGuard } from '../../guards/empresa-selected.guard';
 
 export const DOCUMENTOS_ROUTES: Routes = [
   {
@@ -17,21 +18,21 @@ export const DOCUMENTOS_ROUTES: Routes = [
   },
   {
     path: 'cancelacion',
-    canActivate: [authGuard],
+    canActivate: [authGuard, empresaSelectedGuard],
     loadComponent: () => 
       import('./evento-cancelacion-list.component').then(m => m.EventoCancelacionListComponent),
     title: 'Eventos de Cancelación'
   },
   {
     path: 'nominacion',
-    canActivate: [authGuard],
+    canActivate: [authGuard, empresaSelectedGuard],
     loadComponent: () => 
       import('./evento-nominacion-list.component').then(m => m.EventoNominacionListComponent),
     title: 'Eventos de Nominación'
   },
   {
     path: 'inutilizacion',
-    canActivate: [authGuard],
+    canActivate: [authGuard, empresaSelectedGuard],
     loadComponent: () => 
       import('./evento-inutilizacion-list.component').then(m => m.EventoInutilizacionListComponent),
     title: 'Eventos de Inutilización'

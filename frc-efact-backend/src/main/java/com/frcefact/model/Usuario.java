@@ -46,6 +46,9 @@ public class Usuario extends AuditableEntity {
     @Column(name = "auth0_id", unique = true)
     private String auth0Id;
 
+    @Column(name = "imagen_perfil", length = 500)
+    private String imagenPerfil;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
@@ -137,6 +140,14 @@ public class Usuario extends AuditableEntity {
 
     public void setAuth0Id(String auth0Id) {
         this.auth0Id = auth0Id;
+    }
+
+    public String getImagenPerfil() {
+        return imagenPerfil;
+    }
+
+    public void setImagenPerfil(String imagenPerfil) {
+        this.imagenPerfil = imagenPerfil;
     }
 
     public Boolean getIsActive() {

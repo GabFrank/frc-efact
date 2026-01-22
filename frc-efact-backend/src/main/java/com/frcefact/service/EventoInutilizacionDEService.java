@@ -3,8 +3,10 @@ package com.frcefact.service;
 import com.frcefact.model.EstadoEvento;
 import com.frcefact.model.EventoInutilizacionDE;
 import com.frcefact.repository.EventoInutilizacionDERepository;
+import com.frcefact.repository.specification.EventoInutilizacionDESpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,7 +58,9 @@ public class EventoInutilizacionDEService {
             LocalDateTime fechaInicio,
             LocalDateTime fechaFin,
             Pageable pageable) {
-        return repository.findWithFilters(empresaId, timbradoId, estado, fechaInicio, fechaFin, pageable);
+        Specification<EventoInutilizacionDE> spec = EventoInutilizacionDESpecification.withFilters(
+                empresaId, timbradoId, estado, fechaInicio, fechaFin);
+        return repository.findAll(spec, pageable);
     }
 }
 

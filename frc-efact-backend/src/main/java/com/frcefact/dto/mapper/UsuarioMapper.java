@@ -41,6 +41,7 @@ public class UsuarioMapper {
         dto.setCreadoEn(usuario.getCreadoEn());
         dto.setActualizadoEn(usuario.getActualizadoEn());
         dto.setAuth0Id(usuario.getAuth0Id());
+        dto.setImagenPerfil(usuario.getImagenPerfil());
 
         // Mapear roles
         if (usuario.getUsuarioRoles() != null) {
@@ -81,6 +82,7 @@ public class UsuarioMapper {
         dto.setCreadoEn(usuario.getCreadoEn());
         dto.setActualizadoEn(usuario.getActualizadoEn());
         dto.setAuth0Id(usuario.getAuth0Id());
+        dto.setImagenPerfil(usuario.getImagenPerfil());
 
         return dto;
     }

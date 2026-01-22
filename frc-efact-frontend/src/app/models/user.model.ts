@@ -3,6 +3,7 @@ export interface User {
   username: string;
   email: string;
   auth0Id?: string;
+  imagenPerfil?: string; // URL de la imagen de perfil de Google/Auth0
   isActive: boolean;
   roles: Role[] | string[]; // Puede ser array de objetos Role o array de strings
   ultimoLogin?: string; // Cambiado de lastLogin

@@ -28,6 +28,19 @@ export class DocumentoElectronicoApiService {
     );
   }
 
+  getAllPaginated(estado?: EstadoDE, empresaId?: number, page: number = 0, size: number = 20): Observable<{ content: DocumentoElectronico[]; totalElements: number; totalPages: number }> {
+    let params = new HttpParams();
+    if (estado) {
+      params = params.set('estado', estado);
+    }
+    if (empresaId) {
+      params = params.set('empresaId', empresaId.toString());
+    }
+    params = params.set('page', page.toString());
+    params = params.set('size', size.toString());
+    return this.http.get<{ content: DocumentoElectronico[]; totalElements: number; totalPages: number }>(this.baseUrl, { params });
+  }
+
   getById(id: number): Observable<DocumentoElectronico> {
     return this.http.get<DocumentoElectronico>(`${this.baseUrl}/${id}`);
   }
