@@ -33,5 +33,27 @@ export class NotaRemisionApiService {
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
+
+  generarDE(id: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/${id}/generar-de`, {});
+  }
+
+  generarYEnviar(id: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/${id}/generar-y-enviar`, {});
+  }
+
+  vincularLote(id: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/${id}/vincular-lote`, {});
+  }
+
+  descargarPdfKude(id: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${id}/kude-pdf`, {
+      responseType: 'blob'
+    });
+  }
+
+  enviarEmail(id: number, data: { email: string, actualizarCliente: boolean }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/${id}/enviar-email`, data);
+  }
 }
 

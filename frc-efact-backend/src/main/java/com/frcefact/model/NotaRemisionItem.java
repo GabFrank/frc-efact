@@ -1,5 +1,6 @@
 package com.frcefact.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.frcefact.model.base.AuditableEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -20,6 +21,7 @@ public class NotaRemisionItem extends AuditableEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "nota_remision_id", nullable = false)
     private NotaRemision notaRemision;

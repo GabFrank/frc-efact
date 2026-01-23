@@ -35,6 +35,7 @@ spring:
     clean-disabled: false
     locations: classpath:db/migration
     schemas: public
+    repair: false  # Set to true to repair checksum mismatches on startup
 
   # Mail Configuration for Development
   # IMPORTANTE: Para desarrollo local, puedes configurar la contraseña aquí o usar la variable de entorno MAIL_PASSWORD

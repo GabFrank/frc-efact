@@ -35,6 +35,10 @@ public class NotaRemisionDto {
     @Size(max = 100)
     private String departamentoPartida;
 
+    private Long ciudadPartidaId;
+    private Long departamentoPartidaId;
+    private Long distritoPartidaId;
+
     // Llegada
     @Size(max = 200)
     private String nombreDestinatario;
@@ -50,6 +54,10 @@ public class NotaRemisionDto {
 
     @Size(max = 100)
     private String departamentoDestinatario;
+
+    private Long ciudadDestinatarioId;
+    private Long departamentoDestinatarioId;
+    private Long distritoDestinatarioId;
 
     // Datos remision
     @Size(max = 50)
@@ -73,6 +81,16 @@ public class NotaRemisionDto {
     @Size(max = 20)
     private String vehiculoMatricula;
 
+    // Transportista
+    @Size(max = 200)
+    private String transportistaNombre;
+
+    @Size(max = 20)
+    private String transportistaRuc;
+
+    @Size(max = 255)
+    private String transportistaDireccion;
+
     // Conductor
     @Size(max = 200)
     private String conductorNombre;
@@ -82,6 +100,8 @@ public class NotaRemisionDto {
 
     @Size(max = 255)
     private String conductorDireccion;
+
+    private String fechaEstimadaFactura;
 
     // Items
     @NotNull(message = "Items son requeridos")
@@ -95,6 +115,7 @@ public class NotaRemisionDto {
     private String numeroFormateado;
     private String nombreEmpresa;
     private String nombreCliente;
+    private String emailCliente;
     private String numeroFacturaAsociada;
 
     // Documento electrónico
@@ -138,6 +159,15 @@ public class NotaRemisionDto {
     public String getDepartamentoPartida() { return departamentoPartida; }
     public void setDepartamentoPartida(String departamentoPartida) { this.departamentoPartida = departamentoPartida; }
 
+    public Long getCiudadPartidaId() { return ciudadPartidaId; }
+    public void setCiudadPartidaId(Long ciudadPartidaId) { this.ciudadPartidaId = ciudadPartidaId; }
+
+    public Long getDepartamentoPartidaId() { return departamentoPartidaId; }
+    public void setDepartamentoPartidaId(Long departamentoPartidaId) { this.departamentoPartidaId = departamentoPartidaId; }
+
+    public Long getDistritoPartidaId() { return distritoPartidaId; }
+    public void setDistritoPartidaId(Long distritoPartidaId) { this.distritoPartidaId = distritoPartidaId; }
+
     public String getNombreDestinatario() { return nombreDestinatario; }
     public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
 
@@ -152,6 +182,15 @@ public class NotaRemisionDto {
 
     public String getDepartamentoDestinatario() { return departamentoDestinatario; }
     public void setDepartamentoDestinatario(String departamentoDestinatario) { this.departamentoDestinatario = departamentoDestinatario; }
+
+    public Long getCiudadDestinatarioId() { return ciudadDestinatarioId; }
+    public void setCiudadDestinatarioId(Long ciudadDestinatarioId) { this.ciudadDestinatarioId = ciudadDestinatarioId; }
+
+    public Long getDepartamentoDestinatarioId() { return departamentoDestinatarioId; }
+    public void setDepartamentoDestinatarioId(Long departamentoDestinatarioId) { this.departamentoDestinatarioId = departamentoDestinatarioId; }
+
+    public Long getDistritoDestinatarioId() { return distritoDestinatarioId; }
+    public void setDistritoDestinatarioId(Long distritoDestinatarioId) { this.distritoDestinatarioId = distritoDestinatarioId; }
 
     public String getMotivoEmision() { return motivoEmision; }
     public void setMotivoEmision(String motivoEmision) { this.motivoEmision = motivoEmision; }
@@ -177,6 +216,15 @@ public class NotaRemisionDto {
     public String getVehiculoMatricula() { return vehiculoMatricula; }
     public void setVehiculoMatricula(String vehiculoMatricula) { this.vehiculoMatricula = vehiculoMatricula; }
 
+    public String getTransportistaNombre() { return transportistaNombre; }
+    public void setTransportistaNombre(String transportistaNombre) { this.transportistaNombre = transportistaNombre; }
+
+    public String getTransportistaRuc() { return transportistaRuc; }
+    public void setTransportistaRuc(String transportistaRuc) { this.transportistaRuc = transportistaRuc; }
+
+    public String getTransportistaDireccion() { return transportistaDireccion; }
+    public void setTransportistaDireccion(String transportistaDireccion) { this.transportistaDireccion = transportistaDireccion; }
+
     public String getConductorNombre() { return conductorNombre; }
     public void setConductorNombre(String conductorNombre) { this.conductorNombre = conductorNombre; }
 
@@ -185,6 +233,9 @@ public class NotaRemisionDto {
 
     public String getConductorDireccion() { return conductorDireccion; }
     public void setConductorDireccion(String conductorDireccion) { this.conductorDireccion = conductorDireccion; }
+
+    public String getFechaEstimadaFactura() { return fechaEstimadaFactura; }
+    public void setFechaEstimadaFactura(String fechaEstimadaFactura) { this.fechaEstimadaFactura = fechaEstimadaFactura; }
 
     public List<NotaRemisionItemDto> getItems() { return items; }
     public void setItems(List<NotaRemisionItemDto> items) { this.items = items; }
@@ -200,6 +251,9 @@ public class NotaRemisionDto {
 
     public String getNombreCliente() { return nombreCliente; }
     public void setNombreCliente(String nombreCliente) { this.nombreCliente = nombreCliente; }
+
+    public String getEmailCliente() { return emailCliente; }
+    public void setEmailCliente(String emailCliente) { this.emailCliente = emailCliente; }
 
     public String getNumeroFacturaAsociada() { return numeroFacturaAsociada; }
     public void setNumeroFacturaAsociada(String numeroFacturaAsociada) { this.numeroFacturaAsociada = numeroFacturaAsociada; }

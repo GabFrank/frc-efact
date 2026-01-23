@@ -1,5 +1,7 @@
 package com.frcefact.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.frcefact.model.base.AuditableEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -22,6 +24,7 @@ import java.util.Set;
         @Index(name = "idx_empresa_activo", columnList = "activo"),
         @Index(name = "idx_empresa_razon_social", columnList = "razon_social")
 })
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Empresa extends AuditableEntity {
 
     @Id
@@ -118,6 +121,7 @@ public class Empresa extends AuditableEntity {
     private Boolean activo = true;
 
     // Relaciones
+    @JsonIgnore
     @OneToMany(mappedBy = "empresa", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UsuarioEmpresa> usuarioEmpresas = new HashSet<>();
 

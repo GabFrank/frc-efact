@@ -500,8 +500,7 @@ public class FacturaLegalController {
             // Preparar headers para descarga
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("attachment", 
-                    "KUDE_" + factura.getNumeroFacturaFormateado() + ".pdf");
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"KuDE-FE-" + factura.getNumeroFacturaFormateado() + ".pdf\"");
             headers.setContentLength(pdfBytes.length);
             
             logger.info("PDF KUDE generado exitosamente para factura ID: {}", id);

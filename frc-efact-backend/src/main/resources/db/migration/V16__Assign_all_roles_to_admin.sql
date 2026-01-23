@@ -25,3 +25,4 @@ ON CONFLICT (usuario_id, rol_id) DO NOTHING;
 -- WHERE u.username = 'admin'
 -- ORDER BY r.nombre;
 
+

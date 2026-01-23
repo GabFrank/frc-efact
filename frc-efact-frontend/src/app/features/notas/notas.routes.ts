@@ -18,8 +18,23 @@ export const NOTAS_ROUTES: Routes = [
   {
     path: 'notas-remision',
     canActivate: [authGuard],
-    loadComponent: () => import('./nota-remision-list.component').then(m => m.NotaRemisionListComponent),
-    data: { title: 'Notas de Remisión' }
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./nota-remision-list.component').then(m => m.NotaRemisionListComponent),
+        data: { title: 'Notas de Remisión' }
+      },
+      {
+        path: 'nueva',
+        loadComponent: () => import('./nota-remision-form.component').then(m => m.NotaRemisionFormComponent),
+        data: { title: 'Nueva Nota de Remisión' }
+      },
+      {
+        path: ':id',
+        loadComponent: () => import('./nota-remision-form.component').then(m => m.NotaRemisionFormComponent),
+        data: { title: 'Editar Nota de Remisión' }
+      }
+    ]
   }
 ];
 

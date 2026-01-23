@@ -211,24 +211,30 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     </a>
                   </li>
                   <li class="nav-sub-item">
-                    <a class="nav-link disabled" [attr.tabindex]="-1">
+                    <a [routerLink]="selectedEmpresa ? '/notas/notas-credito' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
                       <i class="fas fa-file-invoice-dollar"></i>
                       <span>Notas de Crédito</span>
-                      <span class="badge-coming-soon">Próximamente</span>
                     </a>
                   </li>
                   <li class="nav-sub-item">
-                    <a class="nav-link disabled" [attr.tabindex]="-1">
+                    <a [routerLink]="selectedEmpresa ? '/notas/notas-debito' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
                       <i class="fas fa-file-invoice-dollar"></i>
                       <span>Notas de Débito</span>
-                      <span class="badge-coming-soon">Próximamente</span>
                     </a>
                   </li>
                   <li class="nav-sub-item">
-                    <a class="nav-link disabled" [attr.tabindex]="-1">
+                    <a [routerLink]="selectedEmpresa ? '/notas/notas-remision' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
                       <i class="fas fa-file-alt"></i>
                       <span>Notas de Remisión</span>
-                      <span class="badge-coming-soon">Próximamente</span>
                     </a>
                   </li>
                 </ul>
@@ -1225,7 +1231,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     // Expandir según la ruta actual
     if (url.startsWith('/empresas') || url.startsWith('/timbrados') || url.includes('/productos')) {
       this.expandedSections['gestionEmpresa'] = true;
-    } else if (url.startsWith('/facturacion')) {
+    } else if (url.startsWith('/facturacion') || url.startsWith('/notas')) {
       this.expandedSections['facturacion'] = true;
     } else if (url.startsWith('/documentos')) {
       this.expandedSections['documentos'] = true;

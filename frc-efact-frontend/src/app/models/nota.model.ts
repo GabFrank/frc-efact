@@ -39,6 +39,7 @@ export interface NotaCredito {
   numeroFormateado?: string;
   nombreEmpresa?: string;
   nombreCliente?: string;
+  emailCliente?: string;
   numeroFacturaAsociada?: string;
 
   // Información de documento electrónico asociada
@@ -83,6 +84,7 @@ export interface NotaDebito {
   numeroFormateado?: string;
   nombreEmpresa?: string;
   nombreCliente?: string;
+  emailCliente?: string;
   numeroFacturaAsociada?: string;
 
   documentoElectronicoId?: number;
@@ -105,6 +107,9 @@ export interface NotaRemision {
   direccionPartida: string;
   ciudadPartida: string;
   departamentoPartida: string;
+  ciudadPartidaId?: number;
+  distritoPartidaId?: number;
+  departamentoPartidaId?: number;
 
   // Llegada
   nombreDestinatario: string;
@@ -112,6 +117,9 @@ export interface NotaRemision {
   direccionDestinatario: string;
   ciudadDestinatario: string;
   departamentoDestinatario: string;
+  ciudadDestinatarioId?: number;
+  distritoDestinatarioId?: number;
+  departamentoDestinatarioId?: number;
 
   motivoEmision: string;
   fechaInicioTraslado: string;
@@ -124,9 +132,15 @@ export interface NotaRemision {
   vehiculoMarca?: string;
   vehiculoMatricula?: string;
 
+  transportistaNombre?: string;
+  transportistaRuc?: string;
+  transportistaDireccion?: string;
+
   conductorNombre?: string;
   conductorDoc?: string;
   conductorDireccion?: string;
+
+  fechaEstimadaFactura?: string;
 
   items: NotaRemisionItem[];
 
@@ -135,6 +149,7 @@ export interface NotaRemision {
   numeroFormateado?: string;
   nombreEmpresa?: string;
   nombreCliente?: string;
+  emailCliente?: string;
   numeroFacturaAsociada?: string;
 
   documentoElectronicoId?: number;

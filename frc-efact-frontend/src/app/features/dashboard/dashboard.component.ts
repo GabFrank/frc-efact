@@ -50,7 +50,7 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
                 <i class="fas fa-file-invoice"></i>
                 <span>Factura Electrónica</span>
               </button>
-              <button class="action-card" (click)="navigateToFacturacion('nota-remision')">
+              <button class="action-card" (click)="navigateToNotasRemision()">
                 <i class="fas fa-file-alt"></i>
                 <span>Nota de Remisión</span>
               </button>
@@ -853,6 +853,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
           queryParams.tipo = tipo;
         }
         this.router.navigate(['/facturacion/nueva'], { queryParams });
+      }
+    });
+  }
+
+  navigateToNotasRemision(): void {
+    this.selectedEmpresa$.pipe(takeUntil(this.destroy$)).subscribe(empresa => {
+      if (empresa) {
+        const queryParams: any = { empresaId: empresa.id };
+        this.router.navigate(['/notas/notas-remision'], { queryParams });
       }
     });
   }

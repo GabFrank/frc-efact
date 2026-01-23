@@ -5,6 +5,7 @@ import com.frcefact.model.*;
 import com.frcefact.repository.DocumentoElectronicoRepository;
 import com.frcefact.repository.FacturaLegalRepository;
 import com.frcefact.repository.NotaCreditoRepository;
+import com.frcefact.repository.NotaRemisionRepository;
 import com.frcefact.repository.LoteDERepository;
 import com.frcefact.service.sifen.SifenService;
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ public class DocumentoElectronicoService {
     private final DocumentoElectronicoRepository documentoElectronicoRepository;
     private final FacturaLegalRepository facturaLegalRepository;
     private final NotaCreditoRepository notaCreditoRepository;
+    private final NotaRemisionRepository notaRemisionRepository;
     private final LoteDERepository loteDERepository;
     private final CertificadoService certificadoService;
     private final SifenService sifenService;
@@ -38,6 +40,7 @@ public class DocumentoElectronicoService {
             DocumentoElectronicoRepository documentoElectronicoRepository,
             FacturaLegalRepository facturaLegalRepository,
             NotaCreditoRepository notaCreditoRepository,
+            NotaRemisionRepository notaRemisionRepository,
             LoteDERepository loteDERepository,
             CertificadoService certificadoService,
             SifenService sifenService,
@@ -45,6 +48,7 @@ public class DocumentoElectronicoService {
         this.documentoElectronicoRepository = documentoElectronicoRepository;
         this.facturaLegalRepository = facturaLegalRepository;
         this.notaCreditoRepository = notaCreditoRepository;
+        this.notaRemisionRepository = notaRemisionRepository;
         this.loteDERepository = loteDERepository;
         this.certificadoService = certificadoService;
         this.sifenService = sifenService;
@@ -326,9 +330,9 @@ public class DocumentoElectronicoService {
         DocumentoElectronico documento = documentoElectronicoRepository.findByFacturaLegalId(facturaLegalId)
                 .orElse(null);
 
-        if (documento == null) {
+        if (documento == null || EstadoDE.ERROR.equals(documento.getEstado()) || EstadoDE.RECHAZADO.equals(documento.getEstado())) {
             documento = generarDE(facturaLegalId);
-        } else if (!EstadoDE.PENDIENTE.equals(documento.getEstado()) && !EstadoDE.ERROR.equals(documento.getEstado())) {
+        } else if (!EstadoDE.PENDIENTE.equals(documento.getEstado())) {
             throw new BusinessException("La factura ya cuenta con un DE en estado " + documento.getEstado());
         }
 
@@ -417,6 +421,114 @@ public class DocumentoElectronicoService {
     }
 
     /**
+     * Genera un documento electrónico a partir de una nota de remisión.
+     * Similar a generarDE para factura, pero para nota de remisión (NRE).
+     * 
+     * @param notaRemisionId ID de la nota de remisión
+     * @return Documento electrónico generado
+     */
+    public DocumentoElectronico generarDEDesdeNotaRemision(Long notaRemisionId) {
+        log.info("🔧 Generando documento electrónico para nota de remisión ID: {}", notaRemisionId);
+        
+        // Buscar nota de remisión
+        NotaRemision notaRemision = notaRemisionRepository.findById(notaRemisionId)
+                .orElseThrow(() -> new BusinessException("Nota de remisión no encontrada: " + notaRemisionId));
+        
+        // Validar que la nota de remisión no tenga ya un DE activo
+        DocumentoElectronico deExistente = documentoElectronicoRepository.findByNotaRemisionId(notaRemisionId).orElse(null);
+        if (deExistente != null) {
+            if (deExistente.getEstado() == EstadoDE.ERROR || deExistente.getEstado() == EstadoDE.RECHAZADO) {
+                log.warn("⚠️ La nota de remisión ID: {} tiene un DE con error permanente (estado: {}). Eliminando para crear uno nuevo.", 
+                    notaRemisionId, deExistente.getEstado());
+                documentoElectronicoRepository.delete(deExistente);
+                log.info("✅ DE anterior eliminado. Procediendo a crear uno nuevo.");
+            } else {
+                throw new BusinessException(
+                    String.format("La nota de remisión ya tiene un documento electrónico asociado en estado: %s. " +
+                        "Solo se puede reemplazar si el DE anterior tiene error permanente (ERROR o RECHAZADO).", 
+                        deExistente.getEstado()));
+            }
+        }
+        
+        // Validar que la empresa tiene certificado vigente
+        try {
+            certificadoService.validarCertificadoVigente(notaRemision.getEmpresa());
+        } catch (BusinessException e) {
+            log.error("❌ Certificado no válido para empresa ID: {}", notaRemision.getEmpresa().getId());
+            throw new BusinessException("No se puede generar DE: " + e.getMessage());
+        }
+        
+        // Construir objeto DE de SIFEN y generar XML
+        SifenService.CrearDEResult resultado = sifenService.crearDocumentoElectronicoSifenDesdeNotaRemision(notaRemision);
+        
+        // Crear documento electrónico en BD
+        DocumentoElectronico de = new DocumentoElectronico();
+        de.setNotaRemision(notaRemision);
+        de.setCdc(resultado.cdc());
+        de.setUrlQr(resultado.urlQr());
+        de.setNumeroDocumento(notaRemision.getNumeroFormateado());
+        de.setTipoDocumento("7"); // 7 = Nota de Remisión electrónica (según TTiDE enum)
+        de.setXmlOriginal(resultado.xmlOriginal());
+        de.setEstado(EstadoDE.PENDIENTE);
+        de.setFechaEmision(LocalDateTime.now());
+        de.setActivo(true);
+        
+        // Guardar
+        de = documentoElectronicoRepository.save(de);
+        
+        log.info("✅ Documento electrónico generado con CDC: {} para nota de remisión ID: {}", resultado.cdc(), notaRemisionId);
+        
+        // Recargar el documento con todas las relaciones necesarias para evitar LazyInitializationException
+        // Especialmente importante cargar la cadena geográfica completa: empresa -> ciudad -> distrito -> departamento -> pais
+        DocumentoElectronico deConRelaciones = documentoElectronicoRepository
+                .findByNotaRemisionIdWithRelations(notaRemisionId)
+                .orElseThrow(() -> new BusinessException("No se pudo recuperar el documento electrónico generado con relaciones"));
+        
+        return deConRelaciones;
+    }
+
+    /**
+     * Genera un documento electrónico a partir de una nota de remisión, crea un nuevo lote,
+     * asocia el documento al lote y envía el lote a SIFEN.
+     *
+     * @param notaRemisionId ID de la nota de remisión
+     * @return Resultado con el documento y el lote procesado
+     */
+    public GenerarDeResult generarYEnviarDesdeNotaRemision(Long notaRemisionId) {
+        log.info("🧾 Generando y enviando DE para nota de remisión {}", notaRemisionId);
+
+        NotaRemision notaRemision = notaRemisionRepository.findById(notaRemisionId)
+                .orElseThrow(() -> new BusinessException("Nota de remisión no encontrada: " + notaRemisionId));
+
+        DocumentoElectronico documento = documentoElectronicoRepository.findByNotaRemisionId(notaRemisionId)
+                .orElse(null);
+
+        if (documento == null || EstadoDE.ERROR.equals(documento.getEstado()) || EstadoDE.RECHAZADO.equals(documento.getEstado())) {
+            documento = generarDEDesdeNotaRemision(notaRemisionId);
+        } else if (!EstadoDE.PENDIENTE.equals(documento.getEstado())) {
+            throw new BusinessException("La nota de remisión ya cuenta con un DE en estado " + documento.getEstado());
+        }
+
+        LoteDE lote = crearLoteParaNotaRemision(notaRemision);
+        asociarALote(documento.getId(), lote);
+
+        LoteDE loteProcesado = sifenService.enviarLote(lote.getId());
+        // Cargar documento con todas las relaciones necesarias para evitar LazyInitializationException
+        DocumentoElectronico documentoActualizado = documentoElectronicoRepository
+                .findByNotaRemisionIdWithRelations(notaRemisionId)
+                .orElseThrow(() -> new BusinessException("No se pudo recuperar el documento electrónico generado"));
+
+        return new GenerarDeResult(documentoActualizado, loteProcesado);
+    }
+
+    private LoteDE crearLoteParaNotaRemision(NotaRemision notaRemision) {
+        LoteDE lote = new LoteDE();
+        lote.setEmpresa(notaRemision.getEmpresa());
+        lote.setEstado(EstadoLoteDE.PENDIENTE);
+        return loteDERepository.save(lote);
+    }
+
+    /**
      * Genera un documento electrónico a partir de una nota de crédito, crea un nuevo lote,
      * asocia el documento al lote y envía el lote a SIFEN.
      *
@@ -432,9 +544,9 @@ public class DocumentoElectronicoService {
         DocumentoElectronico documento = documentoElectronicoRepository.findByNotaCreditoId(notaCreditoId)
                 .orElse(null);
 
-        if (documento == null) {
+        if (documento == null || EstadoDE.ERROR.equals(documento.getEstado()) || EstadoDE.RECHAZADO.equals(documento.getEstado())) {
             documento = generarDEDesdeNotaCredito(notaCreditoId);
-        } else if (!EstadoDE.PENDIENTE.equals(documento.getEstado()) && !EstadoDE.ERROR.equals(documento.getEstado())) {
+        } else if (!EstadoDE.PENDIENTE.equals(documento.getEstado())) {
             throw new BusinessException("La nota de crédito ya cuenta con un DE en estado " + documento.getEstado());
         }
 
@@ -444,6 +556,51 @@ public class DocumentoElectronicoService {
         LoteDE loteProcesado = sifenService.enviarLote(lote.getId());
         DocumentoElectronico documentoActualizado = documentoElectronicoRepository.findById(documento.getId())
                 .orElseThrow(() -> new BusinessException("No se pudo recuperar el documento electrónico generado"));
+
+        return new GenerarDeResult(documentoActualizado, loteProcesado);
+    }
+
+    /**
+     * Vincula un documento electrónico existente de una nota de remisión a un nuevo lote y lo envía a SIFEN.
+     * Útil cuando el DE fue generado pero no se pudo enviar o no se creó el lote.
+     *
+     * @param notaRemisionId ID de la nota de remisión
+     * @return Resultado con el documento y el lote procesado
+     */
+    public GenerarDeResult vincularALoteYEnviarDesdeNotaRemision(Long notaRemisionId) {
+        log.info("🔗 Vinculando a lote y enviando DE para nota de remisión {}", notaRemisionId);
+
+        NotaRemision notaRemision = notaRemisionRepository.findById(notaRemisionId)
+                .orElseThrow(() -> new BusinessException("Nota de remisión no encontrada: " + notaRemisionId));
+
+        DocumentoElectronico documento = documentoElectronicoRepository.findByNotaRemisionId(notaRemisionId)
+                .orElseThrow(() -> new BusinessException("La nota de remisión no tiene un documento electrónico generado"));
+
+        if (documento.getLoteDE() != null) {
+            throw new BusinessException("El documento electrónico ya está vinculado al lote ID: " + documento.getLoteDE().getId());
+        }
+
+        // Si está en ERROR o RECHAZADO, permitimos reintentar vinculando a un nuevo lote
+        // Si está en PENDIENTE, es el estado ideal para vincular
+        if (!EstadoDE.PENDIENTE.equals(documento.getEstado()) && !EstadoDE.ERROR.equals(documento.getEstado()) && !EstadoDE.RECHAZADO.equals(documento.getEstado())) {
+            throw new BusinessException("El documento electrónico debe estar en estado PENDIENTE, ERROR o RECHAZADO para vincularse a un lote. Estado actual: " + documento.getEstado());
+        }
+
+        // Si estaba en ERROR o RECHAZADO, volvemos a PENDIENTE para que asociarALote funcione
+        if (!EstadoDE.PENDIENTE.equals(documento.getEstado())) {
+            documento.setEstado(EstadoDE.PENDIENTE);
+            documento = documentoElectronicoRepository.save(documento);
+        }
+
+        LoteDE lote = crearLoteParaNotaRemision(notaRemision);
+        asociarALote(documento.getId(), lote);
+
+        LoteDE loteProcesado = sifenService.enviarLote(lote.getId());
+        
+        // Cargar documento con todas las relaciones necesarias para evitar LazyInitializationException
+        DocumentoElectronico documentoActualizado = documentoElectronicoRepository
+                .findByNotaRemisionIdWithRelations(notaRemisionId)
+                .orElseThrow(() -> new BusinessException("No se pudo recuperar el documento electrónico actualizado"));
 
         return new GenerarDeResult(documentoActualizado, loteProcesado);
     }

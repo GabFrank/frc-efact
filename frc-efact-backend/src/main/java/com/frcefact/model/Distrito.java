@@ -1,5 +1,7 @@
 package com.frcefact.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -8,6 +10,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "distrito", schema = "geografia")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Distrito {
 
     @Id
@@ -27,6 +30,7 @@ public class Distrito {
     @JoinColumn(name = "departamento_id", nullable = false)
     private Departamento departamento;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "distrito", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Ciudad> ciudades;
 

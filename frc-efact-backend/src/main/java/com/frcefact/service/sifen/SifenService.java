@@ -8,16 +8,20 @@ import com.frcefact.model.EstadoDE;
 import com.frcefact.model.EstadoLoteDE;
 import com.frcefact.model.FacturaLegal;
 import com.frcefact.model.NotaCredito;
+import com.frcefact.model.NotaRemision;
 import com.frcefact.model.LoteDE;
 import com.frcefact.model.Timbrado;
 import com.frcefact.model.TimbradoDetalle;
 import com.frcefact.repository.DocumentoElectronicoRepository;
 import com.frcefact.repository.FacturaLegalItemRepository;
 import com.frcefact.repository.NotaCreditoItemRepository;
+import com.frcefact.repository.NotaRemisionItemRepository;
 import com.frcefact.repository.LoteDERepository;
 import com.frcefact.repository.EventoCancelacionDERepository;
 import com.frcefact.repository.EventoNominacionDERepository;
 import com.frcefact.repository.FacturaLegalRepository;
+import com.frcefact.repository.DepartamentoRepository;
+import com.frcefact.repository.CiudadRepository;
 import com.frcefact.sifen.config.SifenConfigFactory;
 import com.frcefact.sifen.util.SifenResponseParser;
 import com.frcefact.sifen.util.SifenResponseParser.DocumentResult;
@@ -27,6 +31,7 @@ import com.frcefact.sifen.util.SifenDocumentoLogger;
 import com.frcefact.sifen.util.SifenTotalsHelper;
 import com.frcefact.model.FacturaLegalItem;
 import com.frcefact.model.NotaCreditoItem;
+import com.frcefact.model.NotaRemisionItem;
 import com.frcefact.model.Producto;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.SifenConfig;
@@ -64,9 +69,12 @@ public class SifenService {
     private final LoteDERepository loteDERepository;
     private final FacturaLegalItemRepository facturaLegalItemRepository;
     private final NotaCreditoItemRepository notaCreditoItemRepository;
+    private final NotaRemisionItemRepository notaRemisionItemRepository;
     private final EventoCancelacionDERepository eventoCancelacionDERepository;
     private final EventoNominacionDERepository eventoNominacionDERepository;
     private final FacturaLegalRepository facturaLegalRepository;
+    private final DepartamentoRepository departamentoRepository;
+    private final CiudadRepository ciudadRepository;
     private final XmlGeneratorService xmlGeneratorService;
     private final SifenConfigFactory sifenConfigFactory;
     private final com.frcefact.service.EmailFacturaElectronicaService emailFacturaElectronicaService;
@@ -75,9 +83,12 @@ public class SifenService {
                         LoteDERepository loteDERepository,
                         FacturaLegalItemRepository facturaLegalItemRepository,
                         NotaCreditoItemRepository notaCreditoItemRepository,
+                        NotaRemisionItemRepository notaRemisionItemRepository,
                         EventoCancelacionDERepository eventoCancelacionDERepository,
                         EventoNominacionDERepository eventoNominacionDERepository,
                         FacturaLegalRepository facturaLegalRepository,
+                        DepartamentoRepository departamentoRepository,
+                        CiudadRepository ciudadRepository,
                         XmlGeneratorService xmlGeneratorService,
                         SifenConfigFactory sifenConfigFactory,
                         com.frcefact.service.EmailFacturaElectronicaService emailFacturaElectronicaService) {
@@ -85,9 +96,12 @@ public class SifenService {
         this.loteDERepository = loteDERepository;
         this.facturaLegalItemRepository = facturaLegalItemRepository;
         this.notaCreditoItemRepository = notaCreditoItemRepository;
+        this.notaRemisionItemRepository = notaRemisionItemRepository;
         this.eventoCancelacionDERepository = eventoCancelacionDERepository;
         this.eventoNominacionDERepository = eventoNominacionDERepository;
         this.facturaLegalRepository = facturaLegalRepository;
+        this.departamentoRepository = departamentoRepository;
+        this.ciudadRepository = ciudadRepository;
         this.xmlGeneratorService = xmlGeneratorService;
         this.sifenConfigFactory = sifenConfigFactory;
         this.emailFacturaElectronicaService = emailFacturaElectronicaService;
@@ -491,6 +505,28 @@ public class SifenService {
         return documento;
     }
 
+    public DocumentoElectronico obtenerDocumentoPorNotaRemisionId(Long notaRemisionId) {
+        DocumentoElectronico documento = documentoElectronicoRepository.findByNotaRemisionIdWithRelations(notaRemisionId)
+                .orElseThrow(() -> new BusinessException("No se encontró documento electrónico para la nota de remisión ID: " + notaRemisionId));
+        
+        // Si no tiene URL del QR guardada, intentar extraerla del XML original
+        if ((documento.getUrlQr() == null || documento.getUrlQr().isBlank()) 
+                && documento.getXmlOriginal() != null && !documento.getXmlOriginal().isBlank()) {
+            try {
+                String urlQr = com.frcefact.sifen.util.SifenResponseParser.extractUrlQr(documento.getXmlOriginal());
+                if (urlQr != null && !urlQr.isBlank()) {
+                    // Guardar la URL extraída (solo lectura, pero podemos actualizar en memoria)
+                    documento.setUrlQr(urlQr);
+                    log.debug("✅ URL QR extraída del XML original para DE ID: {}", documento.getId());
+                }
+            } catch (Exception e) {
+                log.warn("⚠️ No se pudo extraer URL QR del XML original para DE ID: {}: {}", documento.getId(), e.getMessage());
+            }
+        }
+        
+        return documento;
+    }
+
     /**
      * Consulta y actualiza el estado de un documento electrónico en SIFEN.
      */
@@ -498,7 +534,24 @@ public class SifenService {
         DocumentoElectronico documento = documentoElectronicoRepository.findByCdc(cdc)
                 .orElseThrow(() -> new BusinessException("Documento electrónico no encontrado para CDC: " + cdc));
 
-        var timbrado = documento.getFacturaLegal().getTimbradoDetalle().getTimbrado();
+        // Identificar el tipo de documento y obtener el timbrado
+        TimbradoDetalle timbradoDetalle = null;
+
+        if (documento.getFacturaLegal() != null) {
+            timbradoDetalle = documento.getFacturaLegal().getTimbradoDetalle();
+        } else if (documento.getNotaCredito() != null) {
+            timbradoDetalle = documento.getNotaCredito().getTimbradoDetalle();
+        } else if (documento.getNotaDebito() != null) {
+            timbradoDetalle = documento.getNotaDebito().getTimbradoDetalle();
+        } else if (documento.getNotaRemision() != null) {
+            timbradoDetalle = documento.getNotaRemision().getTimbradoDetalle();
+        }
+
+        if (timbradoDetalle == null) {
+            throw new BusinessException("El documento electrónico CDC: " + cdc + " no tiene ningún documento asociado (factura, nota de crédito, débito o remisión)");
+        }
+
+        var timbrado = timbradoDetalle.getTimbrado();
         SifenConfig config = sifenConfigFactory.buildForTimbrado(timbrado.getId());
 
         RespuestaConsultaDE respuesta = execute(config, () -> Sifen.consultaDE(cdc));
@@ -1045,6 +1098,94 @@ public class SifenService {
             
         } catch (Exception e) {
             log.error("❌ Error al crear DE de SIFEN para nota de crédito ID: {}: {}", notaCredito.getId(), e.getMessage(), e);
+            throw new BusinessException("Error al crear DE de SIFEN: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Crea un objeto DocumentoElectronico de SIFEN desde una nota de remisión y genera su XML.
+     * Similar a crearDocumentoElectronicoSifenDesdeNotaCredito, pero para nota de remisión (NRE).
+     * 
+     * @param notaRemision La nota de remisión con todos sus datos
+     * @return Resultado con el objeto DE de SIFEN, CDC y XML generado
+     * @throws BusinessException Si hay error en la construcción
+     */
+    public CrearDEResult crearDocumentoElectronicoSifenDesdeNotaRemision(NotaRemision notaRemision) throws BusinessException {
+        log.info("📝 Creando Documento Electrónico de SIFEN para nota de remisión ID: {}", notaRemision.getId());
+        
+        try {
+            // 1. Obtener items de la nota de remisión
+            List<NotaRemisionItem> items = notaRemisionItemRepository.findByNotaRemisionId(notaRemision.getId());
+            if (items == null || items.isEmpty()) {
+                throw new IllegalArgumentException("Nota de remisión sin items - no se puede crear DE");
+            }
+            
+            // 2. Obtener configuración SIFEN para la empresa/timbrado
+            Timbrado timbrado = notaRemision.getTimbradoDetalle().getTimbrado();
+            SifenConfig config = sifenConfigFactory.buildForTimbrado(timbrado.getId());
+            
+            log.debug("🔧 Configuración SIFEN obtenida para empresa {} (timbrado {})", 
+                    notaRemision.getEmpresa().getId(), timbrado.getId());
+            
+            // 3. Construir el objeto DE de SIFEN completo
+            com.roshka.sifen.core.beans.DocumentoElectronico deSifen = 
+                construirDEDesdeNotaRemision(notaRemision, items, config);
+            
+            log.debug("   ✅ Objeto DE de SIFEN construido correctamente");
+            
+            // Validar que el DE tenga todos los grupos requeridos
+            validarDECompletoNRE(deSifen, notaRemision);
+            
+            // 4. Obtener CDC del objeto DE
+            String cdc = deSifen.obtenerCDC();
+            deSifen.setId(cdc);
+            log.info("   CDC generado: {}", cdc);
+            
+            if (cdc == null || cdc.isBlank()) {
+                log.error("❌ Error: No se pudo generar el CDC del documento electrónico");
+                throw new BusinessException("No se pudo generar el CDC del documento electrónico. Verificar datos del documento.");
+            }
+            
+            // 5. Generar XML original usando el contexto de generación
+            String xmlOriginal = execute(config, () -> {
+                try {
+                    com.roshka.sifen.internal.ctx.GenerationCtx ctx = 
+                        com.roshka.sifen.internal.ctx.GenerationCtx.getDefaultFromConfig(config);
+                    log.debug("   ✅ Contexto de generación creado correctamente");
+                    
+                    log.debug("   🔨 Llamando a generarXml()...");
+                    String xml = deSifen.generarXml(ctx);
+                    
+                    if (xml == null || xml.isBlank()) {
+                        log.error("❌ Error: generarXml() retornó XML vacío");
+                        throw new BusinessException("No se pudo generar el XML del documento electrónico. El XML generado está vacío.");
+                    }
+                    
+                    log.info("   ✅ XML original generado ({} caracteres)", xml.length());
+                    return xml;
+                } catch (Exception e) {
+                    log.error("❌ Excepción al generar XML: {}", e.getMessage(), e);
+                    throw new BusinessException("Error al generar XML: " + e.getMessage(), e);
+                }
+            });
+            
+            // 6. Extraer URL QR del XML (si está disponible)
+            String urlQr = null;
+            try {
+                urlQr = com.frcefact.sifen.util.SifenResponseParser.extractUrlQr(xmlOriginal);
+                if (urlQr != null && !urlQr.isBlank()) {
+                    log.info("   ✅ URL QR extraída del XML ({} caracteres)", urlQr.length());
+                } else {
+                    log.warn("   ⚠️ URL QR no encontrada en XML - continuando sin URL QR");
+                }
+            } catch (Exception e) {
+                log.warn("   ⚠️ Error al extraer URL QR del XML: {} - continuando sin URL QR", e.getMessage());
+            }
+            
+            return new CrearDEResult(deSifen, cdc, xmlOriginal, urlQr);
+            
+        } catch (Exception e) {
+            log.error("❌ Error al crear DE de SIFEN para nota de remisión ID: {}: {}", notaRemision.getId(), e.getMessage(), e);
             throw new BusinessException("Error al crear DE de SIFEN: " + e.getMessage());
         }
     }
@@ -1969,6 +2110,826 @@ public class SifenService {
     }
 
     /**
+     * Construye un objeto DocumentoElectronico de jsifenlib directamente desde los datos de la nota de remisión.
+     * Similar a construirDEDesdeFactura y construirDEDesdeNotaCredito, pero adaptado para Nota de Remisión (NRE).
+     * 
+     * IMPORTANTE: NRE tiene reglas específicas:
+     * - NO incluir precios/IVA en items (E720, E730)
+     * - NO incluir totales (F001)
+     * - Transporte completo es obligatorio (E901, E920, E940, E960, E980)
+     * - Receptor NO puede ser innominado
+     * 
+     * @param notaRemision La nota de remisión con todos sus datos
+     * @param items Lista de items de la nota de remisión
+     * @param config Configuración SIFEN (necesaria para algunos cálculos)
+     * @return Objeto DocumentoElectronico de jsifenlib listo para enviar
+     * @throws BusinessException Si hay error en la construcción
+     */
+    private com.roshka.sifen.core.beans.DocumentoElectronico construirDEDesdeNotaRemision(
+            NotaRemision notaRemision, List<NotaRemisionItem> items, SifenConfig config) throws BusinessException {
+        
+        log.debug("🔨 Construyendo DE desde NotaRemision ID: {}", notaRemision.getId());
+        
+        try {
+            // Grupo A - Identificación del DE
+            com.roshka.sifen.core.beans.DocumentoElectronico DE = 
+                new com.roshka.sifen.core.beans.DocumentoElectronico();
+            DE.setdFecFirma(notaRemision.getFecha() != null ? notaRemision.getFecha() : LocalDateTime.now());
+            DE.setdSisFact((short) 1);
+
+            // Grupo B - Operación del DE
+            TgOpeDE gOpeDE = new TgOpeDE();
+            gOpeDE.setiTipEmi(TTipEmi.NORMAL);
+            String codigoSeguridad = xmlGeneratorService.generarCodigoSeguridad();
+            gOpeDE.setdCodSeg(codigoSeguridad);
+            log.debug("   Código de seguridad generado (dCodSeg): {}", codigoSeguridad);
+            
+            // dInfoFisc - OBLIGATORIO para NRE (C002=7) según Manual Técnico SIFEN v150
+            // Debe contener mensaje fiscal conforme a RG N.º 41/2014 - Art. 3 Inc. 7
+            // Texto en una sola línea, sin saltos de línea ni caracteres especiales
+            // Entre 1 y 3000 caracteres según jsifenlib
+            // NOTA: Este campo está en TgOpeDE (Grupo B), no en TgEmis
+            String mensajeFiscal = "Documento emitido como Nota de Remision Electronica conforme RG 41/2014.";
+            gOpeDE.setdInfoFisc(mensajeFiscal);
+            log.debug("   dInfoFisc establecido para NRE: {}", mensajeFiscal);
+            
+            DE.setgOpeDE(gOpeDE);
+
+            // Grupo C - Timbrado (Nota de Remisión)
+            TgTimb gTimb = new TgTimb();
+            gTimb.setiTiDE(TTiDE.NOTA_DE_REMISION_ELECTRONICA); // Tipo 7 = Nota de Remisión Electrónica
+            
+            Timbrado timbrado = notaRemision.getTimbradoDetalle().getTimbrado();
+            String numTimbrado = timbrado.getNumero().trim();
+            gTimb.setdNumTim(Integer.parseInt(numTimbrado));
+            
+            // Formatear código de establecimiento con padding de 3 dígitos
+            String codEstablecimiento = notaRemision.getTimbradoDetalle().getCodigoEstablecimientoFactura().trim();
+            String codEstFormateado = String.format("%03d", Integer.parseInt(codEstablecimiento));
+            gTimb.setdEst(codEstFormateado);
+            
+            // Formatear punto de expedición con padding de 3 dígitos
+            String puntoExpedicion = notaRemision.getTimbradoDetalle().getPuntoExpedicion().trim();
+            String puntoExpFormateado = String.format("%03d", Integer.parseInt(puntoExpedicion));
+            gTimb.setdPunExp(puntoExpFormateado);
+            
+            String numDocFormateado = String.format("%07d", notaRemision.getNumeroNotaRemision());
+            gTimb.setdNumDoc(numDocFormateado);
+            
+            // Fecha de inicio del timbrado (requerida)
+            LocalDate fechaInicioTimbrado;
+            if (timbrado.getFechaInicio() != null) {
+                fechaInicioTimbrado = timbrado.getFechaInicio();
+                gTimb.setdFeIniT(fechaInicioTimbrado);
+            } else {
+                log.warn("⚠️ Timbrado sin fecha de inicio - usando fecha actual");
+                fechaInicioTimbrado = LocalDateTime.now().toLocalDate();
+                gTimb.setdFeIniT(fechaInicioTimbrado);
+            }
+            
+            DE.setgTimb(gTimb);
+            
+            log.info("📋 Timbrado configurado para Nota de Remisión:");
+            log.info("   - Tipo DE (iTiDE): {} ({})", TTiDE.NOTA_DE_REMISION_ELECTRONICA.getVal(), TTiDE.NOTA_DE_REMISION_ELECTRONICA.getDescripcion());
+            log.info("   - Número Timbrado (dNumTim): {}", numTimbrado);
+            log.info("   - Establecimiento (dEst): '{}'", codEstFormateado);
+            log.info("   - Punto Expedición (dPunExp): '{}'", puntoExpFormateado);
+            log.info("   - Número Documento (dNumDoc): '{}'", numDocFormateado);
+
+            // Grupo D - Datos Generales de la Operación
+            TdDatGralOpe dDatGralOpe = new TdDatGralOpe();
+            dDatGralOpe.setdFeEmiDE(notaRemision.getFecha());
+
+            TgOpeCom gOpeCom = new TgOpeCom();
+            gOpeCom.setiTipTra(TTipTra.VENTA_MERCADERIA);
+            gOpeCom.setiTImp(TTImp.IVA);
+            // NRE siempre usa moneda local (PYG) según el manual
+            gOpeCom.setcMoneOpe(CMondT.PYG);
+            
+            dDatGralOpe.setgOpeCom(gOpeCom);
+
+            // Datos del Emisor (usar método existente pero adaptado)
+            TgEmis gEmis = construirDatosEmisorNotaRemision(notaRemision);
+            dDatGralOpe.setgEmis(gEmis);
+
+            // Datos del Receptor (usar método existente pero adaptado)
+            // IMPORTANTE: NRE no permite receptor innominado
+            TgDatRec gDatRec = construirDatosReceptorNotaRemision(notaRemision);
+            dDatGralOpe.setgDatRec(gDatRec);
+            
+            DE.setgDatGralOpe(dDatGralOpe);
+
+            // Grupo E - Items y condiciones (específico para Nota de Remisión)
+            TgDtipDE gDtipDE = construirDatosItemsNotaRemision(notaRemision, items);
+            DE.setgDtipDE(gDtipDE);
+
+            // Grupo H - Documentos Asociados (opcional)
+            if (notaRemision.getFacturaLegal() != null) {
+                FacturaLegal facturaAsociada = notaRemision.getFacturaLegal();
+                List<TgCamDEAsoc> gCamDEAsocList = new ArrayList<>();
+                TgCamDEAsoc gCamDEAsoc = new TgCamDEAsoc();
+                
+                // Buscar el DE de la factura asociada
+                DocumentoElectronico deFactura = documentoElectronicoRepository.findByFacturaLegalId(facturaAsociada.getId())
+                        .orElse(null);
+                
+                if (deFactura != null && deFactura.getCdc() != null && !deFactura.getCdc().isBlank()) {
+                    gCamDEAsoc.setiTipDocAso(TiTipDocAso.ELECTRONICO); // 1 = Electrónico
+                    String cdcFacturaAsociada = deFactura.getCdc();
+                    gCamDEAsoc.setdCdCDERef(cdcFacturaAsociada);
+                    gCamDEAsocList.add(gCamDEAsoc);
+                    DE.setgCamDEAsocList(gCamDEAsocList);
+                    
+                    log.info("📄 Documento asociado configurado:");
+                    log.info("   - CDC factura asociada (dCdCDERef): '{}'", cdcFacturaAsociada);
+                } else {
+                    log.warn("⚠️ La factura asociada no tiene DE o CDC - omitiendo documento asociado");
+                }
+            }
+
+            // Grupo F - Totales
+            // CRÍTICO: NRE NO debe incluir TgTotSub (F001) según el manual
+            // NO establecer DE.setgTotSub() para NRE
+            
+            log.debug("✅ DE construido exitosamente desde nota de remisión ID: {}", notaRemision.getId());
+            log.debug("   - Items procesados: {} (sin precios/IVA)", items.size());
+            log.debug("   - Transporte configurado: {}", gDtipDE.getgTransp() != null ? "Sí" : "No");
+            
+            return DE;
+            
+        } catch (Exception e) {
+            log.error("❌ Error al construir DE desde nota de remisión ID: {}: {}", notaRemision.getId(), e.getMessage(), e);
+            throw new BusinessException("Error al construir DE desde nota de remisión: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Construye los datos de items, grupo E500 (gCamNRE) y transporte para Nota de Remisión.
+     * IMPORTANTE: Los items NO deben incluir precios/IVA (E720, E730) y NO se incluyen totales (F001).
+     */
+    private TgDtipDE construirDatosItemsNotaRemision(NotaRemision notaRemision, List<NotaRemisionItem> items) {
+        TgDtipDE gDtipDE = new TgDtipDE();
+
+        // Grupo E500 - gCamNRE (OBLIGATORIO para NRE)
+        TgCamNRE gCamNRE = new TgCamNRE();
+        
+        // E501 - Motivo de emisión
+        String motivoEmision = notaRemision.getMotivoEmision();
+        TiMotivTras tiMotivTras = mapearMotivoEmisionNRE(motivoEmision);
+        gCamNRE.setiMotEmiNR(tiMotivTras);
+        
+        // E503 - Responsable de emisión (por defecto EMISOR_FACTURA)
+        TiRespEmiNR tiRespEmiNR = TiRespEmiNR.EMISOR_FACTURA; // Valor por defecto
+        gCamNRE.setiRespEmiNR(tiRespEmiNR);
+        
+        // E505 - Kilómetros estimados (opcional, pero requerido por secuencia XSD si se envía dFecEm)
+        int km = 0;
+        if (notaRemision.getKmEstimado() != null && notaRemision.getKmEstimado().intValue() > 0) {
+            km = notaRemision.getKmEstimado().intValue();
+            gCamNRE.setdKmR(km);
+        }
+        
+        // E506 - Fecha futura estimada de emisión de factura (opcional con reglas)
+        // Si motivo es TRASLADO_POR_VENTAS (1) y no hay factura asociada, es obligatorio
+        LocalDate fecEm = null;
+        LocalDate fechaEmisionDE = (notaRemision.getFecha() != null ? notaRemision.getFecha().toLocalDate() : LocalDate.now());
+        LocalDate maxFecEmPermitida = fechaEmisionDE.plusDays(5);
+
+        if (notaRemision.getFechaEstimadaFactura() != null) {
+            fecEm = notaRemision.getFechaEstimadaFactura();
+            // Validar límites de SIFEN: dFecEm >= dFeEmiDE y dFecEm <= dFeEmiDE + 5 días
+            if (fecEm.isBefore(fechaEmisionDE)) {
+                log.warn("⚠️ dFecEm ({}) es anterior a dFeEmiDE ({}). Ajustando al mínimo permitido.", fecEm, fechaEmisionDE);
+                fecEm = fechaEmisionDE;
+            } else if (fecEm.isAfter(maxFecEmPermitida)) {
+                log.warn("⚠️ dFecEm ({}) excede los 5 días permitidos (máx {}). Ajustando al máximo permitido.", fecEm, maxFecEmPermitida);
+                fecEm = maxFecEmPermitida;
+            }
+            log.debug("   Usando fecha estimada de factura (dFecEm): {}", fecEm);
+        } else if (tiMotivTras == TiMotivTras.TRASLADO_POR_VENTAS && notaRemision.getFacturaLegal() == null) {
+            // Fallback logic
+        if (notaRemision.getFechaFinTraslado() != null) {
+            fecEm = notaRemision.getFechaFinTraslado();
+                if (fecEm.isAfter(maxFecEmPermitida)) {
+                    fecEm = maxFecEmPermitida;
+                }
+                if (fecEm.isBefore(fechaEmisionDE)) {
+                    fecEm = fechaEmisionDE;
+                }
+            } else {
+                fecEm = maxFecEmPermitida;
+            }
+            log.warn("⚠️ E506 (dFecEm) es obligatorio para traslado por venta sin factura asociada. No se proporcionó fecha, usando fallback (máx 5 días): {}", fecEm);
+        }
+
+        if (fecEm != null) {
+            gCamNRE.setdFecEm(fecEm);
+            // CRÍTICO: Si se envía dFecEm, SIFEN exige por secuencia XSD que dKmR esté presente antes.
+            // Si no se especificó un valor, enviamos 1 como valor mínimo válido.
+            if (km <= 0) {
+                log.info("   dKmR no especificado pero dFecEm presente. Estableciendo dKmR = 1 para cumplir secuencia XSD.");
+                gCamNRE.setdKmR(1);
+            }
+        }
+        
+        gDtipDE.setgCamNRE(gCamNRE);
+
+        // Items - SIN precios/IVA (solo descripción, cantidad, unidad de medida)
+        List<TgCamItem> gCamItemList = new ArrayList<>();
+        
+        for (int i = 0; i < items.size(); i++) {
+            NotaRemisionItem item = items.get(i);
+            TgCamItem gCamItem = new TgCamItem();
+            gCamItem.setdCodInt(String.format("%03d", i + 1));
+            gCamItem.setdDesProSer(item.getDescripcion());
+
+            Producto producto = item.getProducto();
+            BigDecimal cantidad;
+            
+            // Determinar unidad de medida y cantidad
+            String unidadMedida = item.getUnidadMedida();
+            if (unidadMedida != null && !unidadMedida.isBlank()) {
+                try {
+                    // Intentar mapear a enum TcUniMed
+                    TcUniMed uniMed = TcUniMed.valueOf(unidadMedida.toUpperCase());
+                    gCamItem.setcUniMed(uniMed);
+                } catch (IllegalArgumentException e) {
+                    // Si no se puede mapear, usar UNI por defecto
+                    log.warn("⚠️ Unidad de medida '{}' no reconocida, usando UNI por defecto", unidadMedida);
+                    gCamItem.setcUniMed(TcUniMed.UNI);
+                }
+                cantidad = item.getCantidad();
+            } else if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
+                gCamItem.setcUniMed(TcUniMed.kg);
+                cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP);
+            } else {
+                gCamItem.setcUniMed(TcUniMed.UNI);
+                cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);
+            }
+            
+            gCamItem.setdCantProSer(cantidad);
+
+            // CRÍTICO: NO incluir gValorItem (E720) - NRE no tiene precios
+            // CRÍTICO: NO incluir gCamIVA (E730) - NRE no tiene IVA
+
+            gCamItemList.add(gCamItem);
+        }
+
+        gDtipDE.setgCamItemList(gCamItemList);
+
+        // Transporte (OBLIGATORIO para NRE)
+        TgTransp gTransp = construirTransporteNRE(notaRemision);
+        gDtipDE.setgTransp(gTransp);
+
+        return gDtipDE;
+    }
+
+    /**
+     * Construye el grupo de transporte para NRE (OBLIGATORIO).
+     * Incluye: E901, E920, E940, E960, E980
+     */
+    private TgTransp construirTransporteNRE(NotaRemision notaRemision) {
+        TgTransp gTransp = new TgTransp();
+        
+        // E901 - Tipo de transporte
+        String tipoTransporte = notaRemision.getTipoTransporte();
+        if (tipoTransporte != null && !tipoTransporte.isBlank()) {
+            try {
+                TiTTrans tiTTrans = TiTTrans.valueOf(tipoTransporte.toUpperCase());
+                gTransp.setiTipTrans(tiTTrans);
+            } catch (IllegalArgumentException e) {
+                log.warn("⚠️ Tipo de transporte '{}' no reconocido, usando PROPIO por defecto", tipoTransporte);
+                gTransp.setiTipTrans(TiTTrans.PROPIO);
+            }
+        } else {
+            gTransp.setiTipTrans(TiTTrans.PROPIO); // Valor por defecto
+        }
+        
+        // Modalidad de transporte
+        String modalidadTransporte = notaRemision.getModalidadTransporte();
+        if (modalidadTransporte != null && !modalidadTransporte.isBlank()) {
+            try {
+                TiModTrans tiModTrans = TiModTrans.valueOf(modalidadTransporte.toUpperCase());
+                gTransp.setiModTrans(tiModTrans);
+            } catch (IllegalArgumentException e) {
+                log.warn("⚠️ Modalidad de transporte '{}' no reconocida, usando TERRESTRE por defecto", modalidadTransporte);
+                gTransp.setiModTrans(TiModTrans.TERRESTRE);
+            }
+        } else {
+            gTransp.setiModTrans(TiModTrans.TERRESTRE); // Valor por defecto
+        }
+        
+        // Responsable del flete (por defecto EMISOR_FACTURA_ELECTRONICA)
+        gTransp.setiRespFlete(TiRespFlete.EMISOR_FACTURA_ELECTRONICA);
+        
+        // Condición de negociación (por defecto CFR)
+        gTransp.setcCondNeg(TcCondNeg.CFR);
+        
+        // Fechas de traslado
+        if (notaRemision.getFechaInicioTraslado() != null) {
+            gTransp.setdIniTras(notaRemision.getFechaInicioTraslado());
+        }
+        if (notaRemision.getFechaFinTraslado() != null) {
+            gTransp.setdFinTras(notaRemision.getFechaFinTraslado());
+        }
+        
+        // País destino (siempre PRY para Paraguay)
+        gTransp.setcPaisDest(PaisType.PRY);
+        
+        // E920 - Local de salida (gCamSal)
+        TgCamSal gCamSal = new TgCamSal();
+        if (notaRemision.getDireccionPartida() != null) {
+            gCamSal.setdDirLocSal(notaRemision.getDireccionPartida());
+        }
+        
+        // Configurar departamento y ciudad para salida
+        if (notaRemision.getDepartamentoPartidaId() != null) {
+            departamentoRepository.findById(notaRemision.getDepartamentoPartidaId()).ifPresent(dept -> {
+                try {
+                    TDepartamento tDept = mapearDepartamento(dept.getNombre());
+                    gCamSal.setcDepSal(tDept);
+                } catch (Exception e) {
+                    log.warn("⚠️ Error al mapear departamento partida '{}' - usando CAPITAL por defecto: {}", 
+                            dept.getNombre(), e.getMessage());
+                    gCamSal.setcDepSal(TDepartamento.CAPITAL);
+                }
+            });
+        } else {
+            gCamSal.setcDepSal(TDepartamento.CAPITAL);
+        }
+        
+        // Configurar código de ciudad para salida (OBLIGATORIO - no puede ser 0)
+        if (notaRemision.getCiudadPartidaId() != null) {
+            ciudadRepository.findById(notaRemision.getCiudadPartidaId()).ifPresent(ciudad -> {
+                try {
+                    String codigoCiudad = ciudad.getCodigo();
+                    if (codigoCiudad != null && !codigoCiudad.isBlank()) {
+                        int codigo = Integer.parseInt(codigoCiudad);
+                        if (codigo > 0) {
+                            gCamSal.setcCiuSal(codigo);
+                            log.debug("   Ciudad partida: {} (código: {})", ciudad.getNombre(), codigo);
+                        } else {
+                            log.warn("⚠️ Código de ciudad partida es 0 o inválido - usando código por defecto");
+                            gCamSal.setcCiuSal(1); // Asunción por defecto
+                        }
+                    } else {
+                        log.warn("⚠️ Código de ciudad partida vacío - usando código por defecto");
+                        gCamSal.setcCiuSal(1); // Asunción por defecto
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("⚠️ Código de ciudad partida inválido '{}' - usando código por defecto: {}", 
+                            ciudad.getCodigo(), e.getMessage());
+                    gCamSal.setcCiuSal(1); // Asunción por defecto
+                }
+                
+                // Nombre de ciudad
+                if (ciudad.getNombre() != null) {
+                    gCamSal.setdDesCiuSal(ciudad.getNombre());
+                } else if (notaRemision.getCiudadPartida() != null) {
+                    gCamSal.setdDesCiuSal(notaRemision.getCiudadPartida());
+                }
+            });
+        } else {
+            log.warn("⚠️ Nota de remisión sin ciudad partida - usando valores por defecto");
+            gCamSal.setcCiuSal(1); // Asunción por defecto
+            if (notaRemision.getCiudadPartida() != null) {
+                gCamSal.setdDesCiuSal(notaRemision.getCiudadPartida());
+            } else {
+                gCamSal.setdDesCiuSal("ASUNCION");
+            }
+        }
+        gTransp.setgCamSal(gCamSal);
+        
+        // E940 - Local de entrega (gCamEnt)
+        TgCamEnt gCamEnt = new TgCamEnt();
+        if (notaRemision.getDireccionDestinatario() != null) {
+            gCamEnt.setdDirLocEnt(notaRemision.getDireccionDestinatario());
+        }
+        
+        // Configurar departamento para entrega
+        if (notaRemision.getDepartamentoDestinatarioId() != null) {
+            departamentoRepository.findById(notaRemision.getDepartamentoDestinatarioId()).ifPresent(dept -> {
+                try {
+                    TDepartamento tDept = mapearDepartamento(dept.getNombre());
+                    gCamEnt.setcDepEnt(tDept);
+                } catch (Exception e) {
+                    log.warn("⚠️ Error al mapear departamento destinatario '{}' - usando CAPITAL por defecto: {}", 
+                            dept.getNombre(), e.getMessage());
+                    gCamEnt.setcDepEnt(TDepartamento.CAPITAL);
+                }
+            });
+        } else {
+            gCamEnt.setcDepEnt(TDepartamento.CAPITAL);
+        }
+        
+        // Configurar código de ciudad para entrega (OBLIGATORIO - no puede ser 0)
+        if (notaRemision.getCiudadDestinatarioId() != null) {
+            ciudadRepository.findById(notaRemision.getCiudadDestinatarioId()).ifPresent(ciudad -> {
+                try {
+                    String codigoCiudad = ciudad.getCodigo();
+                    if (codigoCiudad != null && !codigoCiudad.isBlank()) {
+                        int codigo = Integer.parseInt(codigoCiudad);
+                        if (codigo > 0) {
+                            gCamEnt.setcCiuEnt(codigo);
+                            log.debug("   Ciudad destinatario: {} (código: {})", ciudad.getNombre(), codigo);
+                        } else {
+                            log.warn("⚠️ Código de ciudad destinatario es 0 o inválido - usando código por defecto");
+                            gCamEnt.setcCiuEnt(1); // Asunción por defecto
+                        }
+                    } else {
+                        log.warn("⚠️ Código de ciudad destinatario vacío - usando código por defecto");
+                        gCamEnt.setcCiuEnt(1); // Asunción por defecto
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("⚠️ Código de ciudad destinatario inválido '{}' - usando código por defecto: {}", 
+                            ciudad.getCodigo(), e.getMessage());
+                    gCamEnt.setcCiuEnt(1); // Asunción por defecto
+                }
+                
+                // Nombre de ciudad
+                if (ciudad.getNombre() != null) {
+                    gCamEnt.setdDesCiuEnt(ciudad.getNombre());
+                } else if (notaRemision.getCiudadDestinatario() != null) {
+                    gCamEnt.setdDesCiuEnt(notaRemision.getCiudadDestinatario());
+                }
+            });
+        } else {
+            log.warn("⚠️ Nota de remisión sin ciudad destinatario - usando valores por defecto");
+            gCamEnt.setcCiuEnt(1); // Asunción por defecto
+            if (notaRemision.getCiudadDestinatario() != null) {
+                gCamEnt.setdDesCiuEnt(notaRemision.getCiudadDestinatario());
+            } else {
+                gCamEnt.setdDesCiuEnt("ASUNCION");
+            }
+        }
+        List<TgCamEnt> gCamEntList = new ArrayList<>();
+        gCamEntList.add(gCamEnt);
+        gTransp.setgCamEntList(gCamEntList);
+        
+        // E960 - Vehículo de traslado (gVehTras)
+        TgVehTras gVehTras = new TgVehTras();
+        gVehTras.setdTiVehTras("VEHICULO");
+        if (notaRemision.getVehiculoMarca() != null && !notaRemision.getVehiculoMarca().isBlank()) {
+            // Normalizar marca de vehículo (corregir errores comunes de tipeo)
+            String marcaNormalizada = notaRemision.getVehiculoMarca()
+                    .trim()
+                    .toUpperCase()
+                    .replace("MERCEDEZ", "MERCEDES") // Corregir error común
+                    .replace("TOYOTA", "TOYOTA")
+                    .replace("FORD", "FORD")
+                    .replace("CHEVROLET", "CHEVROLET")
+                    .replace("CHEVY", "CHEVROLET")
+                    .replace("NISSAN", "NISSAN")
+                    .replace("VOLKSWAGEN", "VOLKSWAGEN")
+                    .replace("VW", "VOLKSWAGEN")
+                    .replace("HYUNDAI", "HYUNDAI")
+                    .replace("KIA", "KIA")
+                    .replace("MAZDA", "MAZDA")
+                    .replace("MITSUBISHI", "MITSUBISHI")
+                    .replace("SUZUKI", "SUZUKI")
+                    .replace("PEUGEOT", "PEUGEOT")
+                    .replace("RENAULT", "RENAULT")
+                    .replace("FIAT", "FIAT")
+                    .replace("HONDA", "HONDA")
+                    .replace("YAMAHA", "YAMAHA")
+                    .replace("KAWASAKI", "KAWASAKI");
+            
+            // CRÍTICO: dMarVeh tiene longitud máxima de 10 caracteres según Manual Técnico SIFEN v150
+            // Si excede, usar abreviación o truncar
+            if (marcaNormalizada.length() > 10) {
+                // Intentar usar abreviación conocida
+                String abreviacion = obtenerAbreviacionMarca(marcaNormalizada);
+                if (abreviacion != null && abreviacion.length() <= 10) {
+                    marcaNormalizada = abreviacion;
+                } else {
+                    // Si no hay abreviación, truncar a 10 caracteres
+                    marcaNormalizada = marcaNormalizada.substring(0, 10);
+                    log.warn("⚠️ Marca de vehículo '{}' excede 10 caracteres, truncada a: {}", 
+                            notaRemision.getVehiculoMarca(), marcaNormalizada);
+                }
+            }
+            
+            gVehTras.setdMarVeh(marcaNormalizada);
+            log.debug("   Marca vehículo: {} (normalizada y validada: {}, longitud: {})", 
+                    notaRemision.getVehiculoMarca(), marcaNormalizada, marcaNormalizada.length());
+        } else {
+            log.warn("⚠️ Nota de remisión sin marca de vehículo");
+        }
+        if (notaRemision.getVehiculoMatricula() != null) {
+            gVehTras.setdTipIdenVeh((short) 2); // 2 = Nro de matrícula
+            gVehTras.setdNroMatVeh(notaRemision.getVehiculoMatricula());
+        }
+        List<TgVehTras> gVehTrasList = new ArrayList<>();
+        gVehTrasList.add(gVehTras);
+        gTransp.setgVehTrasList(gVehTrasList);
+        
+        // E980 - Transportista (gCamTrans)
+        TgCamTrans gCamTrans = new TgCamTrans();
+        
+        if (gTransp.getiTipTrans() == TiTTrans.PROPIO) {
+            // E981 - Naturaleza del transportista (1 = Contribuyente)
+            gCamTrans.setiNatTrans(TiNatRec.CONTRIBUYENTE);
+            
+            // Si es transporte propio, el transportista es el emisor
+            Empresa empresa = notaRemision.getEmpresa();
+            gCamTrans.setdNomTrans(empresa.getRazonSocial());
+            
+            // RUC y DV del transportista (desde empresa emisor)
+            String rucCompleto = empresa.getRuc();
+            if (rucCompleto != null && rucCompleto.contains("-")) {
+                String[] rucPartes = rucCompleto.split("-");
+                gCamTrans.setdRucTrans(rucPartes[0]);
+                if (rucPartes.length > 1) {
+                    try {
+                        gCamTrans.setdDVTrans(Short.parseShort(rucPartes[1]));
+                    } catch (NumberFormatException e) {
+                        log.warn("⚠️ DV de empresa emisor no es numérico: {}", rucPartes[1]);
+                    }
+                }
+            } else if (rucCompleto != null) {
+                gCamTrans.setdRucTrans(rucCompleto);
+            }
+            
+            // E986 - Domicilio fiscal del transportista
+            String direccion = empresa.getDomicilioFiscalDireccion() != null 
+                    ? empresa.getDomicilioFiscalDireccion() : empresa.getDireccion();
+            gCamTrans.setdDomFisc(direccion);
+            
+            log.debug("   Transporte PROPIO: Usando datos del emisor como transportista");
+        } else {
+            // Transporte de TERCEROS: Usar los nuevos campos de transportista de la nota
+            gCamTrans.setiNatTrans(TiNatRec.CONTRIBUYENTE); // Por defecto
+            
+            if (notaRemision.getTransportistaNombre() != null && !notaRemision.getTransportistaNombre().isBlank()) {
+                gCamTrans.setdNomTrans(notaRemision.getTransportistaNombre());
+            }
+            
+            if (notaRemision.getTransportistaRuc() != null && !notaRemision.getTransportistaRuc().isBlank()) {
+                String ruc = notaRemision.getTransportistaRuc();
+                if (ruc.contains("-")) {
+                    String[] partes = ruc.split("-");
+                    gCamTrans.setdRucTrans(partes[0]);
+                    try {
+                        gCamTrans.setdDVTrans(Short.parseShort(partes[1]));
+                    } catch (Exception e) {
+                        log.warn("⚠️ No se pudo parsear DV del transportista: {}", partes[1]);
+                    }
+                } else {
+                    gCamTrans.setdRucTrans(ruc);
+                }
+            }
+            
+            if (notaRemision.getTransportistaDireccion() != null && !notaRemision.getTransportistaDireccion().isBlank()) {
+                gCamTrans.setdDomFisc(notaRemision.getTransportistaDireccion());
+            }
+            
+            log.debug("   Transporte TERCERO: Usando datos de transportista manual");
+        }
+
+        // DATOS DEL CHOFER (OBLIGATORIOS SEGÚN SIFEN EN ALGUNOS ESCENARIOS)
+        // Se restauran los datos del chofer usando los campos conductor...
+        if (notaRemision.getConductorNombre() != null && !notaRemision.getConductorNombre().isBlank()) {
+            gCamTrans.setdNomChof(notaRemision.getConductorNombre());
+        }
+        
+        if (notaRemision.getConductorDoc() != null && !notaRemision.getConductorDoc().isBlank()) {
+            gCamTrans.setdNumIDChof(notaRemision.getConductorDoc());
+        }
+        
+        if (notaRemision.getConductorDireccion() != null && !notaRemision.getConductorDireccion().isBlank()) {
+            gCamTrans.setdDirChof(notaRemision.getConductorDireccion());
+        }
+        
+        gTransp.setgCamTrans(gCamTrans);
+        
+        return gTransp;
+    }
+
+    /**
+     * Obtiene una abreviación válida (≤10 caracteres) para una marca de vehículo.
+     * Retorna null si no hay abreviación conocida.
+     */
+    private String obtenerAbreviacionMarca(String marca) {
+        // Mapeo de marcas comunes a abreviaciones válidas (≤10 caracteres)
+        switch (marca) {
+            case "MERCEDES BENZ":
+            case "MERCEDES-BENZ":
+                return "MERCEDES";
+            case "VOLKSWAGEN":
+                return "VW";
+            case "CHEVROLET":
+                return "CHEVROLET"; // Ya es ≤10
+            case "MITSUBISHI":
+                return "MITSUBISHI"; // Ya es ≤10
+            default:
+                // Si la marca ya es ≤10, retornarla tal cual
+                if (marca.length() <= 10) {
+                    return marca;
+                }
+                return null; // No hay abreviación conocida
+        }
+    }
+
+    /**
+     * Mapea el motivo de emisión de la nota de remisión al enum TiMotivTras.
+     */
+    private TiMotivTras mapearMotivoEmisionNRE(String motivoEmision) {
+        if (motivoEmision == null || motivoEmision.isBlank()) {
+            return TiMotivTras.TRASLADO_POR_VENTAS; // Valor por defecto
+        }
+        
+        String motivoUpper = motivoEmision.toUpperCase().replace(" ", "_");
+        try {
+            return TiMotivTras.valueOf(motivoUpper);
+        } catch (IllegalArgumentException e) {
+            log.warn("⚠️ Motivo de emisión '{}' no reconocido, usando TRASLADO_POR_VENTAS por defecto", motivoEmision);
+            return TiMotivTras.TRASLADO_POR_VENTAS;
+        }
+    }
+
+    /**
+     * Construye los datos del emisor desde la nota de remisión.
+     */
+    private TgEmis construirDatosEmisorNotaRemision(NotaRemision notaRemision) {
+        TgEmis gEmis = new TgEmis();
+        
+        Empresa empresa = notaRemision.getEmpresa();
+        
+        // RUC del emisor
+        String rucCompleto = empresa.getRuc();
+        String[] rucPartes = rucCompleto.split("-");
+        gEmis.setdRucEm(rucPartes[0]);
+        gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
+        
+        gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
+        gEmis.setdNomEmi(empresa.getRazonSocial());
+        gEmis.setdDirEmi(notaRemision.getTimbradoDetalle().getDireccion() != null 
+                ? notaRemision.getTimbradoDetalle().getDireccion() : "");
+        gEmis.setdNumCas("0");
+        gEmis.setdTelEmi(notaRemision.getTimbradoDetalle().getTelefono() != null 
+                ? notaRemision.getTimbradoDetalle().getTelefono() : "");
+        gEmis.setdEmailE(empresa.getEmail() != null ? empresa.getEmail() : "");
+        
+        // Datos geográficos
+        if (notaRemision.getTimbradoDetalle().getCiudad() != null) {
+            com.frcefact.model.Ciudad ciudad = notaRemision.getTimbradoDetalle().getCiudad();
+            
+            if (ciudad.getDistrito() != null && ciudad.getDistrito().getDepartamento() != null) {
+                com.frcefact.model.Departamento departamento = ciudad.getDistrito().getDepartamento();
+                TDepartamento tdep = mapearDepartamento(departamento.getNombre());
+                gEmis.setcDepEmi(tdep);
+            } else {
+                gEmis.setcDepEmi(TDepartamento.CAPITAL);
+            }
+            
+            try {
+                String codigoCiudad = ciudad.getCodigo();
+                if (codigoCiudad != null && !codigoCiudad.isBlank()) {
+                    gEmis.setcCiuEmi(Integer.parseInt(codigoCiudad));
+                } else {
+                    gEmis.setcCiuEmi(0);
+                }
+            } catch (NumberFormatException e) {
+                gEmis.setcCiuEmi(0);
+            }
+            
+            gEmis.setdDesCiuEmi(ciudad.getNombre());
+        } else {
+            gEmis.setcDepEmi(TDepartamento.CAPITAL);
+            gEmis.setcCiuEmi(0);
+            gEmis.setdDesCiuEmi("");
+        }
+        
+        // Actividades económicas
+        List<TgActEco> gActEcoList = construirActividadesEconomicas(empresa);
+        gEmis.setgActEcoList(gActEcoList);
+        
+        
+        return gEmis;
+    }
+
+    /**
+     * Construye los datos del receptor desde la nota de remisión.
+     * IMPORTANTE: NRE no permite receptor innominado según el manual.
+     */
+    private TgDatRec construirDatosReceptorNotaRemision(NotaRemision notaRemision) {
+        TgDatRec gDatRec = new TgDatRec();
+        
+        // Usar datos del destinatario de la nota de remisión
+        String nombre = notaRemision.getNombreDestinatario();
+        String ruc = notaRemision.getRucDestinatario();
+        
+        if (nombre == null || nombre.isBlank()) {
+            throw new BusinessException("Nota de remisión debe tener destinatario identificado (nombre). No se permite receptor innominado.");
+        }
+        
+        if (ruc == null || ruc.isBlank()) {
+            throw new BusinessException("Nota de remisión debe tener destinatario identificado (RUC). No se permite receptor innominado.");
+        }
+        
+        // Determinar si es contribuyente
+        boolean esContribuyente = ruc != null && ruc.length() >= 6; // RUC tiene al menos 6 dígitos
+        
+        if (esContribuyente) {
+            gDatRec.setiNatRec(TiNatRec.CONTRIBUYENTE);
+            gDatRec.setiTiOpe(TiTiOpe.B2B);
+            gDatRec.setiTiContRec(TiTipCont.PERSONA_JURIDICA);
+            
+            String[] rucPartes = ruc.split("-");
+            gDatRec.setdRucRec(rucPartes[0]);
+            if (rucPartes.length > 1) {
+                gDatRec.setdDVRec(Short.parseShort(rucPartes[1]));
+            }
+            
+            gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
+            gDatRec.setdNumIDRec(rucPartes[0]);
+        } else {
+            gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
+            gDatRec.setiTiOpe(TiTiOpe.B2C);
+            gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
+            gDatRec.setdNumIDRec(ruc != null ? ruc.replaceAll("[^0-9]", "") : "0");
+        }
+        
+        gDatRec.setdNomRec(nombre);
+        gDatRec.setcPaisRec(PaisType.PRY);
+        
+        // Dirección del receptor (OBLIGATORIO para NRE)
+        // Según el manual: si se informa dDirRec, debe ser coherente con número de casa y datos geográficos
+        String direccion = notaRemision.getDireccionDestinatario();
+        if (direccion != null && !direccion.isBlank()) {
+            // Sanitizar dirección: eliminar saltos de línea y caracteres especiales problemáticos
+            direccion = direccion.trim()
+                    .replace("\n", " ")
+                    .replace("\r", " ")
+                    .replace("\t", " ")
+                    .replaceAll("\\s+", " "); // Normalizar espacios múltiples
+            gDatRec.setdDirRec(direccion);
+            
+            // Número de casa (opcional pero recomendado si se informa dirección)
+            // Por ahora usamos "0" si no hay número específico, pero el campo está disponible
+            gDatRec.setdNumCasRec(0); // setdNumCasRec espera int, no String
+        } else {
+            log.warn("⚠️ Nota de remisión sin dirección destinatario - usando valor por defecto");
+            gDatRec.setdDirRec("SIN DIRECCION"); // Valor por defecto si no hay dirección
+            gDatRec.setdNumCasRec(0); // setdNumCasRec espera int, no String
+        }
+        
+        // Datos geográficos del destinatario (obligatorios para NRE)
+        // Departamento del destinatario
+        if (notaRemision.getDepartamentoDestinatarioId() != null) {
+            departamentoRepository.findById(notaRemision.getDepartamentoDestinatarioId()).ifPresent(dept -> {
+                try {
+                    TDepartamento tDept = mapearDepartamento(dept.getNombre());
+                    gDatRec.setcDepRec(tDept);
+                    log.debug("   Departamento destinatario: {} (código: {}) -> {}", 
+                            dept.getNombre(), dept.getCodigo(), tDept);
+                } catch (Exception e) {
+                    log.warn("⚠️ Error al mapear departamento destinatario '{}' - usando CAPITAL por defecto: {}", 
+                            dept.getNombre(), e.getMessage());
+                    gDatRec.setcDepRec(TDepartamento.CAPITAL);
+                }
+            });
+        } else {
+            log.warn("⚠️ Nota de remisión sin departamento destinatario - usando CAPITAL por defecto");
+            gDatRec.setcDepRec(TDepartamento.CAPITAL);
+        }
+        
+        // Ciudad del destinatario
+        if (notaRemision.getCiudadDestinatarioId() != null) {
+            ciudadRepository.findById(notaRemision.getCiudadDestinatarioId()).ifPresent(ciudad -> {
+                try {
+                    String codigoCiudad = ciudad.getCodigo();
+                    if (codigoCiudad != null && !codigoCiudad.isBlank()) {
+                        gDatRec.setcCiuRec(Integer.parseInt(codigoCiudad));
+                    } else {
+                        log.warn("⚠️ Código de ciudad destinatario vacío - usando 0 por defecto");
+                        gDatRec.setcCiuRec(0);
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("⚠️ Código de ciudad destinatario inválido '{}' - usando 0 por defecto: {}", 
+                            ciudad.getCodigo(), e.getMessage());
+                    gDatRec.setcCiuRec(0);
+                }
+                
+                // Nombre de ciudad
+                if (ciudad.getNombre() != null) {
+                    gDatRec.setdDesCiuRec(ciudad.getNombre());
+                } else {
+                    gDatRec.setdDesCiuRec(notaRemision.getCiudadDestinatario() != null 
+                            ? notaRemision.getCiudadDestinatario() : "");
+                }
+            });
+        } else {
+            log.warn("⚠️ Nota de remisión sin ciudad destinatario - usando valores por defecto");
+            gDatRec.setcCiuRec(0);
+            gDatRec.setdDesCiuRec(notaRemision.getCiudadDestinatario() != null 
+                    ? notaRemision.getCiudadDestinatario() : "");
+        }
+        
+        return gDatRec;
+    }
+
+    /**
      * Valida que el DE tenga todos los grupos requeridos antes de generar el XML (para Nota de Crédito).
      */
     private void validarDECompletoNotaCredito(com.roshka.sifen.core.beans.DocumentoElectronico de, NotaCredito notaCredito) {
@@ -2021,6 +2982,113 @@ public class SifenService {
         }
         
         log.debug("   ✅ Validación de DE completa - todos los grupos están presentes");
+    }
+
+    /**
+     * Valida que el DE tenga todos los grupos requeridos antes de generar el XML (para Nota de Remisión).
+     * Valida según las reglas específicas del manual SIFEN v150 para NRE.
+     */
+    private void validarDECompletoNRE(com.roshka.sifen.core.beans.DocumentoElectronico de, NotaRemision notaRemision) {
+        if (de == null) {
+            throw new BusinessException("El objeto DE es null");
+        }
+        
+        if (de.getgOpeDE() == null) {
+            throw new BusinessException("Grupo B (gOpeDE) no está configurado");
+        }
+        
+        if (de.getgTimb() == null) {
+            throw new BusinessException("Grupo C (gTimb) no está configurado");
+        }
+        
+        if (de.getgTimb().getiTiDE() != TTiDE.NOTA_DE_REMISION_ELECTRONICA) {
+            throw new BusinessException("El tipo de documento debe ser NOTA_DE_REMISION_ELECTRONICA");
+        }
+        
+        if (de.getgDatGralOpe() == null) {
+            throw new BusinessException("Grupo D (gDatGralOpe) no está configurado");
+        }
+        
+        if (de.getgDatGralOpe().getgEmis() == null) {
+            throw new BusinessException("Datos del emisor (gEmis) no están configurados");
+        }
+        
+        if (de.getgDatGralOpe().getgDatRec() == null) {
+            throw new BusinessException("Datos del receptor (gDatRec) no están configurados");
+        }
+        
+        // Validar que receptor NO sea innominado
+        if (de.getgDatGralOpe().getgDatRec().getiTipIDRec() == TiTipDocRec.INNOMINADO) {
+            throw new BusinessException("NRE no permite receptor innominado. El receptor debe estar identificado.");
+        }
+        
+        if (de.getgDtipDE() == null) {
+            throw new BusinessException("Grupo E (gDtipDE) no está configurado");
+        }
+        
+        // Validar grupo E500 (gCamNRE) - OBLIGATORIO para NRE
+        if (de.getgDtipDE().getgCamNRE() == null) {
+            throw new BusinessException("Grupo E500 (gCamNRE) es obligatorio para Nota de Remisión");
+        }
+        
+        // Validar que items NO tengan precios/IVA
+        if (de.getgDtipDE().getgCamItemList() != null && !de.getgDtipDE().getgCamItemList().isEmpty()) {
+            for (TgCamItem item : de.getgDtipDE().getgCamItemList()) {
+                if (item.getgValorItem() != null) {
+                    throw new BusinessException("Los items de NRE NO deben incluir precios (E720 - gValorItem)");
+                }
+                if (item.getgCamIVA() != null) {
+                    throw new BusinessException("Los items de NRE NO deben incluir IVA (E730 - gCamIVA)");
+                }
+            }
+        }
+        
+        // Validar transporte completo - OBLIGATORIO para NRE
+        if (de.getgDtipDE().getgTransp() == null) {
+            throw new BusinessException("Transporte (gTransp) es obligatorio para Nota de Remisión");
+        }
+        
+        TgTransp gTransp = de.getgDtipDE().getgTransp();
+        if (gTransp.getiTipTrans() == null) {
+            throw new BusinessException("Tipo de transporte (E901 - iTipTrans) es obligatorio para NRE");
+        }
+        if (gTransp.getgCamSal() == null) {
+            throw new BusinessException("Local de salida (E920 - gCamSal) es obligatorio para NRE");
+        }
+        if (gTransp.getgCamEntList() == null || gTransp.getgCamEntList().isEmpty()) {
+            throw new BusinessException("Local de entrega (E940 - gCamEntList) es obligatorio para NRE");
+        }
+        if (gTransp.getgVehTrasList() == null || gTransp.getgVehTrasList().isEmpty()) {
+            throw new BusinessException("Vehículo de traslado (E960 - gVehTrasList) es obligatorio para NRE");
+        }
+        if (gTransp.getgCamTrans() == null) {
+            throw new BusinessException("Transportista (E980 - gCamTrans) es obligatorio para NRE");
+        }
+        
+        // Validar que NO exista grupo F001 (totales) - NRE no tiene totales
+        if (de.getgTotSub() != null) {
+            throw new BusinessException("NRE NO debe incluir totales (F001 - gTotSub)");
+        }
+        
+        // Validar regla: Si motivo es TRASLADO_POR_VENTAS (1) y no hay documentos asociados, E506 es obligatorio
+        TgCamNRE gCamNRE = de.getgDtipDE().getgCamNRE();
+        if (gCamNRE.getiMotEmiNR() == TiMotivTras.TRASLADO_POR_VENTAS) {
+            boolean tieneDocumentosAsociados = de.getgCamDEAsocList() != null && !de.getgCamDEAsocList().isEmpty();
+            if (!tieneDocumentosAsociados && gCamNRE.getdFecEm() == null) {
+                throw new BusinessException("E506 (dFecEm) es obligatorio cuando motivo es TRASLADO_POR_VENTAS y no hay documentos asociados");
+            }
+        }
+        
+        // Validar regla: Si motivo es TRASLADO_ENTRE_LOCALES (7), RUC receptor debe ser igual a RUC emisor
+        if (gCamNRE.getiMotEmiNR() == TiMotivTras.TRASLADO_ENTRE_LOCALES) {
+            String rucEmisor = de.getgDatGralOpe().getgEmis().getdRucEm();
+            String rucReceptor = de.getgDatGralOpe().getgDatRec().getdRucRec();
+            if (rucReceptor == null || !rucReceptor.equals(rucEmisor)) {
+                throw new BusinessException("Para traslado entre locales (E501=7), el RUC receptor debe ser igual al RUC emisor");
+            }
+        }
+        
+        log.debug("   ✅ Validación de NRE completa - todos los grupos obligatorios están presentes");
     }
 
     /**

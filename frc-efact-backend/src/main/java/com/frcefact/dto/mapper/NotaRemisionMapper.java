@@ -5,9 +5,12 @@ import com.frcefact.dto.NotaRemisionItemDto;
 import com.frcefact.model.*;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -38,12 +41,18 @@ public class NotaRemisionMapper {
         dto.setDireccionPartida(entity.getDireccionPartida());
         dto.setCiudadPartida(entity.getCiudadPartida());
         dto.setDepartamentoPartida(entity.getDepartamentoPartida());
+        dto.setCiudadPartidaId(entity.getCiudadPartidaId());
+        dto.setDepartamentoPartidaId(entity.getDepartamentoPartidaId());
+        dto.setDistritoPartidaId(entity.getDistritoPartidaId());
         
         dto.setNombreDestinatario(entity.getNombreDestinatario());
         dto.setRucDestinatario(entity.getRucDestinatario());
         dto.setDireccionDestinatario(entity.getDireccionDestinatario());
         dto.setCiudadDestinatario(entity.getCiudadDestinatario());
         dto.setDepartamentoDestinatario(entity.getDepartamentoDestinatario());
+        dto.setCiudadDestinatarioId(entity.getCiudadDestinatarioId());
+        dto.setDepartamentoDestinatarioId(entity.getDepartamentoDestinatarioId());
+        dto.setDistritoDestinatarioId(entity.getDistritoDestinatarioId());
         
         dto.setMotivoEmision(entity.getMotivoEmision());
         
@@ -61,9 +70,17 @@ public class NotaRemisionMapper {
         dto.setVehiculoMarca(entity.getVehiculoMarca());
         dto.setVehiculoMatricula(entity.getVehiculoMatricula());
         
+        dto.setTransportistaNombre(entity.getTransportistaNombre());
+        dto.setTransportistaRuc(entity.getTransportistaRuc());
+        dto.setTransportistaDireccion(entity.getTransportistaDireccion());
+        
         dto.setConductorNombre(entity.getConductorNombre());
         dto.setConductorDoc(entity.getConductorDoc());
         dto.setConductorDireccion(entity.getConductorDireccion());
+
+        if (entity.getFechaEstimadaFactura() != null) {
+            dto.setFechaEstimadaFactura(entity.getFechaEstimadaFactura().format(DATE_FORMATTER));
+        }
 
         dto.setActivo(entity.getActivo());
 
@@ -81,6 +98,7 @@ public class NotaRemisionMapper {
         }
         if (entity.getCliente() != null) {
             dto.setNombreCliente(entity.getCliente().getNombre());
+            dto.setEmailCliente(entity.getCliente().getEmail());
         }
         if (entity.getFacturaLegal() != null) {
             dto.setNumeroFacturaAsociada(entity.getFacturaLegal().getNumeroFacturaFormateado());
@@ -134,18 +152,41 @@ public class NotaRemisionMapper {
         }
 
         if (dto.getFecha() != null && !dto.getFecha().isEmpty()) {
-            entity.setFecha(LocalDateTime.parse(dto.getFecha(), FORMATTER));
+            try {
+                // Intentar parsear como ISO con zona horaria (formato del frontend: 2026-01-22T19:18:28.055Z)
+                if (dto.getFecha().endsWith("Z") || dto.getFecha().contains("+") || (dto.getFecha().contains("-") && dto.getFecha().length() > 19)) {
+                    Instant instant = Instant.parse(dto.getFecha());
+                    entity.setFecha(LocalDateTime.ofInstant(instant, ZoneId.systemDefault()));
+                } else {
+                    // Parsear como ISO_LOCAL_DATE_TIME (sin zona horaria)
+                    entity.setFecha(LocalDateTime.parse(dto.getFecha(), FORMATTER));
+                }
+            } catch (DateTimeParseException e) {
+                // Si falla, intentar parsear como ISO con zona horaria de todas formas
+                try {
+                    Instant instant = Instant.parse(dto.getFecha());
+                    entity.setFecha(LocalDateTime.ofInstant(instant, ZoneId.systemDefault()));
+                } catch (Exception ex) {
+                    throw new IllegalArgumentException("Formato de fecha inválido: " + dto.getFecha(), ex);
+                }
+            }
         }
         
         entity.setDireccionPartida(dto.getDireccionPartida());
         entity.setCiudadPartida(dto.getCiudadPartida());
         entity.setDepartamentoPartida(dto.getDepartamentoPartida());
+        entity.setCiudadPartidaId(dto.getCiudadPartidaId());
+        entity.setDepartamentoPartidaId(dto.getDepartamentoPartidaId());
+        entity.setDistritoPartidaId(dto.getDistritoPartidaId());
         
         entity.setNombreDestinatario(dto.getNombreDestinatario());
         entity.setRucDestinatario(dto.getRucDestinatario());
         entity.setDireccionDestinatario(dto.getDireccionDestinatario());
         entity.setCiudadDestinatario(dto.getCiudadDestinatario());
         entity.setDepartamentoDestinatario(dto.getDepartamentoDestinatario());
+        entity.setCiudadDestinatarioId(dto.getCiudadDestinatarioId());
+        entity.setDepartamentoDestinatarioId(dto.getDepartamentoDestinatarioId());
+        entity.setDistritoDestinatarioId(dto.getDistritoDestinatarioId());
         
         entity.setMotivoEmision(dto.getMotivoEmision());
         
@@ -163,9 +204,17 @@ public class NotaRemisionMapper {
         entity.setVehiculoMarca(dto.getVehiculoMarca());
         entity.setVehiculoMatricula(dto.getVehiculoMatricula());
         
+        entity.setTransportistaNombre(dto.getTransportistaNombre());
+        entity.setTransportistaRuc(dto.getTransportistaRuc());
+        entity.setTransportistaDireccion(dto.getTransportistaDireccion());
+        
         entity.setConductorNombre(dto.getConductorNombre());
         entity.setConductorDoc(dto.getConductorDoc());
         entity.setConductorDireccion(dto.getConductorDireccion());
+        
+        if (dto.getFechaEstimadaFactura() != null && !dto.getFechaEstimadaFactura().isEmpty()) {
+            entity.setFechaEstimadaFactura(LocalDate.parse(dto.getFechaEstimadaFactura(), DATE_FORMATTER));
+        }
         
         entity.setActivo(dto.getActivo() != null ? dto.getActivo() : true);
 

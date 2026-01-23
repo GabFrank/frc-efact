@@ -107,6 +107,10 @@ export class SifenApiService {
     return this.http.get<DocumentoElectronico>(`${this.baseUrl}/documentos/nota-credito/${notaCreditoId}`);
   }
 
+  obtenerDocumentoPorNotaRemision(notaRemisionId: number): Observable<DocumentoElectronico> {
+    return this.http.get<DocumentoElectronico>(`${this.baseUrl}/documentos/nota-remision/${notaRemisionId}`);
+  }
+
   listarEventosCancelacion(filtros: EventoCancelacionFiltros): Observable<PageResponse<EventoCancelacionDE>> {
     let params = new HttpParams();
     

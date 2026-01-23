@@ -138,6 +138,16 @@ public class SifenController {
         return ResponseEntity.ok(documentoElectronicoMapper.toDto(documento));
     }
 
+    @GetMapping("/documentos/nota-remision/{notaRemisionId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @Operation(summary = "Obtener documento electrónico por ID de nota de remisión")
+    public ResponseEntity<DocumentoElectronicoDto> obtenerDocumentoPorNotaRemision(
+            @Parameter(description = "ID de la nota de remisión") @PathVariable Long notaRemisionId) {
+        log.info("🔍 Obteniendo documento electrónico para nota de remisión {}", notaRemisionId);
+        DocumentoElectronico documento = sifenService.obtenerDocumentoPorNotaRemisionId(notaRemisionId);
+        return ResponseEntity.ok(documentoElectronicoMapper.toDto(documento));
+    }
+
     @PostMapping("/documentos/{deId}/reenviar")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
     @Operation(summary = "Reenviar un documento electrónico en un nuevo lote")

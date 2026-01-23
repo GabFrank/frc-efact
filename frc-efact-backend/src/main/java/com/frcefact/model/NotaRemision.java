@@ -1,5 +1,6 @@
 package com.frcefact.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.frcefact.model.base.AuditableEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +22,7 @@ import java.util.List;
         @Index(name = "idx_nr_empresa", columnList = "empresa_id")
     }
 )
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class NotaRemision extends AuditableEntity {
 
     @Id
@@ -65,6 +67,15 @@ public class NotaRemision extends AuditableEntity {
     @Column(name = "departamento_partida", length = 100)
     private String departamentoPartida;
 
+    @Column(name = "ciudad_partida_id")
+    private Long ciudadPartidaId;
+
+    @Column(name = "departamento_partida_id")
+    private Long departamentoPartidaId;
+
+    @Column(name = "distrito_partida_id")
+    private Long distritoPartidaId;
+
     // Llegada
     @Size(max = 200)
     @Column(name = "nombre_destinatario", length = 200)
@@ -84,6 +95,15 @@ public class NotaRemision extends AuditableEntity {
     @Size(max = 100)
     @Column(name = "departamento_destinatario", length = 100)
     private String departamentoDestinatario;
+
+    @Column(name = "ciudad_destinatario_id")
+    private Long ciudadDestinatarioId;
+
+    @Column(name = "departamento_destinatario_id")
+    private Long departamentoDestinatarioId;
+
+    @Column(name = "distrito_destinatario_id")
+    private Long distritoDestinatarioId;
 
     // Datos remision
     @Size(max = 50)
@@ -117,7 +137,19 @@ public class NotaRemision extends AuditableEntity {
     @Column(name = "vehiculo_matricula", length = 20)
     private String vehiculoMatricula;
 
-    // Conductor
+    // Transportista (Empresa)
+    @Size(max = 200)
+    @Column(name = "transportista_nombre", length = 200)
+    private String transportistaNombre;
+
+    @Size(max = 20)
+    @Column(name = "transportista_ruc", length = 20)
+    private String transportistaRuc;
+
+    @Column(name = "transportista_direccion", columnDefinition = "TEXT")
+    private String transportistaDireccion;
+
+    // Conductor (Chofer)
     @Size(max = 200)
     @Column(name = "conductor_nombre", length = 200)
     private String conductorNombre;
@@ -128,6 +160,9 @@ public class NotaRemision extends AuditableEntity {
 
     @Column(name = "conductor_direccion", columnDefinition = "TEXT")
     private String conductorDireccion;
+
+    @Column(name = "fecha_estimada_factura")
+    private LocalDate fechaEstimadaFactura;
 
     @Column(nullable = false)
     private Boolean activo = true;
@@ -182,6 +217,15 @@ public class NotaRemision extends AuditableEntity {
     public String getDepartamentoPartida() { return departamentoPartida; }
     public void setDepartamentoPartida(String departamentoPartida) { this.departamentoPartida = departamentoPartida; }
 
+    public Long getCiudadPartidaId() { return ciudadPartidaId; }
+    public void setCiudadPartidaId(Long ciudadPartidaId) { this.ciudadPartidaId = ciudadPartidaId; }
+
+    public Long getDepartamentoPartidaId() { return departamentoPartidaId; }
+    public void setDepartamentoPartidaId(Long departamentoPartidaId) { this.departamentoPartidaId = departamentoPartidaId; }
+
+    public Long getDistritoPartidaId() { return distritoPartidaId; }
+    public void setDistritoPartidaId(Long distritoPartidaId) { this.distritoPartidaId = distritoPartidaId; }
+
     public String getNombreDestinatario() { return nombreDestinatario; }
     public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
 
@@ -196,6 +240,15 @@ public class NotaRemision extends AuditableEntity {
 
     public String getDepartamentoDestinatario() { return departamentoDestinatario; }
     public void setDepartamentoDestinatario(String departamentoDestinatario) { this.departamentoDestinatario = departamentoDestinatario; }
+
+    public Long getCiudadDestinatarioId() { return ciudadDestinatarioId; }
+    public void setCiudadDestinatarioId(Long ciudadDestinatarioId) { this.ciudadDestinatarioId = ciudadDestinatarioId; }
+
+    public Long getDepartamentoDestinatarioId() { return departamentoDestinatarioId; }
+    public void setDepartamentoDestinatarioId(Long departamentoDestinatarioId) { this.departamentoDestinatarioId = departamentoDestinatarioId; }
+
+    public Long getDistritoDestinatarioId() { return distritoDestinatarioId; }
+    public void setDistritoDestinatarioId(Long distritoDestinatarioId) { this.distritoDestinatarioId = distritoDestinatarioId; }
 
     public String getMotivoEmision() { return motivoEmision; }
     public void setMotivoEmision(String motivoEmision) { this.motivoEmision = motivoEmision; }
@@ -221,6 +274,15 @@ public class NotaRemision extends AuditableEntity {
     public String getVehiculoMatricula() { return vehiculoMatricula; }
     public void setVehiculoMatricula(String vehiculoMatricula) { this.vehiculoMatricula = vehiculoMatricula; }
 
+    public String getTransportistaNombre() { return transportistaNombre; }
+    public void setTransportistaNombre(String transportistaNombre) { this.transportistaNombre = transportistaNombre; }
+
+    public String getTransportistaRuc() { return transportistaRuc; }
+    public void setTransportistaRuc(String transportistaRuc) { this.transportistaRuc = transportistaRuc; }
+
+    public String getTransportistaDireccion() { return transportistaDireccion; }
+    public void setTransportistaDireccion(String transportistaDireccion) { this.transportistaDireccion = transportistaDireccion; }
+
     public String getConductorNombre() { return conductorNombre; }
     public void setConductorNombre(String conductorNombre) { this.conductorNombre = conductorNombre; }
 
@@ -229,6 +291,9 @@ public class NotaRemision extends AuditableEntity {
 
     public String getConductorDireccion() { return conductorDireccion; }
     public void setConductorDireccion(String conductorDireccion) { this.conductorDireccion = conductorDireccion; }
+
+    public LocalDate getFechaEstimadaFactura() { return fechaEstimadaFactura; }
+    public void setFechaEstimadaFactura(LocalDate fechaEstimadaFactura) { this.fechaEstimadaFactura = fechaEstimadaFactura; }
 
     public Boolean getActivo() { return activo; }
     public void setActivo(Boolean activo) { this.activo = activo; }

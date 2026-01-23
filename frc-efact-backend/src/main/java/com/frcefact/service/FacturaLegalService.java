@@ -99,7 +99,7 @@ public class FacturaLegalService {
         }
 
         // Obtener y asignar número de factura (incrementa automáticamente)
-        Long numeroAsignado = timbradoDetalleService.incrementarNumeroActual(timbradoDetalle.getId());
+        Long numeroAsignado = timbradoDetalleService.incrementarNumeroFactura(timbradoDetalle.getId());
         factura.setNumeroFactura(numeroAsignado.intValue());
 
         // Establecer fecha si no está definida

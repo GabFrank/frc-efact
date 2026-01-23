@@ -153,7 +153,21 @@ public class SifenEventoService {
             log.info("   ✅ Registro de evento creado (aún no guardado en BD)");
 
             log.info("   [PASO 6] Obteniendo configuración SIFEN...");
-            Timbrado timbrado = de.getFacturaLegal().getTimbradoDetalle().getTimbrado();
+            Timbrado timbrado = null;
+            if (de.getFacturaLegal() != null) {
+                timbrado = de.getFacturaLegal().getTimbradoDetalle().getTimbrado();
+            } else if (de.getNotaRemision() != null) {
+                timbrado = de.getNotaRemision().getTimbradoDetalle().getTimbrado();
+            } else if (de.getNotaCredito() != null) {
+                timbrado = de.getNotaCredito().getTimbradoDetalle().getTimbrado();
+            } else if (de.getNotaDebito() != null) {
+                timbrado = de.getNotaDebito().getTimbradoDetalle().getTimbrado();
+            }
+
+            if (timbrado == null) {
+                throw new IllegalStateException("El documento electrónico no tiene un documento legal asociado con timbrado");
+            }
+
             SifenConfig config = sifenConfigFactory.buildForTimbrado(timbrado.getId());
 
             log.info("   [PASO 7] 📤 Enviando evento de cancelación a SIFEN...");

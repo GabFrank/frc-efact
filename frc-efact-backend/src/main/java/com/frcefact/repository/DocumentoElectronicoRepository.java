@@ -58,6 +58,23 @@ public interface DocumentoElectronicoRepository extends JpaRepository<DocumentoE
     Optional<DocumentoElectronico> findByNotaRemisionId(Long notaRemisionId);
 
     /**
+     * Busca un documento electrónico por el ID de la nota de remisión con todas las relaciones necesarias cargadas.
+     * Usa JOIN FETCH para evitar LazyInitializationException.
+     * Carga: notaRemision, notaRemision.empresa, notaRemision.empresa.ciudad, notaRemision.empresa.ciudad.distrito,
+     * notaRemision.empresa.ciudad.distrito.departamento, notaRemision.empresa.ciudad.distrito.departamento.pais, loteDE.
+     */
+    @Query("SELECT DISTINCT de FROM DocumentoElectronico de " +
+           "LEFT JOIN FETCH de.notaRemision nr " +
+           "LEFT JOIN FETCH nr.empresa e " +
+           "LEFT JOIN FETCH e.ciudad c " +
+           "LEFT JOIN FETCH c.distrito d " +
+           "LEFT JOIN FETCH d.departamento dp " +
+           "LEFT JOIN FETCH dp.pais " +
+           "LEFT JOIN FETCH de.loteDE " +
+           "WHERE de.notaRemision.id = :notaRemisionId")
+    Optional<DocumentoElectronico> findByNotaRemisionIdWithRelations(@Param("notaRemisionId") Long notaRemisionId);
+
+    /**
      * Busca todos los documentos electrónicos por estado
      */
     List<DocumentoElectronico> findByEstado(EstadoDE estado);

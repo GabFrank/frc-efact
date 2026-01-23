@@ -9,6 +9,7 @@ import com.frcefact.model.Ciudad;
 import com.frcefact.model.Timbrado;
 import com.frcefact.model.TimbradoDetalle;
 import com.frcefact.repository.FacturaLegalRepository;
+import com.frcefact.repository.NotaRemisionRepository;
 import com.frcefact.repository.TimbradoDetalleRepository;
 import com.frcefact.repository.TimbradoRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -30,18 +31,21 @@ public class TimbradoDetalleService {
     private final TimbradoDetalleMapper timbradoDetalleMapper;
     private final EmpresaSecurityService empresaSecurityService;
     private final FacturaLegalRepository facturaLegalRepository;
+    private final NotaRemisionRepository notaRemisionRepository;
 
     public TimbradoDetalleService(
             TimbradoDetalleRepository timbradoDetalleRepository,
             TimbradoRepository timbradoRepository,
             TimbradoDetalleMapper timbradoDetalleMapper,
             EmpresaSecurityService empresaSecurityService,
-            FacturaLegalRepository facturaLegalRepository) {
+            FacturaLegalRepository facturaLegalRepository,
+            NotaRemisionRepository notaRemisionRepository) {
         this.timbradoDetalleRepository = timbradoDetalleRepository;
         this.timbradoRepository = timbradoRepository;
         this.timbradoDetalleMapper = timbradoDetalleMapper;
         this.empresaSecurityService = empresaSecurityService;
         this.facturaLegalRepository = facturaLegalRepository;
+        this.notaRemisionRepository = notaRemisionRepository;
     }
 
     /**
@@ -272,9 +276,20 @@ public class TimbradoDetalleService {
     /**
      * Obtiene y incrementa el número actual de un detalle de timbrado.
      * Usado para asignar números de factura.
+     * @deprecated Usar métodos específicos por tipo de documento: incrementarNumeroFactura, incrementarNumeroNotaRemision, etc.
      */
     @Transactional
+    @Deprecated
     public synchronized Long incrementarNumeroActual(Long detalleId) {
+        return incrementarNumeroFactura(detalleId);
+    }
+
+    /**
+     * Obtiene y incrementa el número de factura para un detalle de timbrado.
+     * Para timbrados electrónicos, busca el máximo número de factura existente.
+     */
+    @Transactional
+    public synchronized Long incrementarNumeroFactura(Long detalleId) {
         TimbradoDetalle detalle = timbradoDetalleRepository.findById(detalleId)
                 .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + detalleId));
 
@@ -283,8 +298,40 @@ public class TimbradoDetalleService {
 
         // Para timbrados electrónicos, generar número basado en facturas existentes sin modificar el detalle
         if (Boolean.TRUE.equals(detalle.getTimbrado().getIsElectronico())) {
-            Integer maxNumero = facturaLegalRepository.findMaxNumeroFacturaByTimbradoDetalleId(detalleId);
-            return maxNumero == null ? 1L : maxNumero.longValue() + 1L;
+            Integer maxFactura = facturaLegalRepository.findMaxNumeroFacturaByTimbradoDetalleId(detalleId);
+            return maxFactura == null ? 1L : maxFactura.longValue() + 1L;
+        }
+
+        // Verificar que tiene números disponibles
+        if (!detalle.tieneNumerosDisponibles()) {
+            throw new IllegalStateException("No hay números disponibles en el rango del punto de expedición");
+        }
+
+        // Obtener y incrementar el número
+        Long numeroAsignado = detalle.obtenerYIncrementarNumeroActual();
+        
+        // Guardar los cambios
+        timbradoDetalleRepository.save(detalle);
+        
+        return numeroAsignado;
+    }
+
+    /**
+     * Obtiene y incrementa el número de nota de remisión para un detalle de timbrado.
+     * Para timbrados electrónicos, busca el máximo número de nota de remisión existente.
+     */
+    @Transactional
+    public synchronized Long incrementarNumeroNotaRemision(Long detalleId) {
+        TimbradoDetalle detalle = timbradoDetalleRepository.findById(detalleId)
+                .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + detalleId));
+
+        // Verificar permisos de escritura
+        empresaSecurityService.verificarAccesoEscritura(detalle.getTimbrado().getEmpresa().getId());
+
+        // Para timbrados electrónicos, generar número basado SOLO en notas de remisión existentes
+        if (Boolean.TRUE.equals(detalle.getTimbrado().getIsElectronico())) {
+            Integer maxNotaRemision = notaRemisionRepository.findMaxNumeroNotaRemisionByTimbradoDetalleId(detalleId);
+            return maxNotaRemision == null ? 1L : maxNotaRemision.longValue() + 1L;
         }
 
         // Verificar que tiene números disponibles

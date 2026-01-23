@@ -34,6 +34,7 @@ public class KudePdfService {
 
     private static final Logger log = LoggerFactory.getLogger(KudePdfService.class);
     private static final String REPORT_PATH = "reports/factura-electronica-kude.jrxml";
+    private static final String NR_REPORT_PATH = "reports/nota-remision-kude.jrxml";
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -77,6 +78,40 @@ public class KudePdfService {
         JasperExportManager.exportReportToPdfStream(jasperPrint, outputStream);
 
         log.info("PDF KUDE generado exitosamente para factura ID: {}", factura.getId());
+        return outputStream.toByteArray();
+    }
+
+    /**
+     * Genera el PDF del KUDE para una nota de remisión.
+     * 
+     * @param notaRemision Nota de remisión con todos sus datos cargados
+     * @return Array de bytes del PDF generado
+     * @throws Exception Si hay error al generar el PDF
+     */
+    public byte[] generarPdfKude(NotaRemision notaRemision) throws Exception {
+        log.info("Generando PDF KUDE para nota de remisión ID: {}", notaRemision.getId());
+
+        // Cargar el template del reporte
+        ClassPathResource resource = new ClassPathResource(NR_REPORT_PATH);
+        InputStream reportStream = resource.getInputStream();
+        JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+
+        // Preparar parámetros del reporte
+        Map<String, Object> parameters = prepararParametrosNotaRemision(notaRemision);
+
+        // Preparar datos de los items
+        List<Map<String, Object>> itemsData = prepararItemsNotaRemisionData(notaRemision.getItems());
+        JRBeanCollectionDataSource itemsDataSource = new JRBeanCollectionDataSource(itemsData);
+
+        // Generar el PDF
+        JasperPrint jasperPrint = JasperFillManager.fillReport(
+                jasperReport, parameters, itemsDataSource);
+
+        // Exportar a PDF
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        JasperExportManager.exportReportToPdfStream(jasperPrint, outputStream);
+
+        log.info("PDF KUDE generado exitosamente para nota de remisión ID: {}", notaRemision.getId());
         return outputStream.toByteArray();
     }
 
@@ -362,6 +397,153 @@ public class KudePdfService {
         // TODO: Implementar búsqueda del logo de la empresa
         // Por ejemplo, buscar en una carpeta de logos o en la base de datos
         return null;
+    }
+
+    /**
+     * Prepara los parámetros del reporte a partir de la nota de remisión.
+     */
+    private Map<String, Object> prepararParametrosNotaRemision(NotaRemision notaRemision) throws Exception {
+        Map<String, Object> parameters = new HashMap<>();
+
+        Empresa empresa = notaRemision.getEmpresa();
+        TimbradoDetalle timbradoDetalle = notaRemision.getTimbradoDetalle();
+        Timbrado timbrado = timbradoDetalle.getTimbrado();
+        DocumentoElectronico documentoElectronico = notaRemision.getDocumentoElectronico();
+
+        // Logo
+        String logoPath = obtenerLogoPath(empresa);
+        parameters.put("logo", logoPath);
+
+        // Datos del emisor
+        parameters.put("razonSocial", empresa.getRazonSocial() != null ? empresa.getRazonSocial() : "");
+        parameters.put("rucEmisor", empresa.getRuc() != null ? empresa.getRuc() : "");
+        parameters.put("numeroTimbrado", timbrado.getNumero() != null ? timbrado.getNumero() : "");
+        parameters.put("fechaInicioVigencia", timbrado.getFechaInicio() != null ? 
+                timbrado.getFechaInicio().format(DATE_FORMATTER) : "");
+        parameters.put("direccionEmisor", empresa.getDireccion() != null ? empresa.getDireccion() : "");
+        parameters.put("telefonoEmisor", empresa.getTelefono() != null ? empresa.getTelefono() : "");
+        parameters.put("emailEmisor", empresa.getEmail() != null ? empresa.getEmail() : "");
+        parameters.put("actividadEconomica", empresa.getDescActividadEconomicaPrincipal() != null ? 
+                empresa.getDescActividadEconomicaPrincipal() : "");
+
+        // Datos de la nota de remisión
+        parameters.put("numeroNotaRemision", notaRemision.getNumeroFormateado());
+        parameters.put("fechaEmision", notaRemision.getFecha() != null ? 
+                notaRemision.getFecha().format(DATE_TIME_FORMATTER) : "");
+        
+        // Destinatario
+        parameters.put("nombreDestinatario", notaRemision.getNombreDestinatario() != null ? notaRemision.getNombreDestinatario() : "");
+        parameters.put("rucDestinatario", notaRemision.getRucDestinatario() != null ? notaRemision.getRucDestinatario() : "");
+
+        // Traslado
+        parameters.put("motivoEmision", mapearMotivoEmisionDescripcion(notaRemision.getMotivoEmision()));
+        parameters.put("fechaInicioTraslado", notaRemision.getFechaInicioTraslado() != null ? 
+                notaRemision.getFechaInicioTraslado().format(DATE_FORMATTER) : "");
+        parameters.put("fechaFinTraslado", notaRemision.getFechaFinTraslado() != null ? 
+                notaRemision.getFechaFinTraslado().format(DATE_FORMATTER) : "");
+        parameters.put("fechaEstimadaFactura", notaRemision.getFechaEstimadaFactura() != null ? 
+                notaRemision.getFechaEstimadaFactura().format(DATE_FORMATTER) : "");
+        parameters.put("kmEstimado", notaRemision.getKmEstimado() != null ? notaRemision.getKmEstimado().toString() : "0");
+
+        // Origen
+        parameters.put("direccionPartida", notaRemision.getDireccionPartida() != null ? notaRemision.getDireccionPartida() : "");
+        parameters.put("ciudadPartida", notaRemision.getCiudadPartida() != null ? notaRemision.getCiudadPartida() : "");
+        parameters.put("departamentoPartida", notaRemision.getDepartamentoPartida() != null ? notaRemision.getDepartamentoPartida() : "");
+        parameters.put("distritoPartida", ""); // TODO: Si se agrega nombre de distrito a la entidad
+
+        // Llegada
+        parameters.put("direccionLlegada", notaRemision.getDireccionDestinatario() != null ? notaRemision.getDireccionDestinatario() : "");
+        parameters.put("ciudadLlegada", notaRemision.getCiudadDestinatario() != null ? notaRemision.getCiudadDestinatario() : "");
+        parameters.put("departamentoLlegada", notaRemision.getDepartamentoDestinatario() != null ? notaRemision.getDepartamentoDestinatario() : "");
+        parameters.put("distritoLlegada", ""); // TODO: Si se agrega nombre de distrito a la entidad
+
+        // Transporte
+        parameters.put("tipoTransporte", notaRemision.getTipoTransporte() != null ? notaRemision.getTipoTransporte() : "PROPIO");
+        parameters.put("modalidadTransporte", notaRemision.getModalidadTransporte() != null ? notaRemision.getModalidadTransporte() : "TERRESTRE");
+        parameters.put("vehiculoMarca", notaRemision.getVehiculoMarca() != null ? notaRemision.getVehiculoMarca() : "");
+        parameters.put("vehiculoMatricula", notaRemision.getVehiculoMatricula() != null ? notaRemision.getVehiculoMatricula() : "");
+
+        // Transportista
+        parameters.put("transportistaNombre", notaRemision.getTransportistaNombre() != null ? notaRemision.getTransportistaNombre() : "");
+        parameters.put("transportistaRuc", notaRemision.getTransportistaRuc() != null ? notaRemision.getTransportistaRuc() : "");
+        parameters.put("transportistaDireccion", notaRemision.getTransportistaDireccion() != null ? notaRemision.getTransportistaDireccion() : "");
+
+        // Conductor
+        parameters.put("conductorNombre", notaRemision.getConductorNombre() != null ? notaRemision.getConductorNombre() : "");
+        parameters.put("conductorDoc", notaRemision.getConductorDoc() != null ? notaRemision.getConductorDoc() : "");
+        parameters.put("conductorDireccion", notaRemision.getConductorDireccion() != null ? notaRemision.getConductorDireccion() : "");
+
+        // Factura asociada
+        parameters.put("numeroFacturaAsociada", notaRemision.getFacturaLegal() != null ? 
+                notaRemision.getFacturaLegal().getNumeroFacturaFormateado() : "");
+
+        // Documento electrónico
+        if (documentoElectronico != null) {
+            parameters.put("cdc", documentoElectronico.getCdc() != null ? documentoElectronico.getCdc() : "");
+            parameters.put("urlValidacion", documentoElectronico.getUrlQr() != null ? 
+                    documentoElectronico.getUrlQr() : "");
+            
+            // Generar o obtener QR code
+            String qrImagePath = generarQRCode(documentoElectronico.getUrlQr());
+            parameters.put("qrImagePath", qrImagePath);
+        } else {
+            parameters.put("cdc", "");
+            parameters.put("urlValidacion", "");
+            parameters.put("qrImagePath", "");
+        }
+
+        return parameters;
+    }
+
+    /**
+     * Prepara los datos de los items para el reporte de nota de remisión.
+     */
+    private List<Map<String, Object>> prepararItemsNotaRemisionData(List<NotaRemisionItem> items) {
+        List<Map<String, Object>> itemsData = new ArrayList<>();
+
+        for (NotaRemisionItem item : items) {
+            Map<String, Object> itemData = new HashMap<>();
+            
+            Producto producto = item.getProducto();
+            if (producto != null) {
+                itemData.put("codigo", producto.getCodigo() != null ? producto.getCodigo() : "");
+            } else {
+                itemData.put("codigo", "");
+            }
+            
+            itemData.put("descripcion", item.getDescripcion() != null ? item.getDescripcion() : "");
+            itemData.put("cantidad", item.getCantidad() != null ? item.getCantidad().doubleValue() : 0.0);
+            itemData.put("unidadMedida", item.getUnidadMedida() != null ? item.getUnidadMedida() : "UNI");
+
+            itemsData.add(itemData);
+        }
+
+        return itemsData;
+    }
+
+    /**
+     * Mapea el ID del motivo de emisión a su descripción.
+     */
+    private String mapearMotivoEmisionDescripcion(String motivoId) {
+        if (motivoId == null) return "";
+        switch (motivoId) {
+            case "1": return "Traslado por ventas";
+            case "2": return "Traslado por compras";
+            case "3": return "Traslado por devolución";
+            case "4": return "Traslado por exportación";
+            case "5": return "Traslado por importación";
+            case "6": return "Traslado por consignación";
+            case "7": return "Traslado entre locales de la misma empresa";
+            case "8": return "Traslado por ferias";
+            case "9": return "Traslado por reparación";
+            case "10": return "Traslado por entrega de productos en carácter de préstamo";
+            case "11": return "Traslado por exhibición";
+            case "12": return "Traslado por publicidad";
+            case "13": return "Traslado por transformación";
+            case "14": return "Traslado por recolección de productos";
+            case "99": return "Otros";
+            default: return motivoId;
+        }
     }
 
     /**

@@ -90,8 +90,8 @@ public class NotaRemisionService {
             throw new IllegalArgumentException("La nota de remisión debe tener al menos un item");
         }
 
-        // Asignar número
-        Long numeroAsignado = timbradoDetalleService.incrementarNumeroActual(timbradoDetalle.getId());
+        // Asignar número (usar método específico para notas de remisión)
+        Long numeroAsignado = timbradoDetalleService.incrementarNumeroNotaRemision(timbradoDetalle.getId());
         notaRemision.setNumeroNotaRemision(numeroAsignado.intValue());
 
         if (notaRemision.getFecha() == null) {
@@ -117,16 +117,10 @@ public class NotaRemisionService {
 
     @Transactional(readOnly = true)
     public NotaRemision obtenerPorId(Long id) {
-        NotaRemision nr = notaRemisionRepository.findById(id)
+        NotaRemision nr = notaRemisionRepository.findByIdWithRelations(id)
                 .orElseThrow(() -> new EntityNotFoundException("Nota de remisión no encontrada"));
         
         empresaSecurityService.verificarAccesoLectura(nr.getEmpresa().getId());
-        
-        // Inicializar lazy loading
-        nr.getItems().size();
-        if (nr.getDocumentoElectronico() != null) {
-            nr.getDocumentoElectronico().getId();
-        }
         
         return nr;
     }
@@ -134,7 +128,7 @@ public class NotaRemisionService {
     @Transactional(readOnly = true)
     public Page<NotaRemision> listarPorEmpresa(Long empresaId, Pageable pageable) {
         empresaSecurityService.verificarAccesoLectura(empresaId);
-        return notaRemisionRepository.findByEmpresaIdAndActivoTrue(empresaId, pageable);
+        return notaRemisionRepository.findByEmpresaIdAndActivoTrueWithItems(empresaId, pageable);
     }
 
     public void desactivar(Long id) {

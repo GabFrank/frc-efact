@@ -50,13 +50,13 @@ CREATE INDEX IF NOT EXISTS idx_nc_fecha ON financiero.nota_credito(fecha);
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_credito' AND constraint_name = 'fk_nc_empresa') THEN
-        ALTER TABLE financiero.nota_credito ADD CONSTRAINT fk_nc_empresa FOREIGN KEY (empresa_id) REFERENCES financiero.empresa(id);
+        ALTER TABLE financiero.nota_credito ADD CONSTRAINT fk_nc_empresa FOREIGN KEY (empresa_id) REFERENCES empresa.empresa(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_credito' AND constraint_name = 'fk_nc_timbrado') THEN
         ALTER TABLE financiero.nota_credito ADD CONSTRAINT fk_nc_timbrado FOREIGN KEY (timbrado_detalle_id) REFERENCES financiero.timbrado_detalle(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_credito' AND constraint_name = 'fk_nc_cliente') THEN
-        ALTER TABLE financiero.nota_credito ADD CONSTRAINT fk_nc_cliente FOREIGN KEY (cliente_id) REFERENCES financiero.cliente(id);
+        ALTER TABLE financiero.nota_credito ADD CONSTRAINT fk_nc_cliente FOREIGN KEY (cliente_id) REFERENCES clientes.cliente(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_credito' AND constraint_name = 'fk_nc_factura') THEN
         ALTER TABLE financiero.nota_credito ADD CONSTRAINT fk_nc_factura FOREIGN KEY (factura_legal_id) REFERENCES financiero.factura_legal(id);
@@ -91,7 +91,7 @@ BEGIN
         ALTER TABLE financiero.nota_credito_item ADD CONSTRAINT fk_nci_nota_credito FOREIGN KEY (nota_credito_id) REFERENCES financiero.nota_credito(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_credito_item' AND constraint_name = 'fk_nci_producto') THEN
-        ALTER TABLE financiero.nota_credito_item ADD CONSTRAINT fk_nci_producto FOREIGN KEY (producto_id) REFERENCES financiero.producto(id);
+        ALTER TABLE financiero.nota_credito_item ADD CONSTRAINT fk_nci_producto FOREIGN KEY (producto_id) REFERENCES productos.producto(id);
     END IF;
 END $$;
 
@@ -142,13 +142,13 @@ CREATE INDEX IF NOT EXISTS idx_nd_cliente ON financiero.nota_debito(cliente_id);
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_debito' AND constraint_name = 'fk_nd_empresa') THEN
-        ALTER TABLE financiero.nota_debito ADD CONSTRAINT fk_nd_empresa FOREIGN KEY (empresa_id) REFERENCES financiero.empresa(id);
+        ALTER TABLE financiero.nota_debito ADD CONSTRAINT fk_nd_empresa FOREIGN KEY (empresa_id) REFERENCES empresa.empresa(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_debito' AND constraint_name = 'fk_nd_timbrado') THEN
         ALTER TABLE financiero.nota_debito ADD CONSTRAINT fk_nd_timbrado FOREIGN KEY (timbrado_detalle_id) REFERENCES financiero.timbrado_detalle(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_debito' AND constraint_name = 'fk_nd_cliente') THEN
-        ALTER TABLE financiero.nota_debito ADD CONSTRAINT fk_nd_cliente FOREIGN KEY (cliente_id) REFERENCES financiero.cliente(id);
+        ALTER TABLE financiero.nota_debito ADD CONSTRAINT fk_nd_cliente FOREIGN KEY (cliente_id) REFERENCES clientes.cliente(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_debito' AND constraint_name = 'fk_nd_factura') THEN
         ALTER TABLE financiero.nota_debito ADD CONSTRAINT fk_nd_factura FOREIGN KEY (factura_legal_id) REFERENCES financiero.factura_legal(id);
@@ -182,7 +182,7 @@ BEGIN
         ALTER TABLE financiero.nota_debito_item ADD CONSTRAINT fk_ndi_nota_debito FOREIGN KEY (nota_debito_id) REFERENCES financiero.nota_debito(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_debito_item' AND constraint_name = 'fk_ndi_producto') THEN
-        ALTER TABLE financiero.nota_debito_item ADD CONSTRAINT fk_ndi_producto FOREIGN KEY (producto_id) REFERENCES financiero.producto(id);
+        ALTER TABLE financiero.nota_debito_item ADD CONSTRAINT fk_ndi_producto FOREIGN KEY (producto_id) REFERENCES productos.producto(id);
     END IF;
 END $$;
 
@@ -242,13 +242,13 @@ CREATE INDEX IF NOT EXISTS idx_nr_empresa ON financiero.nota_remision(empresa_id
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_remision' AND constraint_name = 'fk_nr_empresa') THEN
-        ALTER TABLE financiero.nota_remision ADD CONSTRAINT fk_nr_empresa FOREIGN KEY (empresa_id) REFERENCES financiero.empresa(id);
+        ALTER TABLE financiero.nota_remision ADD CONSTRAINT fk_nr_empresa FOREIGN KEY (empresa_id) REFERENCES empresa.empresa(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_remision' AND constraint_name = 'fk_nr_timbrado') THEN
         ALTER TABLE financiero.nota_remision ADD CONSTRAINT fk_nr_timbrado FOREIGN KEY (timbrado_detalle_id) REFERENCES financiero.timbrado_detalle(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_remision' AND constraint_name = 'fk_nr_cliente') THEN
-        ALTER TABLE financiero.nota_remision ADD CONSTRAINT fk_nr_cliente FOREIGN KEY (cliente_id) REFERENCES financiero.cliente(id);
+        ALTER TABLE financiero.nota_remision ADD CONSTRAINT fk_nr_cliente FOREIGN KEY (cliente_id) REFERENCES clientes.cliente(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_remision' AND constraint_name = 'fk_nr_factura') THEN
         ALTER TABLE financiero.nota_remision ADD CONSTRAINT fk_nr_factura FOREIGN KEY (factura_legal_id) REFERENCES financiero.factura_legal(id);
@@ -280,7 +280,7 @@ BEGIN
         ALTER TABLE financiero.nota_remision_item ADD CONSTRAINT fk_nri_nota_remision FOREIGN KEY (nota_remision_id) REFERENCES financiero.nota_remision(id);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_schema = 'financiero' AND table_name = 'nota_remision_item' AND constraint_name = 'fk_nri_producto') THEN
-        ALTER TABLE financiero.nota_remision_item ADD CONSTRAINT fk_nri_producto FOREIGN KEY (producto_id) REFERENCES financiero.producto(id);
+        ALTER TABLE financiero.nota_remision_item ADD CONSTRAINT fk_nri_producto FOREIGN KEY (producto_id) REFERENCES productos.producto(id);
     END IF;
 END $$;
 
