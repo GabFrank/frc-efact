@@ -70,7 +70,7 @@ interface NotaRemisionItemView {
   ],
   template: `
     <div class="nota-form-container">
-      <app-loading-spinner *ngIf="loading()" />
+      <app-loading-spinner [loading]="loading()" />
 
       <form [formGroup]="form" *ngIf="!loading()">
         <!-- Header -->
@@ -527,10 +527,15 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
     const id = this.route.snapshot.params['id'];
     this.isEdit = !!id;
     const empresaId = this.route.snapshot.queryParams['empresaId'] || 1;
+    const copyFromId = this.route.snapshot.queryParams['copyFromId'];
 
     this.initForm(empresaId);
-    this.cargarDatosBase(empresaId);
-    if (this.isEdit) this.cargarNota(id);
+    this.cargarDatosBase(empresaId, !!copyFromId);
+    if (this.isEdit) {
+      this.cargarNota(id);
+    } else if (copyFromId) {
+      this.copiarDesdeNota(+copyFromId);
+    }
   }
 
   ngOnDestroy(): void {
@@ -599,7 +604,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
     });
   }
 
-  cargarDatosBase(empresaId: number): void {
+  cargarDatosBase(empresaId: number, isCopying: boolean = false): void {
     this.loading.set(true);
     
     this.empresaApi.getById(empresaId).subscribe(empresa => {
@@ -609,7 +614,8 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       this.sifenService.getDepartamentos().subscribe(depts => {
         this.departamentos.set(depts);
         
-        if (!this.isEdit) {
+        // Solo establecer valores por defecto si no es edición y no estamos copiando
+        if (!this.isEdit && !isCopying) {
           this.form.patchValue({
             direccionPartida: empresa.domicilioFiscalDireccion || empresa.direccion,
             ciudadPartidaId: empresa.ciudadId,
@@ -697,6 +703,106 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.snackBar.open('Error al cargar la nota', 'Cerrar');
+        this.router.navigate(['/notas/notas-remision']);
+      }
+    });
+  }
+
+  copiarDesdeNota(id: number): void {
+    this.loading.set(true);
+    this.notaRemisionApi.getById(id).subscribe({
+      next: async (nota) => {
+        // Copiar todos los campos excepto fecha, fechaInicioTraslado y fechaFinTraslado
+        this.form.patchValue({
+          empresaId: nota.empresaId,
+          timbradoDetalleId: nota.timbradoDetalleId,
+          clienteId: nota.clienteId,
+          facturaLegalId: nota.facturaLegalId,
+          fecha: new Date(), // Fecha actual
+          // Salida
+          departamentoPartidaId: nota.departamentoPartidaId,
+          // No establecer distritoPartidaId y ciudadPartidaId aquí, se establecerán en cargarGeografiaCompleta
+          departamentoPartida: nota.departamentoPartida,
+          direccionPartida: nota.direccionPartida,
+          // Traslado
+          motivoEmision: nota.motivoEmision,
+          fechaInicioTraslado: null, // Limpiar fecha inicio
+          fechaFinTraslado: null, // Limpiar fecha fin
+          kmEstimado: nota.kmEstimado,
+          // Llegada / Cliente
+          nombreDestinatario: nota.nombreDestinatario,
+          rucDestinatario: nota.rucDestinatario,
+          departamentoDestinatarioId: nota.departamentoDestinatarioId,
+          // No establecer distritoDestinatarioId y ciudadDestinatarioId aquí, se establecerán en cargarGeografiaCompleta
+          departamentoDestinatario: nota.departamentoDestinatario,
+          direccionDestinatario: nota.direccionDestinatario,
+          // Transporte
+          tipoTransporte: nota.tipoTransporte,
+          modalidadTransporte: nota.modalidadTransporte,
+          vehiculoMarca: nota.vehiculoMarca,
+          vehiculoMatricula: nota.vehiculoMatricula,
+          // Transportista
+          transportistaNombre: nota.transportistaNombre,
+          transportistaRuc: nota.transportistaRuc,
+          transportistaDireccion: nota.transportistaDireccion,
+          // Conductor
+          conductorNombre: nota.conductorNombre,
+          conductorDoc: nota.conductorDoc,
+          conductorDireccion: nota.conductorDireccion,
+          fechaEstimadaFactura: null, // Limpiar fecha estimada
+        });
+        
+        this.actualizarValidacionFechaEstimada();
+        
+        // Preparar promesas para cargar geografía
+        const promesasGeografia: Promise<void>[] = [];
+        
+        // Cargar geografía de salida
+        if (nota.ciudadPartidaId) {
+          const promesaSalida = this.sifenService.getCiudadById(nota.ciudadPartidaId).toPromise().then(async ciu => {
+            if (!ciu) return;
+            const depts = this.departamentos();
+            const dept = depts.find(d => d.codigo === ciu.departamentoCodigo);
+            if (dept) {
+              this.form.patchValue({ departamentoPartidaId: dept.id });
+              await this.cargarGeografiaCompleta('salida', dept.id, ciu.distritoCodigo, ciu.id);
+            }
+          });
+          promesasGeografia.push(promesaSalida);
+        }
+
+        // Cargar geografía de llegada
+        if (nota.ciudadDestinatarioId) {
+          const promesaLlegada = this.sifenService.getCiudadById(nota.ciudadDestinatarioId).toPromise().then(async ciu => {
+            if (!ciu) return;
+            const depts = this.departamentos();
+            const dept = depts.find(d => d.codigo === ciu.departamentoCodigo);
+            if (dept) {
+              this.form.patchValue({ departamentoDestinatarioId: dept.id });
+              await this.cargarGeografiaCompleta('llegada', dept.id, ciu.distritoCodigo, ciu.id);
+            }
+          });
+          promesasGeografia.push(promesaLlegada);
+        }
+        
+        // Esperar a que todas las operaciones de geografía terminen
+        await Promise.all(promesasGeografia);
+        
+        // Copiar items sin sus IDs para que se creen como nuevos
+        const itemsView: NotaRemisionItemView[] = nota.items.map(item => ({
+          // No incluir id para que se cree como nuevo item
+          productoId: item.productoId,
+          descripcion: item.descripcion,
+          cantidad: item.cantidad,
+          unidadMedida: item.unidadMedida || 'UNI'
+        }));
+        this.itemsData.set(itemsView);
+        this.actualizarItemsFormArray();
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.snackBar.open('Error al cargar la nota para copiar', 'Cerrar');
         this.router.navigate(['/notas/notas-remision']);
       }
     });

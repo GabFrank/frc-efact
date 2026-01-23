@@ -49,7 +49,7 @@ import { EmailEnviarDialogComponent } from '../../shared/components/email-enviar
               Nueva Nota de Remisión
             </button>
           </div>
-          <app-loading-spinner *ngIf="loading()" />
+          <app-loading-spinner [loading]="loading()" />
           <app-data-table
             *ngIf="!loading()"
             [columns]="columns"
@@ -139,6 +139,13 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
       color: 'warn',
       tooltip: 'Eliminar nota de remisión',
       visible: (row: any) => !row.documentoElectronicoId,
+      group: 'Gestión NRE'
+    },
+    {
+      icon: 'content_copy',
+      label: 'Copiar nota',
+      color: 'primary',
+      tooltip: 'Copiar nota de remisión con todos sus datos',
       group: 'Gestión NRE'
     },
     // Grupo: SIFEN
@@ -256,6 +263,9 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
         break;
       case 'Vincular a lote':
         this.vincularLote(nota);
+        break;
+      case 'Copiar nota':
+        this.copiarNota(nota);
         break;
     }
   }
@@ -449,6 +459,17 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
     const empresaId = this.route.snapshot.queryParams['empresaId'];
     this.router.navigate(['/notas/notas-remision', nota.id], { 
       queryParams: { empresaId: empresaId ? +empresaId : undefined } 
+    });
+  }
+
+  copiarNota(nota: NotaRemision): void {
+    if (!nota.id) return;
+    const empresaId = this.route.snapshot.queryParams['empresaId'];
+    this.router.navigate(['/notas/notas-remision/nueva'], { 
+      queryParams: { 
+        empresaId: empresaId ? +empresaId : undefined,
+        copyFromId: nota.id
+      } 
     });
   }
 
