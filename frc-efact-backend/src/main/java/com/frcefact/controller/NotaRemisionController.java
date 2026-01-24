@@ -192,14 +192,30 @@ public class NotaRemisionController {
             }
             byte[] pdfBytes = kudePdfService.generarPdfKude(notaRemision);
             
+            // Generar nombre del archivo: KuDE-{fecha dd-mm-yy}-{matricula}-{CDC}.pdf
+            // Usar guiones en lugar de barras para evitar problemas con nombres de archivo
+            String fechaFormateada = notaRemision.getFecha() != null ? 
+                    notaRemision.getFecha().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yy")) : 
+                    "N/A";
+            
+            String matricula = notaRemision.getVehiculoMatricula();
+            if (matricula == null || matricula.trim().isEmpty()) {
+                matricula = "SIN-MATRICULA";
+            }
+            // Limpiar matrícula de caracteres inválidos para nombres de archivo
+            matricula = matricula.replaceAll("[^a-zA-Z0-9\\-]", "-");
+            
             String cdc = notaRemision.getDocumentoElectronico() != null ? 
                     notaRemision.getDocumentoElectronico().getCdc() : 
                     notaRemision.getNumeroFormateado();
             
+            String numero = notaRemision.getNumeroFormateado();
+            String fileName = String.format("NRE-%s-%s-%s-%s.pdf", numero, fechaFormateada, matricula, cdc);
+            
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
             // Usar 'inline' para que se abra en el navegador, pero con nombre de archivo para cuando el usuario guarde
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"KuDE-NRE-" + cdc + ".pdf\"");
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"");
             headers.setContentLength(pdfBytes.length);
             return ResponseEntity.ok().headers(headers).body(pdfBytes);
         } catch (Exception e) {

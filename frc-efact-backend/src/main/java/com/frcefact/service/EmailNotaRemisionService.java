@@ -89,7 +89,19 @@ public class EmailNotaRemisionService {
             try {
                 byte[] pdfBytes = kudePdfService.generarPdfKude(notaRemision);
                 if (pdfBytes != null && pdfBytes.length > 0) {
-                    String nombrePdf = String.format("nota-remision-%s.pdf", notaRemision.getNumeroFormateado());
+                    // Usar el mismo formato de nombre que en el controlador
+                    String fechaFormateada = notaRemision.getFecha() != null ? 
+                            notaRemision.getFecha().format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yy")) : 
+                            "N/A";
+                    String matricula = notaRemision.getVehiculoMatricula();
+                    if (matricula == null || matricula.trim().isEmpty()) {
+                        matricula = "SIN-MATRICULA";
+                    }
+                    matricula = matricula.replaceAll("[^a-zA-Z0-9\\-]", "-");
+                    String cdc = documentoElectronico.getCdc();
+                    String numero = notaRemision.getNumeroFormateado();
+                    
+                    String nombrePdf = String.format("NRE-%s-%s-%s-%s.pdf", numero, fechaFormateada, matricula, cdc);
                     attachments.put(nombrePdf, pdfBytes);
                 }
             } catch (Exception e) {

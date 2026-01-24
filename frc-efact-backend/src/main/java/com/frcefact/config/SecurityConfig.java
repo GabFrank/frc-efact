@@ -188,7 +188,7 @@ public class SecurityConfig {
         configuration.setAllowCredentials(true);
         
         // Headers expuestos
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Disposition"));
         
         // Tiempo de cache para preflight requests
         configuration.setMaxAge(3600L);

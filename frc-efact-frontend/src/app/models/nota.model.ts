@@ -129,6 +129,8 @@ export interface NotaRemision {
   tipoTransporte: string;
   modalidadTransporte: string;
 
+  // Vehiculo - Relación opcional
+  vehiculoId?: number;
   vehiculoMarca?: string;
   vehiculoMatricula?: string;
 
@@ -136,6 +138,8 @@ export interface NotaRemision {
   transportistaRuc?: string;
   transportistaDireccion?: string;
 
+  // Chofer - Relación opcional
+  choferId?: number;
   conductorNombre?: string;
   conductorDoc?: string;
   conductorDireccion?: string;

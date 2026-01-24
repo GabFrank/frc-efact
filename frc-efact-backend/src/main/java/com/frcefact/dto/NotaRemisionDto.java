@@ -74,7 +74,10 @@ public class NotaRemisionDto {
     @Size(max = 50)
     private String modalidadTransporte;
 
-    // Vehiculo
+    // Vehiculo - Relación opcional
+    private Long vehiculoId;
+
+    // Vehiculo - Campos legacy (mantenidos para compatibilidad)
     @Size(max = 100)
     private String vehiculoMarca;
 
@@ -91,7 +94,10 @@ public class NotaRemisionDto {
     @Size(max = 255)
     private String transportistaDireccion;
 
-    // Conductor
+    // Chofer - Relación opcional
+    private Long choferId;
+
+    // Conductor - Campos legacy (mantenidos para compatibilidad)
     @Size(max = 200)
     private String conductorNombre;
 
@@ -210,6 +216,9 @@ public class NotaRemisionDto {
     public String getModalidadTransporte() { return modalidadTransporte; }
     public void setModalidadTransporte(String modalidadTransporte) { this.modalidadTransporte = modalidadTransporte; }
 
+    public Long getVehiculoId() { return vehiculoId; }
+    public void setVehiculoId(Long vehiculoId) { this.vehiculoId = vehiculoId; }
+
     public String getVehiculoMarca() { return vehiculoMarca; }
     public void setVehiculoMarca(String vehiculoMarca) { this.vehiculoMarca = vehiculoMarca; }
 
@@ -224,6 +233,9 @@ public class NotaRemisionDto {
 
     public String getTransportistaDireccion() { return transportistaDireccion; }
     public void setTransportistaDireccion(String transportistaDireccion) { this.transportistaDireccion = transportistaDireccion; }
+
+    public Long getChoferId() { return choferId; }
+    public void setChoferId(Long choferId) { this.choferId = choferId; }
 
     public String getConductorNombre() { return conductorNombre; }
     public void setConductorNombre(String conductorNombre) { this.conductorNombre = conductorNombre; }

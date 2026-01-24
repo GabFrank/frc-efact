@@ -128,11 +128,18 @@ public class NotaRemision extends AuditableEntity {
     @Column(name = "modalidad_transporte", length = 50)
     private String modalidadTransporte;
 
-    // Vehiculo
+    // Vehiculo - Relación opcional
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vehiculo_id")
+    private Vehiculo vehiculo;
+
+    // Vehiculo - Campos legacy (mantenidos para compatibilidad)
+    @Deprecated
     @Size(max = 100)
     @Column(name = "vehiculo_marca", length = 100)
     private String vehiculoMarca;
 
+    @Deprecated
     @Size(max = 20)
     @Column(name = "vehiculo_matricula", length = 20)
     private String vehiculoMatricula;
@@ -149,15 +156,23 @@ public class NotaRemision extends AuditableEntity {
     @Column(name = "transportista_direccion", columnDefinition = "TEXT")
     private String transportistaDireccion;
 
-    // Conductor (Chofer)
+    // Chofer - Relación opcional
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "chofer_id")
+    private Chofer chofer;
+
+    // Conductor (Chofer) - Campos legacy (mantenidos para compatibilidad)
+    @Deprecated
     @Size(max = 200)
     @Column(name = "conductor_nombre", length = 200)
     private String conductorNombre;
 
+    @Deprecated
     @Size(max = 20)
     @Column(name = "conductor_doc", length = 20)
     private String conductorDoc;
 
+    @Deprecated
     @Column(name = "conductor_direccion", columnDefinition = "TEXT")
     private String conductorDireccion;
 
@@ -268,10 +283,36 @@ public class NotaRemision extends AuditableEntity {
     public String getModalidadTransporte() { return modalidadTransporte; }
     public void setModalidadTransporte(String modalidadTransporte) { this.modalidadTransporte = modalidadTransporte; }
 
-    public String getVehiculoMarca() { return vehiculoMarca; }
+    // Getters y Setters para relaciones
+    public Vehiculo getVehiculo() { return vehiculo; }
+    public void setVehiculo(Vehiculo vehiculo) { this.vehiculo = vehiculo; }
+
+    public Chofer getChofer() { return chofer; }
+    public void setChofer(Chofer chofer) { this.chofer = chofer; }
+
+    // Getters y Setters para campos legacy (compatibilidad)
+    @Deprecated
+    public String getVehiculoMarca() { 
+        // Si hay relación, usar datos de la entidad
+        if (vehiculo != null && vehiculo.getMarca() != null) {
+            return vehiculo.getMarca();
+        }
+        return vehiculoMarca; 
+    }
+    
+    @Deprecated
     public void setVehiculoMarca(String vehiculoMarca) { this.vehiculoMarca = vehiculoMarca; }
 
-    public String getVehiculoMatricula() { return vehiculoMatricula; }
+    @Deprecated
+    public String getVehiculoMatricula() { 
+        // Si hay relación, usar datos de la entidad
+        if (vehiculo != null && vehiculo.getMatricula() != null) {
+            return vehiculo.getMatricula();
+        }
+        return vehiculoMatricula; 
+    }
+    
+    @Deprecated
     public void setVehiculoMatricula(String vehiculoMatricula) { this.vehiculoMatricula = vehiculoMatricula; }
 
     public String getTransportistaNombre() { return transportistaNombre; }
@@ -283,13 +324,41 @@ public class NotaRemision extends AuditableEntity {
     public String getTransportistaDireccion() { return transportistaDireccion; }
     public void setTransportistaDireccion(String transportistaDireccion) { this.transportistaDireccion = transportistaDireccion; }
 
-    public String getConductorNombre() { return conductorNombre; }
+    // Getters y Setters para campos legacy de chofer (compatibilidad)
+    @Deprecated
+    public String getConductorNombre() { 
+        // Si hay relación, usar datos de la entidad
+        if (chofer != null && chofer.getNombre() != null) {
+            return chofer.getNombre();
+        }
+        return conductorNombre; 
+    }
+    
+    @Deprecated
     public void setConductorNombre(String conductorNombre) { this.conductorNombre = conductorNombre; }
 
-    public String getConductorDoc() { return conductorDoc; }
+    @Deprecated
+    public String getConductorDoc() { 
+        // Si hay relación, usar datos de la entidad
+        if (chofer != null && chofer.getDocumento() != null) {
+            return chofer.getDocumento();
+        }
+        return conductorDoc; 
+    }
+    
+    @Deprecated
     public void setConductorDoc(String conductorDoc) { this.conductorDoc = conductorDoc; }
 
-    public String getConductorDireccion() { return conductorDireccion; }
+    @Deprecated
+    public String getConductorDireccion() { 
+        // Si hay relación, usar datos de la entidad
+        if (chofer != null && chofer.getDireccion() != null) {
+            return chofer.getDireccion();
+        }
+        return conductorDireccion; 
+    }
+    
+    @Deprecated
     public void setConductorDireccion(String conductorDireccion) { this.conductorDireccion = conductorDireccion; }
 
     public LocalDate getFechaEstimadaFactura() { return fechaEstimadaFactura; }

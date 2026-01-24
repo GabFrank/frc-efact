@@ -4,7 +4,7 @@ spring:
     # Puerto 5551 para desarrollo local
     # Nota: La base de datos debe existir previamente. PostgreSQL no la crea automáticamente.
     # Para crearla, ejecuta: psql -h localhost -p 5551 -U postgres -c "CREATE DATABASE frc_efact_dev;"
-    url: jdbc:postgresql://localhost:5551/frc_efact_dev
+    url: jdbc:postgresql://172.25.0.36:5551/frc_efact_dev
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -35,7 +35,7 @@ spring:
     clean-disabled: false
     locations: classpath:db/migration
     schemas: public
-    repair: false  # Set to true to repair checksum mismatches on startup
+    repair: true  # Set to true to repair checksum mismatches on startup
 
   # Mail Configuration for Development
   # IMPORTANTE: Para desarrollo local, puedes configurar la contraseña aquí o usar la variable de entorno MAIL_PASSWORD

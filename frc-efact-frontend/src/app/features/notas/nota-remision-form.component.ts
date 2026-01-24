@@ -23,6 +23,8 @@ import { ClienteApiService } from '../../core/api/cliente-api.service';
 import { ProductoApiService } from '../../core/api/producto-api.service';
 import { FacturaApiService } from '../../core/api/factura-api.service';
 import { EmpresaApiService } from '../../core/api/empresa-api.service';
+import { VehiculoApiService } from '../../core/api/vehiculo-api.service';
+import { ChoferApiService } from '../../core/api/chofer-api.service';
 import { SifenService, DepartamentoDto, CiudadDto, DistritoDto } from '../../services/sifen.service';
 import { NotaRemision, NotaRemisionItem } from '../../models/nota.model';
 import { TimbradoDetalle } from '../../models/timbrado.model';
@@ -30,6 +32,8 @@ import { Cliente } from '../../models/cliente.model';
 import { Producto } from '../../models/producto.model';
 import { FacturaLegal } from '../../models/factura.model';
 import { Empresa } from '../../models/empresa.model';
+import { Vehiculo } from '../../models/vehiculo.model';
+import { Chofer } from '../../models/chofer.model';
 import { ErrorMessageComponent } from '../../shared/components/error-message/error-message.component';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { NotaRemisionItemDialogComponent } from './nota-remision-item-dialog.component';
@@ -106,7 +110,7 @@ interface NotaRemisionItemView {
                 </mat-select>
                 <app-error-message [control]="form.get('timbradoDetalleId')" />
               </mat-form-field>
-              
+
               <mat-form-field appearance="outline">
                 <mat-label>Fecha</mat-label>
                 <input matInput [matDatepicker]="picker" formControlName="fecha">
@@ -324,14 +328,29 @@ interface NotaRemisionItemView {
 
             <h3>Vehículo</h3>
             <div class="form-row">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Buscar Vehículo</mat-label>
+                <input matInput formControlName="vehiculoSearch" [matAutocomplete]="autoVehiculo" placeholder="Buscar por matrícula o marca">
+                <mat-icon matPrefix>search</mat-icon>
+                <mat-autocomplete #autoVehiculo="matAutocomplete" [displayWith]="displayVehiculo" (optionSelected)="onVehiculoSelected($event.option.value)">
+                  <mat-option *ngFor="let v of vehiculosFiltrados()" [value]="v">
+                    {{ v.matricula }} - {{ v.marca }}
+                  </mat-option>
+                  <mat-option (click)="abrirGestionVehiculos()" class="add-option">
+                    <mat-icon>add</mat-icon>
+                    <span>Adicionar Vehículo</span>
+                  </mat-option>
+                </mat-autocomplete>
+              </mat-form-field>
+            </div>
+            <div class="form-row" *ngIf="form.get('vehiculoId')?.value">
               <mat-form-field appearance="outline">
                 <mat-label>Marca</mat-label>
-                <input matInput formControlName="vehiculoMarca">
+                <input matInput formControlName="vehiculoMarca" readonly>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Matrícula</mat-label>
-                <input matInput formControlName="vehiculoMatricula">
-                <app-error-message [control]="form.get('vehiculoMatricula')" />
+                <input matInput formControlName="vehiculoMatricula" readonly>
               </mat-form-field>
             </div>
 
@@ -355,19 +374,49 @@ interface NotaRemisionItemView {
 
             <h3>Conductor</h3>
             <div class="form-row">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Buscar Chofer</mat-label>
+                <input matInput formControlName="choferSearch" [matAutocomplete]="autoChofer" placeholder="Buscar por nombre o documento">
+                <mat-icon matPrefix>search</mat-icon>
+                <mat-autocomplete #autoChofer="matAutocomplete" [displayWith]="displayChofer" (optionSelected)="onChoferSelected($event.option.value)">
+                  <mat-option *ngFor="let c of choferesFiltrados()" [value]="c">
+                    {{ c.nombre }} {{ c.documento ? '- ' + c.documento : '' }}
+                  </mat-option>
+                  <mat-option (click)="abrirGestionChoferes()" class="add-option">
+                    <mat-icon>add</mat-icon>
+                    <span>Adicionar Chofer</span>
+                  </mat-option>
+                </mat-autocomplete>
+              </mat-form-field>
+            </div>
+            <div class="form-row" *ngIf="form.get('choferId')?.value">
               <mat-form-field appearance="outline">
                 <mat-label>Nombre</mat-label>
-                <input matInput formControlName="conductorNombre">
+                <input matInput formControlName="conductorNombre" readonly>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Documento</mat-label>
+                <input matInput formControlName="conductorDoc" readonly>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Dirección</mat-label>
+                <input matInput formControlName="conductorDireccion" readonly>
+              </mat-form-field>
+            </div>
+            <div class="form-row" *ngIf="!form.get('choferId')?.value">
+              <mat-form-field appearance="outline">
+                <mat-label>Nombre</mat-label>
+                <input matInput formControlName="conductorNombre" placeholder="Ingrese manualmente si no selecciona chofer">
                 <app-error-message [control]="form.get('conductorNombre')" />
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Documento</mat-label>
-                <input matInput formControlName="conductorDoc">
+                <input matInput formControlName="conductorDoc" placeholder="Ingrese manualmente si no selecciona chofer">
                 <app-error-message [control]="form.get('conductorDoc')" />
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>Dirección</mat-label>
-                <input matInput formControlName="conductorDireccion">
+                <input matInput formControlName="conductorDireccion" placeholder="Ingrese manualmente si no selecciona chofer">
               </mat-form-field>
             </div>
           </mat-card-content>
@@ -461,6 +510,13 @@ interface NotaRemisionItemView {
     .empty-items mat-icon { font-size: 48px; width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.5; }
     .actions-container { display: flex; justify-content: flex-end; gap: 16px; margin-top: 24px; padding: 20px; background-color: white; border-top: 1px solid #e0e0e0; position: sticky; bottom: 0; z-index: 10; }
     h3 { margin-top: 24px; margin-bottom: 16px; border-left: 4px solid #3f51b5; padding-left: 12px; }
+    .add-option {
+      color: #3f51b5;
+      font-weight: 500;
+    }
+    .add-option mat-icon {
+      margin-right: 8px;
+    }
   `]
 })
 export class NotaRemisionFormComponent implements OnInit, OnDestroy {
@@ -469,20 +525,22 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
   isEdit = false;
   loading = signal(false);
   saving = signal(false);
-  
+
   timbradosDetalle = signal<TimbradoDetalle[]>([]);
   clientesFiltrados = signal<Cliente[]>([]);
   productos = signal<Producto[]>([]);
   facturas = signal<FacturaLegal[]>([]);
+  vehiculosFiltrados = signal<Vehiculo[]>([]);
+  choferesFiltrados = signal<Chofer[]>([]);
   empresaNombre = signal<string>('');
   empresaActual = signal<Empresa | null>(null);
-  
+
   departamentos = signal<DepartamentoDto[]>([]);
   distritosSalida = signal<DistritoDto[]>([]);
   ciudadesSalida = signal<CiudadDto[]>([]);
   distritosLlegada = signal<DistritoDto[]>([]);
   ciudadesLlegada = signal<CiudadDto[]>([]);
-  
+
   displayedColumns: string[] = ['descripcion', 'cantidad', 'unidad', 'acciones'];
   itemsData = signal<NotaRemisionItemView[]>([]);
   mostrarFechaEstimadaFactura = signal<boolean>(false);
@@ -517,6 +575,8 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
     private productoApi: ProductoApiService,
     private facturaApi: FacturaApiService,
     private empresaApi: EmpresaApiService,
+    private vehiculoApi: VehiculoApiService,
+    private choferApi: ChoferApiService,
     private sifenService: SifenService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog,
@@ -528,6 +588,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
     this.isEdit = !!id;
     const empresaId = this.route.snapshot.queryParams['empresaId'] || 1;
     const copyFromId = this.route.snapshot.queryParams['copyFromId'];
+    const returnUrl = this.route.snapshot.queryParams['returnUrl'];
 
     this.initForm(empresaId);
     this.cargarDatosBase(empresaId, !!copyFromId);
@@ -535,6 +596,18 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       this.cargarNota(id);
     } else if (copyFromId) {
       this.copiarDesdeNota(+copyFromId);
+    }
+
+    // Si hay returnUrl, significa que se regresó desde gestión de vehículos/choferes
+    // Recargar listas para mostrar los nuevos elementos
+    if (returnUrl) {
+      // Limpiar returnUrl de la URL
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { returnUrl: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      });
     }
   }
 
@@ -550,7 +623,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       clienteId: [null],
       facturaLegalId: [null],
       fecha: [new Date(), Validators.required],
-      
+
       // Salida
       departamentoPartidaId: [null, Validators.required],
       distritoPartidaId: [null, Validators.required],
@@ -558,13 +631,13 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       departamentoPartida: [''],
       ciudadPartida: [''],
       direccionPartida: ['', Validators.required],
-      
+
       // Traslado
       motivoEmision: ['', Validators.required],
       fechaInicioTraslado: [null, Validators.required],
       fechaFinTraslado: [null, Validators.required],
       kmEstimado: [0],
-      
+
       // Llegada / Cliente
       clienteSearch: [''],
       nombreDestinatario: ['', Validators.required],
@@ -575,45 +648,67 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       departamentoDestinatario: [''],
       ciudadDestinatario: [''],
       direccionDestinatario: ['', Validators.required],
-      
+
       // Transporte
       tipoTransporte: ['PROPIO'],
       modalidadTransporte: ['TERRESTRE'],
+      vehiculoId: [null],
+      vehiculoSearch: [''],
       vehiculoMarca: [''],
-      vehiculoMatricula: ['', Validators.required],
-      
+      vehiculoMatricula: [''],
+
       // Transportista
       transportistaNombre: ['', Validators.required],
       transportistaRuc: ['', Validators.required],
       transportistaDireccion: [''],
 
       // Conductor
-      conductorNombre: ['', Validators.required],
-      conductorDoc: ['', Validators.required],
+      choferId: [null],
+      choferSearch: [''],
+      conductorNombre: [''], // Se valida condicionalmente
+      conductorDoc: [''], // Se valida condicionalmente
       conductorDireccion: [''],
       fechaEstimadaFactura: [null],
-      
+
       items: this.fb.array([]) // Mantener FormArray para validación, pero usar itemsData para visualización
     });
 
     this.setupClienteAutocomplete(empresaId);
-    
+    this.setupVehiculoAutocomplete(empresaId);
+    this.setupChoferAutocomplete(empresaId);
+
     // Escuchar cambios en la fecha de la nota para actualizar límites de fecha estimada factura
     this.form.get('fecha')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.actualizarValidacionFechaEstimada();
+    });
+
+    // Escuchar cambios en la fecha de inicio de traslado para establecer automáticamente fecha fin y fecha estimada
+    this.form.get('fechaInicioTraslado')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((fechaInicio) => {
+      if (fechaInicio) {
+        // Establecer la misma fecha para fecha fin de traslado
+        this.form.patchValue({ fechaFinTraslado: fechaInicio }, { emitEvent: false });
+
+        // Establecer la última fecha disponible para fecha estimada de factura (fecha de la nota + 5 días)
+        const fechaNota = this.form.get('fecha')?.value;
+        if (fechaNota) {
+          const fechaMaxima = new Date(fechaNota);
+          fechaMaxima.setDate(fechaMaxima.getDate() + 5);
+          this.form.patchValue({ fechaEstimadaFactura: fechaMaxima }, { emitEvent: false });
+        }
+      }
     });
   }
 
   cargarDatosBase(empresaId: number, isCopying: boolean = false): void {
     this.loading.set(true);
-    
+
     this.empresaApi.getById(empresaId).subscribe(empresa => {
       this.empresaActual.set(empresa);
       this.empresaNombre.set(empresa.razonSocial || empresa.nombreFantasia || '');
-      
+
       this.sifenService.getDepartamentos().subscribe(depts => {
         this.departamentos.set(depts);
-        
+
         // Solo establecer valores por defecto si no es edición y no estamos copiando
         if (!this.isEdit && !isCopying) {
           this.form.patchValue({
@@ -623,12 +718,12 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
             transportistaRuc: empresa.ruc,
             transportistaDireccion: empresa.domicilioFiscalDireccion || empresa.direccion
           });
-          
+
           if (empresa.ciudadId) {
             this.sifenService.getCiudadById(empresa.ciudadId).subscribe(ciudad => {
               const dept = depts.find(d => d.codigo === ciudad.departamentoCodigo);
               if (dept) {
-                this.form.patchValue({ 
+                this.form.patchValue({
                   departamentoPartidaId: dept.id,
                   departamentoPartida: dept.nombre
                 });
@@ -643,7 +738,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
     this.timbradoApi.getDetallesByEmpresa(empresaId).subscribe(t => this.timbradosDetalle.set(t.filter(d => d.activo)));
     this.productoApi.getByEmpresa(empresaId, 0, 1000).subscribe(p => this.productos.set(p.content.filter((prod: Producto) => prod.activo)));
     this.facturaApi.getAll({ empresaId }).subscribe(f => this.facturas.set(f));
-    
+
     this.loading.set(false);
   }
 
@@ -656,6 +751,8 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
           fecha: new Date(nota.fecha),
           fechaInicioTraslado: nota.fechaInicioTraslado ? new Date(nota.fechaInicioTraslado) : null,
           fechaFinTraslado: nota.fechaFinTraslado ? new Date(nota.fechaFinTraslado) : null,
+          vehiculoId: nota.vehiculoId || null,
+          choferId: nota.choferId || null,
           transportistaNombre: nota.transportistaNombre,
           transportistaRuc: nota.transportistaRuc,
           transportistaDireccion: nota.transportistaDireccion,
@@ -664,9 +761,66 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
           conductorDireccion: nota.conductorDireccion,
           fechaEstimadaFactura: nota.fechaEstimadaFactura ? new Date(nota.fechaEstimadaFactura) : null,
         });
-        
+
+        // Cargar vehículo si existe
+        if (nota.vehiculoId) {
+          const empresaId = nota.empresaId;
+          this.vehiculoApi.getById(empresaId, nota.vehiculoId).subscribe({
+            next: (vehiculo) => {
+              this.form.patchValue({
+                vehiculoSearch: `${vehiculo.matricula} - ${vehiculo.marca}`,
+                vehiculoMarca: vehiculo.marca,
+                vehiculoMatricula: vehiculo.matricula
+              });
+            },
+            error: () => {
+              // Si no se puede cargar, usar campos legacy
+              this.form.patchValue({
+                vehiculoMarca: nota.vehiculoMarca,
+                vehiculoMatricula: nota.vehiculoMatricula
+              });
+            }
+          });
+        } else {
+          // Usar campos legacy
+          this.form.patchValue({
+            vehiculoMarca: nota.vehiculoMarca,
+            vehiculoMatricula: nota.vehiculoMatricula
+          });
+        }
+
+        // Cargar chofer si existe
+        if (nota.choferId) {
+          const empresaId = nota.empresaId;
+          this.choferApi.getById(empresaId, nota.choferId).subscribe({
+            next: (chofer) => {
+              this.form.patchValue({
+                choferSearch: `${chofer.nombre}${chofer.documento ? ' - ' + chofer.documento : ''}`,
+                conductorNombre: chofer.nombre,
+                conductorDoc: chofer.documento || '',
+                conductorDireccion: chofer.direccion || ''
+              });
+            },
+            error: () => {
+              // Si no se puede cargar, usar campos legacy
+              this.form.patchValue({
+                conductorNombre: nota.conductorNombre,
+                conductorDoc: nota.conductorDoc,
+                conductorDireccion: nota.conductorDireccion
+              });
+            }
+          });
+        } else {
+          // Usar campos legacy
+          this.form.patchValue({
+            conductorNombre: nota.conductorNombre,
+            conductorDoc: nota.conductorDoc,
+            conductorDireccion: nota.conductorDireccion
+          });
+        }
+
         this.actualizarValidacionFechaEstimada();
-        
+
         if (nota.ciudadPartidaId) {
           this.sifenService.getCiudadById(nota.ciudadPartidaId).subscribe(ciu => {
             const depts = this.departamentos();
@@ -688,7 +842,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
             }
           });
         }
-        
+
         // Cargar items en itemsData
         const itemsView: NotaRemisionItemView[] = nota.items.map(item => ({
           id: item.id,
@@ -739,6 +893,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
           // Transporte
           tipoTransporte: nota.tipoTransporte,
           modalidadTransporte: nota.modalidadTransporte,
+          vehiculoId: null, // No copiar el ID, permitir seleccionar nuevo vehículo
           vehiculoMarca: nota.vehiculoMarca,
           vehiculoMatricula: nota.vehiculoMatricula,
           // Transportista
@@ -746,17 +901,18 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
           transportistaRuc: nota.transportistaRuc,
           transportistaDireccion: nota.transportistaDireccion,
           // Conductor
+          choferId: null, // No copiar el ID, permitir seleccionar nuevo chofer
           conductorNombre: nota.conductorNombre,
           conductorDoc: nota.conductorDoc,
           conductorDireccion: nota.conductorDireccion,
           fechaEstimadaFactura: null, // Limpiar fecha estimada
         });
-        
+
         this.actualizarValidacionFechaEstimada();
-        
+
         // Preparar promesas para cargar geografía
         const promesasGeografia: Promise<void>[] = [];
-        
+
         // Cargar geografía de salida
         if (nota.ciudadPartidaId) {
           const promesaSalida = this.sifenService.getCiudadById(nota.ciudadPartidaId).toPromise().then(async ciu => {
@@ -784,10 +940,10 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
           });
           promesasGeografia.push(promesaLlegada);
         }
-        
+
         // Esperar a que todas las operaciones de geografía terminen
         await Promise.all(promesasGeografia);
-        
+
         // Copiar items sin sus IDs para que se creen como nuevos
         const itemsView: NotaRemisionItemView[] = nota.items.map(item => ({
           // No incluir id para que se cree como nuevo item
@@ -845,10 +1001,10 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
   onDepartamentoSalidaChange(id: number): void {
     const dept = this.departamentos().find(d => d.id === id);
     if (dept) {
-      this.form.patchValue({ 
+      this.form.patchValue({
         departamentoPartida: dept.nombre,
         distritoPartidaId: null,
-        ciudadPartidaId: null 
+        ciudadPartidaId: null
       });
       this.distritosSalida.set([]);
       this.ciudadesSalida.set([]);
@@ -879,10 +1035,10 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
   onDepartamentoLlegadaChange(id: number): void {
     const dept = this.departamentos().find(d => d.id === id);
     if (dept) {
-      this.form.patchValue({ 
+      this.form.patchValue({
         departamentoDestinatario: dept.nombre,
         distritoDestinatarioId: null,
-        ciudadDestinatarioId: null 
+        ciudadDestinatarioId: null
       });
       this.distritosLlegada.set([]);
       this.ciudadesLlegada.set([]);
@@ -921,14 +1077,14 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
           direccionDestinatario: empresa.domicilioFiscalDireccion || empresa.direccion,
           ciudadDestinatarioId: empresa.ciudadId
         });
-        
+
         this.sifenService.getCiudadById(empresa.ciudadId).subscribe(ciudad => {
           const depts = this.departamentos();
           const dept = depts.find(d => d.codigo === ciudad.departamentoCodigo);
           if (dept) {
-            this.form.patchValue({ 
+            this.form.patchValue({
               departamentoDestinatarioId: dept.id,
-              departamentoDestinatario: dept.nombre 
+              departamentoDestinatario: dept.nombre
             });
             this.cargarGeografiaCompleta('llegada', dept.id, ciudad.distritoCodigo, ciudad.id);
           }
@@ -970,7 +1126,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       const min = new Date(fechaNota);
       const max = new Date(fechaNota);
       max.setDate(max.getDate() + 5);
-      
+
       this.minDateFactura.set(min);
       this.maxDateFactura.set(max);
 
@@ -1012,13 +1168,13 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       direccionDestinatario: cliente.direccion,
       ciudadDestinatarioId: cliente.ciudadId
     });
-    
+
     if (cliente.ciudadId) {
       this.sifenService.getCiudadById(cliente.ciudadId).subscribe(ciudad => {
         const depts = this.departamentos();
         const dept = depts.find(d => d.codigo === ciudad.departamentoCodigo);
         if (dept) {
-          this.form.patchValue({ 
+          this.form.patchValue({
             departamentoDestinatarioId: dept.id,
             departamentoDestinatario: dept.nombre
           });
@@ -1026,6 +1182,85 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
         }
       });
     }
+  }
+
+  setupVehiculoAutocomplete(empresaId: number): void {
+    this.form.get('vehiculoSearch')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$),
+      switchMap(value => {
+        const searchTerm = typeof value === 'string' ? value : (value?.matricula || '');
+        if (searchTerm.length >= 2) return this.vehiculoApi.buscar(empresaId, searchTerm);
+        return of([]);
+      })
+    ).subscribe(vehiculos => this.vehiculosFiltrados.set(vehiculos));
+  }
+
+  displayVehiculo(vehiculo: Vehiculo | null): string {
+    return vehiculo ? `${vehiculo.matricula} - ${vehiculo.marca}` : '';
+  }
+
+  onVehiculoSelected(vehiculo: Vehiculo): void {
+    if (!vehiculo || !vehiculo.id) return;
+
+    this.form.patchValue({
+      vehiculoId: vehiculo.id,
+      vehiculoMarca: vehiculo.marca,
+      vehiculoMatricula: vehiculo.matricula
+    });
+  }
+
+  setupChoferAutocomplete(empresaId: number): void {
+    this.form.get('choferSearch')?.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$),
+      switchMap(value => {
+        const searchTerm = typeof value === 'string' ? value : (value?.nombre || '');
+        if (searchTerm.length >= 2) return this.choferApi.buscar(empresaId, searchTerm);
+        return of([]);
+      })
+    ).subscribe(choferes => this.choferesFiltrados.set(choferes));
+  }
+
+  displayChofer(chofer: Chofer | null): string {
+    return chofer ? `${chofer.nombre}${chofer.documento ? ' - ' + chofer.documento : ''}` : '';
+  }
+
+  onChoferSelected(chofer: Chofer): void {
+    if (!chofer || !chofer.id) return;
+
+    this.form.patchValue({
+      choferId: chofer.id,
+      conductorNombre: chofer.nombre,
+      conductorDoc: chofer.documento || '',
+      conductorDireccion: chofer.direccion || ''
+    });
+  }
+
+  abrirGestionVehiculos(): void {
+    const empresaId = this.form.get('empresaId')?.value;
+    if (!empresaId) {
+      this.snackBar.open('No se puede abrir gestión de vehículos sin empresa seleccionada', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    this.router.navigate(['/transporte/vehiculos/empresa', empresaId], {
+      queryParams: { returnUrl: this.router.url }
+    });
+  }
+
+  abrirGestionChoferes(): void {
+    const empresaId = this.form.get('empresaId')?.value;
+    if (!empresaId) {
+      this.snackBar.open('No se puede abrir gestión de choferes sin empresa seleccionada', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    this.router.navigate(['/transporte/choferes/empresa', empresaId], {
+      queryParams: { returnUrl: this.router.url }
+    });
   }
 
   onFacturaChange(facturaId: number): void {
@@ -1039,14 +1274,14 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
         direccionDestinatario: factura.direccion,
         ciudadDestinatarioId: (factura as any).ciudadId
       });
-      
+
       const ciudadId = (factura as any).ciudadId;
       if (ciudadId) {
         this.sifenService.getCiudadById(ciudadId).subscribe(ciudad => {
           const depts = this.departamentos();
           const dept = depts.find(d => d.codigo === ciudad.departamentoCodigo);
           if (dept) {
-            this.form.patchValue({ 
+            this.form.patchValue({
               departamentoDestinatarioId: dept.id,
               departamentoDestinatario: dept.nombre
             });
@@ -1081,7 +1316,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
   editarItem(index: number): void {
     const item = this.itemsData()[index];
     if (!item) return;
-    
+
     const itemData: NotaRemisionItem = {
       id: item.id,
       productoId: item.productoId,
@@ -1089,7 +1324,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       cantidad: item.cantidad,
       unidadMedida: item.unidadMedida
     };
-    
+
     this.abrirDialogoItem(itemData, index);
   }
 
@@ -1157,6 +1392,26 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
   }
 
   onSave(): void {
+    // Validar campos condicionales
+    const vehiculoId = this.form.get('vehiculoId')?.value;
+    const vehiculoMatricula = this.form.get('vehiculoMatricula')?.value;
+    if (!vehiculoId && (!vehiculoMatricula || vehiculoMatricula.trim() === '')) {
+      this.form.get('vehiculoMatricula')?.setErrors({ required: true });
+      this.form.get('vehiculoMatricula')?.markAsTouched();
+    }
+
+    const choferId = this.form.get('choferId')?.value;
+    const conductorNombre = this.form.get('conductorNombre')?.value;
+    const conductorDoc = this.form.get('conductorDoc')?.value;
+    if (!choferId && (!conductorNombre || conductorNombre.trim() === '')) {
+      this.form.get('conductorNombre')?.setErrors({ required: true });
+      this.form.get('conductorNombre')?.markAsTouched();
+    }
+    if (!choferId && (!conductorDoc || conductorDoc.trim() === '')) {
+      this.form.get('conductorDoc')?.setErrors({ required: true });
+      this.form.get('conductorDoc')?.markAsTouched();
+    }
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.snackBar.open('Por favor complete todos los campos requeridos', 'Cerrar', { duration: 3000 });
@@ -1170,13 +1425,15 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
 
     this.saving.set(true);
     this.actualizarItemsFormArray(); // Asegurar que FormArray esté sincronizado
-    
+
     const formValue = this.form.getRawValue();
     const nota: NotaRemision = {
       ...formValue,
       fecha: formValue.fecha.toISOString(),
       fechaInicioTraslado: formValue.fechaInicioTraslado?.toISOString().split('T')[0],
       fechaFinTraslado: formValue.fechaFinTraslado?.toISOString().split('T')[0],
+      vehiculoId: formValue.vehiculoId || undefined,
+      choferId: formValue.choferId || undefined,
       transportistaNombre: formValue.transportistaNombre,
       transportistaRuc: formValue.transportistaRuc,
       transportistaDireccion: formValue.transportistaDireccion,
@@ -1193,7 +1450,7 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       }))
     };
     if (this.isEdit) nota.id = this.route.snapshot.params['id'];
-    
+
     const request = this.isEdit && nota.id
       ? this.notaRemisionApi.create(nota) // Para edición, usar create que internamente hace update si tiene ID
       : this.notaRemisionApi.create(nota);

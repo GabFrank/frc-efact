@@ -25,6 +25,8 @@ public class NotaRemisionService {
     private final ClienteRepository clienteRepository;
     private final FacturaLegalRepository facturaLegalRepository;
     private final ProductoRepository productoRepository;
+    private final VehiculoRepository vehiculoRepository;
+    private final ChoferRepository choferRepository;
     private final TimbradoDetalleService timbradoDetalleService;
     private final EmpresaSecurityService empresaSecurityService;
 
@@ -35,6 +37,8 @@ public class NotaRemisionService {
             ClienteRepository clienteRepository,
             FacturaLegalRepository facturaLegalRepository,
             ProductoRepository productoRepository,
+            VehiculoRepository vehiculoRepository,
+            ChoferRepository choferRepository,
             TimbradoDetalleService timbradoDetalleService,
             EmpresaSecurityService empresaSecurityService) {
         this.notaRemisionRepository = notaRemisionRepository;
@@ -43,6 +47,8 @@ public class NotaRemisionService {
         this.clienteRepository = clienteRepository;
         this.facturaLegalRepository = facturaLegalRepository;
         this.productoRepository = productoRepository;
+        this.vehiculoRepository = vehiculoRepository;
+        this.choferRepository = choferRepository;
         this.timbradoDetalleService = timbradoDetalleService;
         this.empresaSecurityService = empresaSecurityService;
     }
@@ -83,6 +89,35 @@ public class NotaRemisionService {
             FacturaLegal factura = facturaLegalRepository.findById(notaRemision.getFacturaLegal().getId())
                     .orElseThrow(() -> new EntityNotFoundException("Factura asociada no encontrada"));
             notaRemision.setFacturaLegal(factura);
+        }
+
+        // Validar vehículo (opcional)
+        if (notaRemision.getVehiculo() != null && notaRemision.getVehiculo().getId() != null) {
+            Vehiculo vehiculo = vehiculoRepository.findById(notaRemision.getVehiculo().getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Vehículo no encontrado"));
+            // Verificar que el vehículo pertenece a la misma empresa
+            if (!vehiculo.getEmpresa().getId().equals(empresa.getId())) {
+                throw new IllegalArgumentException("El vehículo no pertenece a la empresa de la nota");
+            }
+            notaRemision.setVehiculo(vehiculo);
+            // Copiar datos a campos legacy para compatibilidad
+            notaRemision.setVehiculoMarca(vehiculo.getMarca());
+            notaRemision.setVehiculoMatricula(vehiculo.getMatricula());
+        }
+
+        // Validar chofer (opcional)
+        if (notaRemision.getChofer() != null && notaRemision.getChofer().getId() != null) {
+            Chofer chofer = choferRepository.findById(notaRemision.getChofer().getId())
+                    .orElseThrow(() -> new EntityNotFoundException("Chofer no encontrado"));
+            // Verificar que el chofer pertenece a la misma empresa
+            if (!chofer.getEmpresa().getId().equals(empresa.getId())) {
+                throw new IllegalArgumentException("El chofer no pertenece a la empresa de la nota");
+            }
+            notaRemision.setChofer(chofer);
+            // Copiar datos a campos legacy para compatibilidad
+            notaRemision.setConductorNombre(chofer.getNombre());
+            notaRemision.setConductorDoc(chofer.getDocumento());
+            notaRemision.setConductorDireccion(chofer.getDireccion());
         }
 
         // Validar items

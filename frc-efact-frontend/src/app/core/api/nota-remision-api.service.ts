@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { NotaRemision } from '../../models/nota.model';
 
@@ -46,10 +47,26 @@ export class NotaRemisionApiService {
     return this.http.post<any>(`${this.baseUrl}/${id}/vincular-lote`, {});
   }
 
-  descargarPdfKude(id: number): Observable<Blob> {
+  descargarPdfKude(id: number): Observable<{ blob: Blob; filename: string }> {
     return this.http.get(`${this.baseUrl}/${id}/kude-pdf`, {
-      responseType: 'blob'
-    });
+      responseType: 'blob',
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        // Extraer nombre del archivo del header Content-Disposition
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'KuDE.pdf';
+        if (contentDisposition) {
+          console.log('Content-Disposition header:', contentDisposition);
+          // Intentar extraer el filename
+          const matches = /filename\s*=\s*['"]?([^'"]+)['"]?/i.exec(contentDisposition);
+          if (matches && matches[1]) {
+            filename = matches[1];
+          }
+        }
+        return { blob: response.body!, filename };
+      })
+    );
   }
 
   enviarEmail(id: number, data: { email: string, actualizarCliente: boolean }): Observable<any> {

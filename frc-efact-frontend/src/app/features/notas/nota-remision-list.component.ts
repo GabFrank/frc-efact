@@ -9,6 +9,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PageEvent } from '@angular/material/paginator';
 import { Subject, takeUntil } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { NotaRemisionApiService } from '../../core/api/nota-remision-api.service';
 import { ClienteApiService } from '../../core/api/cliente-api.service';
 import { NotaRemision } from '../../models/nota.model';
@@ -84,10 +85,10 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
     { key: 'fecha', label: 'Fecha', sortable: true, format: (v: string) => new Date(v).toLocaleDateString('es-PY') },
     { key: 'nombreDestinatario', label: 'Destinatario', sortable: true },
     { key: 'motivoEmision', label: 'Motivo', sortable: true },
-    { 
-      key: 'estadoDocumentoElectronico', 
-      label: 'Estado DE', 
-      format: (v: string, row: any) => this.formatEstadoDE(v || 'SIN_DE', row) 
+    {
+      key: 'estadoDocumentoElectronico',
+      label: 'Estado DE',
+      format: (v: string, row: any) => this.formatEstadoDE(v || 'SIN_DE', row)
     }
   ];
 
@@ -229,8 +230,8 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
 
   crearNotaRemision(): void {
     const empresaId = this.route.snapshot.queryParams['empresaId'];
-    this.router.navigate(['/notas/notas-remision/nueva'], { 
-      queryParams: { empresaId: empresaId ? +empresaId : undefined } 
+    this.router.navigate(['/notas/notas-remision/nueva'], {
+      queryParams: { empresaId: empresaId ? +empresaId : undefined }
     });
   }
 
@@ -275,7 +276,7 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
 
     this.loading.set(true);
     this.snackBar.open('Vinculando a lote y enviando a SIFEN...', 'Cerrar', { duration: 2000 });
-    
+
     this.notaRemisionApi.vincularLote(nota.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: (result) => {
         this.snackBar.open('Lote creado y enviado exitosamente', 'Cerrar', { duration: 4000 });
@@ -375,7 +376,7 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
     const dialogRef = this.dialog.open(CancelarDeDialogComponent, {
       width: '500px',
       data: {
-        factura: nota, 
+        factura: nota,
         cdc: nota.cdcDocumentoElectronico
       }
     });
@@ -457,19 +458,19 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
 
   editarNota(nota: NotaRemision): void {
     const empresaId = this.route.snapshot.queryParams['empresaId'];
-    this.router.navigate(['/notas/notas-remision', nota.id], { 
-      queryParams: { empresaId: empresaId ? +empresaId : undefined } 
+    this.router.navigate(['/notas/notas-remision', nota.id], {
+      queryParams: { empresaId: empresaId ? +empresaId : undefined }
     });
   }
 
   copiarNota(nota: NotaRemision): void {
     if (!nota.id) return;
     const empresaId = this.route.snapshot.queryParams['empresaId'];
-    this.router.navigate(['/notas/notas-remision/nueva'], { 
-      queryParams: { 
+    this.router.navigate(['/notas/notas-remision/nueva'], {
+      queryParams: {
         empresaId: empresaId ? +empresaId : undefined,
         copyFromId: nota.id
-      } 
+      }
     });
   }
 
@@ -514,47 +515,20 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.snackBar.open('Generando PDF...', 'Cerrar', { duration: 2000 });
-    
-    this.notaRemisionApi.descargarPdfKude(nota.id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (blob: Blob) => {
-        const cdc = nota.cdcDocumentoElectronico || nota.numeroFormateado || nota.id;
-        const fileName = `KuDE-NRE-${cdc}.pdf`;
-        
-        // Crear un objeto URL a partir del Blob
-        // Nota: Para que el navegador use el nombre correcto al guardar desde el visor,
-        // lo ideal sería que el visor reciba el header Content-Disposition, pero al usar 
-        // HttpClient + Blob, perdemos ese contexto. El objeto File ayuda en algunos navegadores.
-        const file = new File([blob], fileName, { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(file);
-        
-        // Abrir en nueva pestaña
-        const win = window.open(url, '_blank');
-        if (win) {
-          win.focus();
-          // Intentar establecer el título de la pestaña (opcional, ayuda visualmente)
-          setTimeout(() => {
-            try { win.document.title = fileName; } catch (e) {}
-          }, 500);
-        }
+    const token = localStorage.getItem('auth_token');
+    const url = `${environment.apiUrl}/notas-remision/${nota.id}/kude-pdf?token=${token}`;
 
-        // Limpiar la URL después de un tiempo prudencial para permitir que el visor cargue
-        setTimeout(() => {
-          window.URL.revokeObjectURL(url);
-        }, 3000);
-
-        this.snackBar.open('PDF abierto en nueva pestaña', 'Cerrar', { duration: 3000 });
-      },
-      error: (error) => {
-        console.error('Error al generar PDF:', error);
-        this.snackBar.open(
-          error.error?.message || 'Error al generar el PDF del KUDE',
-          'Cerrar',
-          { duration: 5000 }
-               );
-             }
-           });
-         }
+    // Abrir en nueva pestaña directamente desde la URL del servidor
+    // Esto permite que el navegador maneje el nombre del archivo correctamente
+    // gracias al header Content-Disposition: inline; filename="..."
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.focus();
+      this.snackBar.open('Abriendo PDF...', 'Cerrar', { duration: 2000 });
+    } else {
+      this.snackBar.open('Por favor, permite las ventanas emergentes para ver el PDF', 'Cerrar', { duration: 5000 });
+    }
+  }
 
          enviarEmailViaEmail(nota: NotaRemision): void {
            if (!nota.id) return;
@@ -578,7 +552,7 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
                  next: () => {
                    this.snackBar.open('Email enviado exitosamente', 'Cerrar', { duration: 3000 });
                    this.loading.set(false);
-                   
+
                    // Consultar si desea actualizar el cliente
                    const emailUsado = result.email;
                    const emailActual = (nota as any).emailCliente;

@@ -47,6 +47,11 @@ export const routes: Routes = [
         loadChildren: () => import('./features/notas/notas.routes').then(m => m.NOTAS_ROUTES)
       },
       {
+        path: 'transporte',
+        canActivate: [empresaSelectedGuard],
+        loadChildren: () => import('./features/transporte/transporte.routes').then(m => m.TRANSPORTE_ROUTES)
+      },
+      {
         path: 'documentos',
         canActivate: [empresaSelectedGuard],
         loadChildren: () => import('./features/documentos/documentos.routes').then(m => m.DOCUMENTOS_ROUTES)

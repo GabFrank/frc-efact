@@ -20,6 +20,8 @@ public interface NotaRemisionRepository extends JpaRepository<NotaRemision, Long
            "LEFT JOIN FETCH nr.empresa " +
            "LEFT JOIN FETCH nr.cliente " +
            "LEFT JOIN FETCH nr.facturaLegal " +
+           "LEFT JOIN FETCH nr.vehiculo " +
+           "LEFT JOIN FETCH nr.chofer " +
            "LEFT JOIN FETCH nr.timbradoDetalle td " +
            "LEFT JOIN FETCH td.timbrado " +
            "LEFT JOIN FETCH nr.documentoElectronico de " +
@@ -31,6 +33,8 @@ public interface NotaRemisionRepository extends JpaRepository<NotaRemision, Long
            "LEFT JOIN FETCH nr.empresa " +
            "LEFT JOIN FETCH nr.cliente " +
            "LEFT JOIN FETCH nr.facturaLegal " +
+           "LEFT JOIN FETCH nr.vehiculo " +
+           "LEFT JOIN FETCH nr.chofer " +
            "LEFT JOIN FETCH nr.timbradoDetalle td " +
            "LEFT JOIN FETCH td.timbrado " +
            "LEFT JOIN FETCH nr.documentoElectronico de " +

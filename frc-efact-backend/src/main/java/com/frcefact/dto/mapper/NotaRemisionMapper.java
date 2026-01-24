@@ -67,16 +67,33 @@ public class NotaRemisionMapper {
         dto.setTipoTransporte(entity.getTipoTransporte());
         dto.setModalidadTransporte(entity.getModalidadTransporte());
         
-        dto.setVehiculoMarca(entity.getVehiculoMarca());
-        dto.setVehiculoMatricula(entity.getVehiculoMatricula());
+        // Vehiculo - Si hay relación, usar ID; sino usar campos legacy
+        if (entity.getVehiculo() != null) {
+            dto.setVehiculoId(entity.getVehiculo().getId());
+            // También copiar a campos legacy para compatibilidad
+            dto.setVehiculoMarca(entity.getVehiculo().getMarca());
+            dto.setVehiculoMatricula(entity.getVehiculo().getMatricula());
+        } else {
+            dto.setVehiculoMarca(entity.getVehiculoMarca());
+            dto.setVehiculoMatricula(entity.getVehiculoMatricula());
+        }
         
         dto.setTransportistaNombre(entity.getTransportistaNombre());
         dto.setTransportistaRuc(entity.getTransportistaRuc());
         dto.setTransportistaDireccion(entity.getTransportistaDireccion());
         
-        dto.setConductorNombre(entity.getConductorNombre());
-        dto.setConductorDoc(entity.getConductorDoc());
-        dto.setConductorDireccion(entity.getConductorDireccion());
+        // Chofer - Si hay relación, usar ID; sino usar campos legacy
+        if (entity.getChofer() != null) {
+            dto.setChoferId(entity.getChofer().getId());
+            // También copiar a campos legacy para compatibilidad
+            dto.setConductorNombre(entity.getChofer().getNombre());
+            dto.setConductorDoc(entity.getChofer().getDocumento());
+            dto.setConductorDireccion(entity.getChofer().getDireccion());
+        } else {
+            dto.setConductorNombre(entity.getConductorNombre());
+            dto.setConductorDoc(entity.getConductorDoc());
+            dto.setConductorDireccion(entity.getConductorDireccion());
+        }
 
         if (entity.getFechaEstimadaFactura() != null) {
             dto.setFechaEstimadaFactura(entity.getFechaEstimadaFactura().format(DATE_FORMATTER));
@@ -201,16 +218,34 @@ public class NotaRemisionMapper {
         entity.setTipoTransporte(dto.getTipoTransporte());
         entity.setModalidadTransporte(dto.getModalidadTransporte());
         
-        entity.setVehiculoMarca(dto.getVehiculoMarca());
-        entity.setVehiculoMatricula(dto.getVehiculoMatricula());
+        // Vehiculo - Si viene ID, establecer relación; sino usar campos legacy
+        if (dto.getVehiculoId() != null) {
+            Vehiculo vehiculo = new Vehiculo();
+            vehiculo.setId(dto.getVehiculoId());
+            entity.setVehiculo(vehiculo);
+            // También copiar a campos legacy para compatibilidad
+            // (se llenarán desde la entidad cuando se cargue)
+        } else {
+            entity.setVehiculoMarca(dto.getVehiculoMarca());
+            entity.setVehiculoMatricula(dto.getVehiculoMatricula());
+        }
         
         entity.setTransportistaNombre(dto.getTransportistaNombre());
         entity.setTransportistaRuc(dto.getTransportistaRuc());
         entity.setTransportistaDireccion(dto.getTransportistaDireccion());
         
-        entity.setConductorNombre(dto.getConductorNombre());
-        entity.setConductorDoc(dto.getConductorDoc());
-        entity.setConductorDireccion(dto.getConductorDireccion());
+        // Chofer - Si viene ID, establecer relación; sino usar campos legacy
+        if (dto.getChoferId() != null) {
+            Chofer chofer = new Chofer();
+            chofer.setId(dto.getChoferId());
+            entity.setChofer(chofer);
+            // También copiar a campos legacy para compatibilidad
+            // (se llenarán desde la entidad cuando se cargue)
+        } else {
+            entity.setConductorNombre(dto.getConductorNombre());
+            entity.setConductorDoc(dto.getConductorDoc());
+            entity.setConductorDireccion(dto.getConductorDireccion());
+        }
         
         if (dto.getFechaEstimadaFactura() != null && !dto.getFechaEstimadaFactura().isEmpty()) {
             entity.setFechaEstimadaFactura(LocalDate.parse(dto.getFechaEstimadaFactura(), DATE_FORMATTER));
