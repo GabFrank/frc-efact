@@ -26,6 +26,8 @@ public class UsuarioEmpresaDto {
 
     // Información adicional para visualización
     private String usuarioUsername;
+    private String usuarioEmail;
+    private java.util.List<String> usuarioRoles; // Lista de nombres de roles del usuario
     private String empresaRazonSocial;
 
     private LocalDateTime creadoEn;
@@ -97,6 +99,22 @@ public class UsuarioEmpresaDto {
 
     public void setEmpresaRazonSocial(String empresaRazonSocial) {
         this.empresaRazonSocial = empresaRazonSocial;
+    }
+
+    public String getUsuarioEmail() {
+        return usuarioEmail;
+    }
+
+    public void setUsuarioEmail(String usuarioEmail) {
+        this.usuarioEmail = usuarioEmail;
+    }
+
+    public java.util.List<String> getUsuarioRoles() {
+        return usuarioRoles;
+    }
+
+    public void setUsuarioRoles(java.util.List<String> usuarioRoles) {
+        this.usuarioRoles = usuarioRoles;
     }
 
     public LocalDateTime getCreadoEn() {

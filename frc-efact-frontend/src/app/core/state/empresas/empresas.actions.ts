@@ -36,7 +36,7 @@ export const selectEmpresa = createAction(
 // Create empresa
 export const createEmpresa = createAction(
   '[Empresas] Create Empresa',
-  props<{ empresa: Partial<Empresa> }>()
+  props<{ empresa: Partial<Empresa>; certificadoFile?: File; certificadoPassword?: string }>()
 );
 
 export const createEmpresaSuccess = createAction(
@@ -52,7 +52,7 @@ export const createEmpresaFailure = createAction(
 // Update empresa
 export const updateEmpresa = createAction(
   '[Empresas] Update Empresa',
-  props<{ id: number; empresa: Partial<Empresa> }>()
+  props<{ id: number; empresa: Partial<Empresa>; certificadoFile?: File; certificadoPassword?: string }>()
 );
 
 export const updateEmpresaSuccess = createAction(

@@ -8,6 +8,8 @@ import com.frcefact.model.Barrio;
 import com.frcefact.model.Ciudad;
 import com.frcefact.model.Timbrado;
 import com.frcefact.model.TimbradoDetalle;
+import com.frcefact.repository.FacturaLegalRepository;
+import com.frcefact.repository.NotaRemisionRepository;
 import com.frcefact.repository.TimbradoDetalleRepository;
 import com.frcefact.repository.TimbradoRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -28,16 +30,22 @@ public class TimbradoDetalleService {
     private final TimbradoRepository timbradoRepository;
     private final TimbradoDetalleMapper timbradoDetalleMapper;
     private final EmpresaSecurityService empresaSecurityService;
+    private final FacturaLegalRepository facturaLegalRepository;
+    private final NotaRemisionRepository notaRemisionRepository;
 
     public TimbradoDetalleService(
             TimbradoDetalleRepository timbradoDetalleRepository,
             TimbradoRepository timbradoRepository,
             TimbradoDetalleMapper timbradoDetalleMapper,
-            EmpresaSecurityService empresaSecurityService) {
+            EmpresaSecurityService empresaSecurityService,
+            FacturaLegalRepository facturaLegalRepository,
+            NotaRemisionRepository notaRemisionRepository) {
         this.timbradoDetalleRepository = timbradoDetalleRepository;
         this.timbradoRepository = timbradoRepository;
         this.timbradoDetalleMapper = timbradoDetalleMapper;
         this.empresaSecurityService = empresaSecurityService;
+        this.facturaLegalRepository = facturaLegalRepository;
+        this.notaRemisionRepository = notaRemisionRepository;
     }
 
     /**
@@ -77,10 +85,21 @@ public class TimbradoDetalleService {
         TimbradoDetalle detalle = timbradoDetalleMapper.toEntity(dto);
         detalle.setTimbrado(timbrado);
 
-        // Calcular cantidad y establecer número actual solo si hay rangos
-        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
-            detalle.setCantidad(dto.getRangoHasta() - dto.getRangoDesde() + 1);
+        // Para timbrados electrónicos, establecer valores NULL si los rangos no están presentes
+        if (timbrado.getIsElectronico() && (dto.getRangoDesde() == null || dto.getRangoHasta() == null)) {
+            // Para timbrados electrónicos, usar NULL en lugar de 0
+            detalle.setCantidad(null);
+            detalle.setRangoDesde(null);
+            detalle.setRangoHasta(null);
+            detalle.setNumeroActual(null);
+        } else if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            // Calcular cantidad y establecer número actual para timbrados no electrónicos
+            long cantidad = dto.getRangoHasta() - dto.getRangoDesde() + 1;
+            detalle.setCantidad(cantidad);
             detalle.setNumeroActual(dto.getRangoDesde());
+        } else {
+            // Si no hay rangos y no es electrónico, esto es un error
+            throw new IllegalArgumentException("Los rangos son requeridos para timbrados no electrónicos");
         }
 
         return timbradoDetalleRepository.save(detalle);
@@ -116,14 +135,34 @@ public class TimbradoDetalleService {
             }
         }
 
+        // Obtener el timbrado para verificar si es electrónico
+        Timbrado timbrado = detalleExistente.getTimbrado();
+        
         // Actualizar campos
         detalleExistente.setPuntoExpedicion(dto.getPuntoExpedicion());
         detalleExistente.setCodigoEstablecimientoFactura(dto.getCodigoEstablecimientoFactura());
         
-        // Actualizar rangos solo si se proporcionan
-        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+        // Actualizar rangos según el tipo de timbrado
+        if (timbrado.getIsElectronico() && (dto.getRangoDesde() == null || dto.getRangoHasta() == null)) {
+            // Para timbrados electrónicos sin rangos, establecer NULL
+            if (detalleExistente.getRangoDesde() == null || (detalleExistente.getRangoDesde() != null && detalleExistente.getRangoDesde() == 0)) {
+                detalleExistente.setCantidad(null);
+                detalleExistente.setRangoDesde(null);
+                detalleExistente.setRangoHasta(null);
+                detalleExistente.setNumeroActual(null);
+            }
+        } else if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
+            // Actualizar rangos para timbrados no electrónicos o electrónicos con rangos
             detalleExistente.setRangoDesde(dto.getRangoDesde());
             detalleExistente.setRangoHasta(dto.getRangoHasta());
+            detalleExistente.setCantidad(dto.getRangoHasta() - dto.getRangoDesde() + 1);
+
+            // Ajustar número actual si está fuera del nuevo rango
+            if (detalleExistente.getNumeroActual() < dto.getRangoDesde()) {
+                detalleExistente.setNumeroActual(dto.getRangoDesde());
+            } else if (detalleExistente.getNumeroActual() > dto.getRangoHasta()) {
+                detalleExistente.setNumeroActual(dto.getRangoHasta());
+            }
         }
         
         // Actualizar relaciones geográficas usando mapper
@@ -141,18 +180,6 @@ public class TimbradoDetalleService {
         detalleExistente.setDireccion(dto.getDireccion());
         detalleExistente.setTelefono(dto.getTelefono());
         detalleExistente.setActivo(dto.getActivo());
-
-        // Recalcular cantidad y ajustar número actual solo si hay rangos
-        if (dto.getRangoDesde() != null && dto.getRangoHasta() != null) {
-            detalleExistente.setCantidad(dto.getRangoHasta() - dto.getRangoDesde() + 1);
-
-            // Ajustar número actual si está fuera del nuevo rango
-            if (detalleExistente.getNumeroActual() < dto.getRangoDesde()) {
-                detalleExistente.setNumeroActual(dto.getRangoDesde());
-            } else if (detalleExistente.getNumeroActual() > dto.getRangoHasta()) {
-                detalleExistente.setNumeroActual(dto.getRangoHasta());
-            }
-        }
 
         return timbradoDetalleRepository.save(detalleExistente);
     }
@@ -236,16 +263,76 @@ public class TimbradoDetalleService {
     }
 
     /**
+     * Lista todos los detalles activos de una empresa.
+     */
+    @Transactional(readOnly = true)
+    public List<TimbradoDetalle> listarActivosPorEmpresa(Long empresaId) {
+        // Verificar permisos
+        empresaSecurityService.verificarAccesoLectura(empresaId);
+
+        return timbradoDetalleRepository.findByEmpresaIdAndActivoTrue(empresaId);
+    }
+
+    /**
      * Obtiene y incrementa el número actual de un detalle de timbrado.
      * Usado para asignar números de factura.
+     * @deprecated Usar métodos específicos por tipo de documento: incrementarNumeroFactura, incrementarNumeroNotaRemision, etc.
      */
     @Transactional
+    @Deprecated
     public synchronized Long incrementarNumeroActual(Long detalleId) {
+        return incrementarNumeroFactura(detalleId);
+    }
+
+    /**
+     * Obtiene y incrementa el número de factura para un detalle de timbrado.
+     * Para timbrados electrónicos, busca el máximo número de factura existente.
+     */
+    @Transactional
+    public synchronized Long incrementarNumeroFactura(Long detalleId) {
         TimbradoDetalle detalle = timbradoDetalleRepository.findById(detalleId)
                 .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + detalleId));
 
         // Verificar permisos de escritura
         empresaSecurityService.verificarAccesoEscritura(detalle.getTimbrado().getEmpresa().getId());
+
+        // Para timbrados electrónicos, generar número basado en facturas existentes sin modificar el detalle
+        if (Boolean.TRUE.equals(detalle.getTimbrado().getIsElectronico())) {
+            Integer maxFactura = facturaLegalRepository.findMaxNumeroFacturaByTimbradoDetalleId(detalleId);
+            return maxFactura == null ? 1L : maxFactura.longValue() + 1L;
+        }
+
+        // Verificar que tiene números disponibles
+        if (!detalle.tieneNumerosDisponibles()) {
+            throw new IllegalStateException("No hay números disponibles en el rango del punto de expedición");
+        }
+
+        // Obtener y incrementar el número
+        Long numeroAsignado = detalle.obtenerYIncrementarNumeroActual();
+        
+        // Guardar los cambios
+        timbradoDetalleRepository.save(detalle);
+        
+        return numeroAsignado;
+    }
+
+    /**
+     * Obtiene y incrementa el número de nota de remisión para un detalle de timbrado.
+     * Para timbrados electrónicos, busca el máximo número de nota de remisión existente.
+     */
+    @Transactional
+    public synchronized Long incrementarNumeroNotaRemision(Long detalleId) {
+        TimbradoDetalle detalle = timbradoDetalleRepository.findById(detalleId)
+                .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + detalleId));
+
+        // Verificar permisos de escritura
+        empresaSecurityService.verificarAccesoEscritura(detalle.getTimbrado().getEmpresa().getId());
+
+        // Para timbrados electrónicos, generar número basado SOLO en notas de remisión existentes
+        if (Boolean.TRUE.equals(detalle.getTimbrado().getIsElectronico())) {
+            Integer maxNotaRemision = notaRemisionRepository.findMaxNumeroNotaRemisionByTimbradoDetalleId(detalleId);
+            return maxNotaRemision == null ? 1L : maxNotaRemision.longValue() + 1L;
+        }
 
         // Verificar que tiene números disponibles
         if (!detalle.tieneNumerosDisponibles()) {

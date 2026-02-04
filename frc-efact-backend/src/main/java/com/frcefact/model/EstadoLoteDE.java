@@ -28,5 +28,20 @@ public enum EstadoLoteDE {
     /**
      * Error en el procesamiento del lote
      */
-    ERROR
+    ERROR,
+
+    /**
+     * Lote procesado con resultado final (equivalente a aprobación)
+     */
+    PROCESADO,
+
+    /**
+     * Error al enviar el lote a SIFEN (reintento posible)
+     */
+    ERROR_ENVIO,
+
+    /**
+     * Error permanente (sin reintento) al procesar el lote
+     */
+    ERROR_PERMANENTE
 }

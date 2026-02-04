@@ -117,9 +117,12 @@ Si el login funciona, ¡todo está correcto! ✅
 
 ## 📚 Documentación Adicional
 
+- **Guía Paso a Paso**: `../STEP_BY_STEP_GUIDE.md` ⭐ **Empieza aquí para tu primer deployment**
+- **Checklist de Deployment**: `../DEPLOYMENT_CHECKLIST.md`
+- **Guía de Producción**: `../PRODUCTION_DEPLOYMENT.md`
 - **Configuración Manual**: `MANUAL_SETUP.md`
 - **Troubleshooting Detallado**: `../../troubleshooting/RENDER_ISSUES.md`
-- **Scripts de Validación**: `../scripts/`
+- **Scripts de Migración**: `../scripts/`
 
 ## 🎯 Checklist Rápido
 

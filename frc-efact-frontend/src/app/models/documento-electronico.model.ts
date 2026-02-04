@@ -8,6 +8,8 @@ export interface DocumentoElectronico {
   estado: EstadoDE;
   codigoRespuestaSifen?: string;
   mensajeRespuestaSifen?: string;
+  respuestaSifen?: string;
+  protocoloAutorizacion?: string;
   fechaEmision: string;
   fechaRecepcionSifen?: string;
 }
@@ -27,6 +29,8 @@ export interface LoteDE {
   estado: EstadoLote;
   protocolo?: string;
   respuestaSifen?: string;
+  codigoRespuesta?: string;
+  mensajeRespuesta?: string;
   fechaProcesado?: string;
   fechaUltimoIntento?: string;
   intentos: number;
@@ -38,4 +42,9 @@ export enum EstadoLote {
   APROBADO = 'APROBADO',
   RECHAZADO = 'RECHAZADO',
   ERROR = 'ERROR'
+}
+
+export interface GenerarDeResponse {
+  documento: DocumentoElectronico;
+  lote: LoteDE;
 }

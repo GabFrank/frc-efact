@@ -66,18 +66,6 @@ public interface FacturaLegalRepository extends JpaRepository<FacturaLegal, Long
                                         @Param("fechaHasta") LocalDateTime fechaHasta,
                                         Pageable pageable);
 
-    /**
-     * Busca facturas por empresa, cliente y rango de fechas.
-     */
-    @Query("SELECT f FROM FacturaLegal f WHERE f.empresa.id = :empresaId " +
-           "AND (:clienteId IS NULL OR f.cliente.id = :clienteId) " +
-           "AND f.activo = true " +
-           "AND f.fecha BETWEEN :fechaDesde AND :fechaHasta")
-    Page<FacturaLegal> findByFiltros(@Param("empresaId") Long empresaId,
-                                     @Param("clienteId") Long clienteId,
-                                     @Param("fechaDesde") LocalDateTime fechaDesde,
-                                     @Param("fechaHasta") LocalDateTime fechaHasta,
-                                     Pageable pageable);
 
     /**
      * Busca facturas a crédito.
@@ -91,21 +79,28 @@ public interface FacturaLegalRepository extends JpaRepository<FacturaLegal, Long
 
     /**
      * Cuenta facturas de una empresa en un rango de fechas.
+     * Excluye facturas con documentos electrónicos cancelados o rechazados.
      */
-    @Query("SELECT COUNT(f) FROM FacturaLegal f WHERE f.empresa.id = :empresaId " +
+    @Query("SELECT COUNT(f) FROM FacturaLegal f " +
+           "LEFT JOIN f.documentoElectronico de " +
+           "WHERE f.empresa.id = :empresaId " +
            "AND f.activo = true " +
-           "AND f.fecha BETWEEN :fechaDesde AND :fechaHasta")
+           "AND f.fecha BETWEEN :fechaDesde AND :fechaHasta " +
+           "AND (de IS NULL OR de.estado NOT IN (com.frcefact.model.EstadoDE.CANCELADO, com.frcefact.model.EstadoDE.RECHAZADO, com.frcefact.model.EstadoDE.ERROR))")
     long countByFechaRange(@Param("empresaId") Long empresaId,
                           @Param("fechaDesde") LocalDateTime fechaDesde,
                           @Param("fechaHasta") LocalDateTime fechaHasta);
 
     /**
      * Suma total facturado por empresa en un rango de fechas.
+     * Excluye facturas con documentos electrónicos cancelados o rechazados.
      */
     @Query("SELECT COALESCE(SUM(f.totalFinal), 0) FROM FacturaLegal f " +
+           "LEFT JOIN f.documentoElectronico de " +
            "WHERE f.empresa.id = :empresaId " +
            "AND f.activo = true " +
-           "AND f.fecha BETWEEN :fechaDesde AND :fechaHasta")
+           "AND f.fecha BETWEEN :fechaDesde AND :fechaHasta " +
+           "AND (de IS NULL OR de.estado NOT IN (com.frcefact.model.EstadoDE.CANCELADO, com.frcefact.model.EstadoDE.RECHAZADO, com.frcefact.model.EstadoDE.ERROR))")
     BigDecimal sumTotalByFechaRange(@Param("empresaId") Long empresaId,
                                     @Param("fechaDesde") LocalDateTime fechaDesde,
                                     @Param("fechaHasta") LocalDateTime fechaHasta);
@@ -134,7 +129,46 @@ public interface FacturaLegalRepository extends JpaRepository<FacturaLegal, Long
     boolean existsByTimbradoDetalleIdAndNumeroFactura(Long timbradoDetalleId, Integer numeroFactura);
 
     /**
+     * Obtiene el número máximo de factura registrado para un timbrado detalle.
+     */
+    @Query("SELECT MAX(f.numeroFactura) FROM FacturaLegal f WHERE f.timbradoDetalle.id = :timbradoDetalleId")
+    Integer findMaxNumeroFacturaByTimbradoDetalleId(@Param("timbradoDetalleId") Long timbradoDetalleId);
+
+    /**
      * Busca facturas ordenadas por fecha descendente.
      */
     List<FacturaLegal> findByEmpresaIdAndActivoTrueOrderByFechaDesc(Long empresaId);
+    
+    /**
+     * Busca facturas por rango de fechas para cálculos (excluye canceladas/rechazadas).
+     */
+    @Query("SELECT f FROM FacturaLegal f " +
+           "LEFT JOIN f.documentoElectronico de " +
+           "WHERE f.empresa.id = :empresaId " +
+           "AND f.activo = true " +
+           "AND f.fecha BETWEEN :fechaDesde AND :fechaHasta " +
+           "AND (de IS NULL OR de.estado NOT IN (com.frcefact.model.EstadoDE.CANCELADO, com.frcefact.model.EstadoDE.RECHAZADO, com.frcefact.model.EstadoDE.ERROR))")
+    List<FacturaLegal> findByFechaRangeParaCalculos(@Param("empresaId") Long empresaId,
+                                                     @Param("fechaDesde") LocalDateTime fechaDesde,
+                                                     @Param("fechaHasta") LocalDateTime fechaHasta);
+
+    /**
+     * Obtiene una factura por ID con todas las relaciones necesarias cargadas.
+     * Usa JOIN FETCH para evitar LazyInitializationException.
+     * Carga: empresa, timbradoDetalle, timbradoDetalle.timbrado, cliente (si existe) 
+     * con ciudad.distrito.departamento, documentoElectronico (si existe) y sus items.
+     */
+    @Query("SELECT DISTINCT f FROM FacturaLegal f " +
+           "JOIN FETCH f.empresa " +
+           "JOIN FETCH f.timbradoDetalle td " +
+           "LEFT JOIN FETCH td.timbrado " +
+           "LEFT JOIN FETCH f.cliente c " +
+           "LEFT JOIN FETCH c.ciudad ci " +
+           "LEFT JOIN FETCH ci.distrito d " +
+           "LEFT JOIN FETCH d.departamento " +
+           "LEFT JOIN FETCH f.documentoElectronico de " +
+           "LEFT JOIN FETCH de.loteDE " +
+           "LEFT JOIN FETCH f.items " +
+           "WHERE f.id = :id")
+    Optional<FacturaLegal> findByIdWithEmpresa(@Param("id") Long id);
 }

@@ -20,6 +20,14 @@ import java.util.Optional;
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     /**
+     * Buscar usuario por Auth0 ID.
+     *
+     * @param auth0Id el ID de Auth0 a buscar
+     * @return Optional con el usuario si se encuentra
+     */
+    Optional<Usuario> findByAuth0Id(String auth0Id);
+
+    /**
      * Buscar usuario por username.
      *
      * @param username el username a buscar

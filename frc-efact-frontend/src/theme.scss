@@ -1,0 +1,28 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+// Define your custom palettes
+$primary-palette: mat.define-palette(mat.$indigo-palette);
+$accent-palette: mat.define-palette(mat.$pink-palette, A200, A100, A400);
+$warn-palette: mat.define-palette(mat.$red-palette);
+
+// Create the themes
+$light-theme: mat.define-light-theme((color: (primary: $primary-palette,
+                accent: $accent-palette,
+                warn: $warn-palette,
+            )));
+
+$dark-theme: mat.define-dark-theme((color: (primary: $primary-palette,
+                accent: $accent-palette,
+                warn: $warn-palette,
+            )));
+
+// Include the base theme styles (density and typography) only once
+@include mat.all-component-themes($light-theme);
+
+// Apply the dark theme colors when the .dark-theme class is present
+// This avoids duplicating density and typography styles
+.dark-theme {
+    @include mat.all-component-colors($dark-theme);
+}

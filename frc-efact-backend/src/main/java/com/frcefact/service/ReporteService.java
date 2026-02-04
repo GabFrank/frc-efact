@@ -5,7 +5,6 @@ import com.frcefact.dto.FacturaFiltroDto;
 import com.frcefact.dto.FacturaReporteDto;
 import com.frcefact.dto.ProductoReporteDto;
 import com.frcefact.model.FacturaLegal;
-import com.frcefact.model.FacturaLegalItem;
 import com.frcefact.model.Producto;
 import com.frcefact.repository.FacturaLegalItemRepository;
 import com.frcefact.repository.FacturaLegalRepository;
@@ -78,6 +77,7 @@ public class ReporteService {
 
     /**
      * Genera reporte agrupado por cliente.
+     * Excluye facturas con documentos electrónicos cancelados o rechazados para cálculos.
      * 
      * Requirement 16.3: Reporte por cliente con agrupación
      * 
@@ -87,7 +87,7 @@ public class ReporteService {
      * @return Lista de ClienteRankingDto
      */
     public List<ClienteRankingDto> reportePorCliente(Long empresaId, LocalDateTime fechaDesde, LocalDateTime fechaHasta) {
-        List<FacturaLegal> facturas = facturaLegalRepository.findByFechaRange(empresaId, fechaDesde, fechaHasta);
+        List<FacturaLegal> facturas = facturaLegalRepository.findByFechaRangeParaCalculos(empresaId, fechaDesde, fechaHasta);
         
         // Agrupar por cliente
         Map<Long, ClienteRankingDto> clientesMap = new HashMap<>();
@@ -121,6 +121,7 @@ public class ReporteService {
 
     /**
      * Genera reporte agrupado por producto.
+     * Excluye facturas con documentos electrónicos cancelados o rechazados para cálculos.
      * 
      * Requirement 16.4: Reporte por producto con cantidad y monto
      * 
@@ -130,8 +131,8 @@ public class ReporteService {
      * @return Lista de ProductoReporteDto
      */
     public List<ProductoReporteDto> reportePorProducto(Long empresaId, LocalDateTime fechaDesde, LocalDateTime fechaHasta) {
-        // Obtener productos más vendidos
-        List<Object[]> resultados = facturaLegalItemRepository.findProductosMasVendidos(
+        // Obtener productos más vendidos (excluyendo canceladas/rechazadas para cálculos)
+        List<Object[]> resultados = facturaLegalItemRepository.findProductosMasVendidosParaCalculos(
                 empresaId, fechaDesde, fechaHasta
         );
         
@@ -223,6 +224,10 @@ public class ReporteService {
             if (filtro.getCredito() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("credito"), filtro.getCredito()));
             }
+            
+            // NOTA: No excluimos facturas canceladas/rechazadas aquí porque este método
+            // se usa para LISTAR facturas, no para cálculos. El usuario debe poder ver todas las facturas.
+            // Los cálculos de totales usan métodos específicos que sí excluyen canceladas/rechazadas.
             
             return criteriaBuilder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };

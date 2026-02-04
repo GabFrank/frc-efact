@@ -1,5 +1,7 @@
 package com.frcefact.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.frcefact.model.base.AuditableEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -22,6 +24,7 @@ import java.util.Set;
         @Index(name = "idx_empresa_activo", columnList = "activo"),
         @Index(name = "idx_empresa_razon_social", columnList = "razon_social")
 })
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Empresa extends AuditableEntity {
 
     @Id
@@ -101,6 +104,13 @@ public class Empresa extends AuditableEntity {
     @Column(name = "certificado_fecha_expiracion")
     private LocalDate certificadoFechaExpiracion;
 
+    // CSC (Código de Seguridad del Contribuyente)
+    @Size(max = 50)
+    @Column(name = "csc_id", length = 50)
+    private String cscId;
+
+    @Column(name = "csc_encrypted", columnDefinition = "TEXT")
+    private String cscEncrypted;
 
     // Configuración SIFEN
     @Size(max = 20)
@@ -111,6 +121,7 @@ public class Empresa extends AuditableEntity {
     private Boolean activo = true;
 
     // Relaciones
+    @JsonIgnore
     @OneToMany(mappedBy = "empresa", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UsuarioEmpresa> usuarioEmpresas = new HashSet<>();
 
@@ -292,6 +303,22 @@ public class Empresa extends AuditableEntity {
 
     public void setCertificadoFechaExpiracion(LocalDate certificadoFechaExpiracion) {
         this.certificadoFechaExpiracion = certificadoFechaExpiracion;
+    }
+
+    public String getCscId() {
+        return cscId;
+    }
+
+    public void setCscId(String cscId) {
+        this.cscId = cscId;
+    }
+
+    public String getCscEncrypted() {
+        return cscEncrypted;
+    }
+
+    public void setCscEncrypted(String cscEncrypted) {
+        this.cscEncrypted = cscEncrypted;
     }
 
     public Boolean getActivo() {

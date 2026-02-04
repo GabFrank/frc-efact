@@ -1,0 +1,386 @@
+package com.frcefact.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.frcefact.model.base.AuditableEntity;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "nota_remision", schema = "financiero",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_nr_numero", 
+            columnNames = {"timbrado_detalle_id", "numero_nota_remision"})
+    },
+    indexes = {
+        @Index(name = "idx_nr_empresa", columnList = "empresa_id")
+    }
+)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class NotaRemision extends AuditableEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotNull(message = "Empresa es requerida")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "empresa_id", nullable = false)
+    private Empresa empresa;
+
+    @NotNull(message = "Timbrado detalle es requerido")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "timbrado_detalle_id", nullable = false)
+    private TimbradoDetalle timbradoDetalle;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cliente_id")
+    private Cliente cliente;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "factura_legal_id")
+    private FacturaLegal facturaLegal;
+
+    @NotNull(message = "Número de nota de remisión es requerido")
+    @Column(name = "numero_nota_remision", nullable = false)
+    private Integer numeroNotaRemision;
+
+    @NotNull(message = "Fecha es requerida")
+    @Column(nullable = false)
+    private LocalDateTime fecha;
+
+    // Salida
+    @Column(name = "direccion_partida", columnDefinition = "TEXT")
+    private String direccionPartida;
+
+    @Size(max = 100)
+    @Column(name = "ciudad_partida", length = 100)
+    private String ciudadPartida;
+
+    @Size(max = 100)
+    @Column(name = "departamento_partida", length = 100)
+    private String departamentoPartida;
+
+    @Column(name = "ciudad_partida_id")
+    private Long ciudadPartidaId;
+
+    @Column(name = "departamento_partida_id")
+    private Long departamentoPartidaId;
+
+    @Column(name = "distrito_partida_id")
+    private Long distritoPartidaId;
+
+    // Llegada
+    @Size(max = 200)
+    @Column(name = "nombre_destinatario", length = 200)
+    private String nombreDestinatario;
+
+    @Size(max = 20)
+    @Column(name = "ruc_destinatario", length = 20)
+    private String rucDestinatario;
+
+    @Column(name = "direccion_destinatario", columnDefinition = "TEXT")
+    private String direccionDestinatario;
+
+    @Size(max = 100)
+    @Column(name = "ciudad_destinatario", length = 100)
+    private String ciudadDestinatario;
+
+    @Size(max = 100)
+    @Column(name = "departamento_destinatario", length = 100)
+    private String departamentoDestinatario;
+
+    @Column(name = "ciudad_destinatario_id")
+    private Long ciudadDestinatarioId;
+
+    @Column(name = "departamento_destinatario_id")
+    private Long departamentoDestinatarioId;
+
+    @Column(name = "distrito_destinatario_id")
+    private Long distritoDestinatarioId;
+
+    // Datos remision
+    @Size(max = 50)
+    @Column(name = "motivo_emision", length = 50)
+    private String motivoEmision;
+
+    @Column(name = "fecha_inicio_traslado")
+    private LocalDate fechaInicioTraslado;
+
+    @Column(name = "fecha_fin_traslado")
+    private LocalDate fechaFinTraslado;
+
+    @Column(name = "km_estimado", precision = 10, scale = 2)
+    private BigDecimal kmEstimado;
+
+    // Transporte
+    @Size(max = 50)
+    @Column(name = "tipo_transporte", length = 50)
+    private String tipoTransporte;
+
+    @Size(max = 50)
+    @Column(name = "modalidad_transporte", length = 50)
+    private String modalidadTransporte;
+
+    // Vehiculo - Relación opcional
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vehiculo_id")
+    private Vehiculo vehiculo;
+
+    // Vehiculo - Campos legacy (mantenidos para compatibilidad)
+    @Deprecated
+    @Size(max = 100)
+    @Column(name = "vehiculo_marca", length = 100)
+    private String vehiculoMarca;
+
+    @Deprecated
+    @Size(max = 20)
+    @Column(name = "vehiculo_matricula", length = 20)
+    private String vehiculoMatricula;
+
+    // Transportista (Empresa)
+    @Size(max = 200)
+    @Column(name = "transportista_nombre", length = 200)
+    private String transportistaNombre;
+
+    @Size(max = 20)
+    @Column(name = "transportista_ruc", length = 20)
+    private String transportistaRuc;
+
+    @Column(name = "transportista_direccion", columnDefinition = "TEXT")
+    private String transportistaDireccion;
+
+    // Chofer - Relación opcional
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "chofer_id")
+    private Chofer chofer;
+
+    // Conductor (Chofer) - Campos legacy (mantenidos para compatibilidad)
+    @Deprecated
+    @Size(max = 200)
+    @Column(name = "conductor_nombre", length = 200)
+    private String conductorNombre;
+
+    @Deprecated
+    @Size(max = 20)
+    @Column(name = "conductor_doc", length = 20)
+    private String conductorDoc;
+
+    @Deprecated
+    @Column(name = "conductor_direccion", columnDefinition = "TEXT")
+    private String conductorDireccion;
+
+    @Column(name = "fecha_estimada_factura")
+    private LocalDate fechaEstimadaFactura;
+
+    @Column(nullable = false)
+    private Boolean activo = true;
+
+    @OneToMany(mappedBy = "notaRemision", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<NotaRemisionItem> items = new ArrayList<>();
+
+    @OneToOne(mappedBy = "notaRemision", fetch = FetchType.LAZY)
+    private DocumentoElectronico documentoElectronico;
+
+    public NotaRemision() {
+    }
+
+    public void agregarItem(NotaRemisionItem item) {
+        items.add(item);
+        item.setNotaRemision(this);
+    }
+
+    public void eliminarItem(NotaRemisionItem item) {
+        items.remove(item);
+        item.setNotaRemision(null);
+    }
+
+    // Getters y Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public Empresa getEmpresa() { return empresa; }
+    public void setEmpresa(Empresa empresa) { this.empresa = empresa; }
+
+    public TimbradoDetalle getTimbradoDetalle() { return timbradoDetalle; }
+    public void setTimbradoDetalle(TimbradoDetalle timbradoDetalle) { this.timbradoDetalle = timbradoDetalle; }
+
+    public Cliente getCliente() { return cliente; }
+    public void setCliente(Cliente cliente) { this.cliente = cliente; }
+
+    public FacturaLegal getFacturaLegal() { return facturaLegal; }
+    public void setFacturaLegal(FacturaLegal facturaLegal) { this.facturaLegal = facturaLegal; }
+
+    public Integer getNumeroNotaRemision() { return numeroNotaRemision; }
+    public void setNumeroNotaRemision(Integer numeroNotaRemision) { this.numeroNotaRemision = numeroNotaRemision; }
+
+    public LocalDateTime getFecha() { return fecha; }
+    public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
+
+    public String getDireccionPartida() { return direccionPartida; }
+    public void setDireccionPartida(String direccionPartida) { this.direccionPartida = direccionPartida; }
+
+    public String getCiudadPartida() { return ciudadPartida; }
+    public void setCiudadPartida(String ciudadPartida) { this.ciudadPartida = ciudadPartida; }
+
+    public String getDepartamentoPartida() { return departamentoPartida; }
+    public void setDepartamentoPartida(String departamentoPartida) { this.departamentoPartida = departamentoPartida; }
+
+    public Long getCiudadPartidaId() { return ciudadPartidaId; }
+    public void setCiudadPartidaId(Long ciudadPartidaId) { this.ciudadPartidaId = ciudadPartidaId; }
+
+    public Long getDepartamentoPartidaId() { return departamentoPartidaId; }
+    public void setDepartamentoPartidaId(Long departamentoPartidaId) { this.departamentoPartidaId = departamentoPartidaId; }
+
+    public Long getDistritoPartidaId() { return distritoPartidaId; }
+    public void setDistritoPartidaId(Long distritoPartidaId) { this.distritoPartidaId = distritoPartidaId; }
+
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
+
+    public String getRucDestinatario() { return rucDestinatario; }
+    public void setRucDestinatario(String rucDestinatario) { this.rucDestinatario = rucDestinatario; }
+
+    public String getDireccionDestinatario() { return direccionDestinatario; }
+    public void setDireccionDestinatario(String direccionDestinatario) { this.direccionDestinatario = direccionDestinatario; }
+
+    public String getCiudadDestinatario() { return ciudadDestinatario; }
+    public void setCiudadDestinatario(String ciudadDestinatario) { this.ciudadDestinatario = ciudadDestinatario; }
+
+    public String getDepartamentoDestinatario() { return departamentoDestinatario; }
+    public void setDepartamentoDestinatario(String departamentoDestinatario) { this.departamentoDestinatario = departamentoDestinatario; }
+
+    public Long getCiudadDestinatarioId() { return ciudadDestinatarioId; }
+    public void setCiudadDestinatarioId(Long ciudadDestinatarioId) { this.ciudadDestinatarioId = ciudadDestinatarioId; }
+
+    public Long getDepartamentoDestinatarioId() { return departamentoDestinatarioId; }
+    public void setDepartamentoDestinatarioId(Long departamentoDestinatarioId) { this.departamentoDestinatarioId = departamentoDestinatarioId; }
+
+    public Long getDistritoDestinatarioId() { return distritoDestinatarioId; }
+    public void setDistritoDestinatarioId(Long distritoDestinatarioId) { this.distritoDestinatarioId = distritoDestinatarioId; }
+
+    public String getMotivoEmision() { return motivoEmision; }
+    public void setMotivoEmision(String motivoEmision) { this.motivoEmision = motivoEmision; }
+
+    public LocalDate getFechaInicioTraslado() { return fechaInicioTraslado; }
+    public void setFechaInicioTraslado(LocalDate fechaInicioTraslado) { this.fechaInicioTraslado = fechaInicioTraslado; }
+
+    public LocalDate getFechaFinTraslado() { return fechaFinTraslado; }
+    public void setFechaFinTraslado(LocalDate fechaFinTraslado) { this.fechaFinTraslado = fechaFinTraslado; }
+
+    public BigDecimal getKmEstimado() { return kmEstimado; }
+    public void setKmEstimado(BigDecimal kmEstimado) { this.kmEstimado = kmEstimado; }
+
+    public String getTipoTransporte() { return tipoTransporte; }
+    public void setTipoTransporte(String tipoTransporte) { this.tipoTransporte = tipoTransporte; }
+
+    public String getModalidadTransporte() { return modalidadTransporte; }
+    public void setModalidadTransporte(String modalidadTransporte) { this.modalidadTransporte = modalidadTransporte; }
+
+    // Getters y Setters para relaciones
+    public Vehiculo getVehiculo() { return vehiculo; }
+    public void setVehiculo(Vehiculo vehiculo) { this.vehiculo = vehiculo; }
+
+    public Chofer getChofer() { return chofer; }
+    public void setChofer(Chofer chofer) { this.chofer = chofer; }
+
+    // Getters y Setters para campos legacy (compatibilidad)
+    @Deprecated
+    public String getVehiculoMarca() { 
+        // Si hay relación, usar datos de la entidad
+        if (vehiculo != null && vehiculo.getMarca() != null) {
+            return vehiculo.getMarca();
+        }
+        return vehiculoMarca; 
+    }
+    
+    @Deprecated
+    public void setVehiculoMarca(String vehiculoMarca) { this.vehiculoMarca = vehiculoMarca; }
+
+    @Deprecated
+    public String getVehiculoMatricula() { 
+        // Si hay relación, usar datos de la entidad
+        if (vehiculo != null && vehiculo.getMatricula() != null) {
+            return vehiculo.getMatricula();
+        }
+        return vehiculoMatricula; 
+    }
+    
+    @Deprecated
+    public void setVehiculoMatricula(String vehiculoMatricula) { this.vehiculoMatricula = vehiculoMatricula; }
+
+    public String getTransportistaNombre() { return transportistaNombre; }
+    public void setTransportistaNombre(String transportistaNombre) { this.transportistaNombre = transportistaNombre; }
+
+    public String getTransportistaRuc() { return transportistaRuc; }
+    public void setTransportistaRuc(String transportistaRuc) { this.transportistaRuc = transportistaRuc; }
+
+    public String getTransportistaDireccion() { return transportistaDireccion; }
+    public void setTransportistaDireccion(String transportistaDireccion) { this.transportistaDireccion = transportistaDireccion; }
+
+    // Getters y Setters para campos legacy de chofer (compatibilidad)
+    @Deprecated
+    public String getConductorNombre() { 
+        // Si hay relación, usar datos de la entidad
+        if (chofer != null && chofer.getNombre() != null) {
+            return chofer.getNombre();
+        }
+        return conductorNombre; 
+    }
+    
+    @Deprecated
+    public void setConductorNombre(String conductorNombre) { this.conductorNombre = conductorNombre; }
+
+    @Deprecated
+    public String getConductorDoc() { 
+        // Si hay relación, usar datos de la entidad
+        if (chofer != null && chofer.getDocumento() != null) {
+            return chofer.getDocumento();
+        }
+        return conductorDoc; 
+    }
+    
+    @Deprecated
+    public void setConductorDoc(String conductorDoc) { this.conductorDoc = conductorDoc; }
+
+    @Deprecated
+    public String getConductorDireccion() { 
+        // Si hay relación, usar datos de la entidad
+        if (chofer != null && chofer.getDireccion() != null) {
+            return chofer.getDireccion();
+        }
+        return conductorDireccion; 
+    }
+    
+    @Deprecated
+    public void setConductorDireccion(String conductorDireccion) { this.conductorDireccion = conductorDireccion; }
+
+    public LocalDate getFechaEstimadaFactura() { return fechaEstimadaFactura; }
+    public void setFechaEstimadaFactura(LocalDate fechaEstimadaFactura) { this.fechaEstimadaFactura = fechaEstimadaFactura; }
+
+    public Boolean getActivo() { return activo; }
+    public void setActivo(Boolean activo) { this.activo = activo; }
+
+    public List<NotaRemisionItem> getItems() { return items; }
+    public void setItems(List<NotaRemisionItem> items) { this.items = items; }
+
+    public DocumentoElectronico getDocumentoElectronico() { return documentoElectronico; }
+    public void setDocumentoElectronico(DocumentoElectronico documentoElectronico) { this.documentoElectronico = documentoElectronico; }
+
+    public String getNumeroFormateado() {
+        if (timbradoDetalle == null || numeroNotaRemision == null) {
+            return "";
+        }
+        return String.format("%s-%s-%07d",
+            timbradoDetalle.getCodigoEstablecimientoFactura(),
+            timbradoDetalle.getPuntoExpedicion(),
+            numeroNotaRemision);
+    }
+}
+

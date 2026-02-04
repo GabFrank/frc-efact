@@ -25,12 +25,38 @@ export class EmpresaApiService {
     return this.http.get<Empresa[]>(`${this.baseUrl}/mis-empresas`);
   }
 
-  create(empresa: Partial<Empresa>): Observable<Empresa> {
-    return this.http.post<Empresa>(this.baseUrl, empresa);
+  create(empresa: Partial<Empresa>, certificadoFile?: File, certificadoPassword?: string): Observable<Empresa> {
+    // Si hay certificado, usar FormData (multipart)
+    if (certificadoFile && certificadoPassword) {
+      const formData = new FormData();
+      const empresaBlob = new Blob([JSON.stringify(empresa)], { type: 'application/json' });
+      formData.append('empresa', empresaBlob);
+      formData.append('certificadoFile', certificadoFile);
+      formData.append('certificadoPassword', certificadoPassword);
+
+      return this.http.post<Empresa>(this.baseUrl, formData);
+    }
+
+    // Si no hay certificado, enviar JSON normal (Spring detectará automáticamente el Content-Type)
+    return this.http.post<Empresa>(this.baseUrl, empresa, {
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
-  update(id: number, empresa: Partial<Empresa>): Observable<Empresa> {
-    return this.http.put<Empresa>(`${this.baseUrl}/${id}`, empresa);
+  update(id: number, empresa: Partial<Empresa>, certificadoFile?: File, certificadoPassword?: string): Observable<Empresa> {
+    // Si hay certificado, usar FormData (multipart)
+    if (certificadoFile && certificadoPassword) {
+      const formData = new FormData();
+      formData.append('empresa', new Blob([JSON.stringify(empresa)], { type: 'application/json' }));
+      formData.append('certificadoFile', certificadoFile);
+      formData.append('certificadoPassword', certificadoPassword);
+
+      return this.http.put<Empresa>(`${this.baseUrl}/${id}`, formData);
+    }
+    // Si no hay certificado, enviar JSON normal (Spring detectará automáticamente el Content-Type)
+    return this.http.put<Empresa>(`${this.baseUrl}/${id}`, empresa, {
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   delete(id: number): Observable<void> {
@@ -60,5 +86,29 @@ export class EmpresaApiService {
   // Get users available for assignment to companies (excludes ADMIN)
   getUsuariosDisponibles(empresaId: number): Observable<User[]> {
     return this.http.get<User[]>(`${environment.apiUrl}/usuarios/asignables`);
+  }
+
+  /**
+   * Sube un certificado PFX para una empresa
+   */
+  uploadCertificado(empresaId: number, file: File, password: string): Observable<{ certificadoPath: string; fechaExpiracion: string | null; mensaje: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('password', password);
+
+    return this.http.post<{ certificadoPath: string; fechaExpiracion: string | null; mensaje: string }>(
+      `${this.baseUrl}/${empresaId}/certificado`,
+      formData
+    );
+  }
+
+  /**
+   * Actualiza solo la contraseña del certificado existente
+   */
+  actualizarPasswordCertificado(empresaId: number, nuevaPassword: string): Observable<void> {
+    return this.http.put<void>(
+      `${this.baseUrl}/${empresaId}/certificado/password`,
+      { password: nuevaPassword }
+    );
   }
 }

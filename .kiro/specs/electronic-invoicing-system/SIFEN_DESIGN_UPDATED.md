@@ -3,7 +3,7 @@
 ## Basado en Implementación de Referencia
 
 Este documento actualiza el diseño de integración con SIFEN basándose en la implementación funcional del repositorio:
-https://github.com/GabFrank/franco-system-backend-filial (branch: facturacion-electronica)
+https://github.com/GabFrank/franco-system-backend-filial (branch: 3.0.7-2)
 
 ## Arquitectura de Servicios
 

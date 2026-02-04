@@ -16,7 +16,7 @@ import java.util.List;
  * Controller REST para gestión de detalles de timbrados (puntos de expedición).
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping
 @CrossOrigin(origins = "*")
 public class TimbradoDetalleController {
 
@@ -34,12 +34,16 @@ public class TimbradoDetalleController {
      * Crea un nuevo detalle de timbrado.
      */
     @PostMapping("/timbrados/{timbradoId}/detalles")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     public ResponseEntity<TimbradoDetalleDto> crearDetalle(
             @PathVariable Long timbradoId,
             @Valid @RequestBody TimbradoDetalleDto dto) {
         
-        dto.setTimbradoId(timbradoId);
+        // Validar que el timbradoId del path coincide con el del body
+        if (!timbradoId.equals(dto.getTimbradoId())) {
+            throw new IllegalArgumentException("El ID de timbrado en la URL no coincide con el del cuerpo de la petición");
+        }
+        
         TimbradoDetalle detalle = timbradoDetalleService.crear(dto);
         TimbradoDetalleDto detalleDto = timbradoDetalleMapper.toDto(detalle);
         
@@ -94,7 +98,7 @@ public class TimbradoDetalleController {
      * Actualiza un detalle de timbrado.
      */
     @PutMapping("/timbrado-detalles/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     public ResponseEntity<TimbradoDetalleDto> actualizarDetalle(
             @PathVariable Long id,
             @Valid @RequestBody TimbradoDetalleDto dto) {
@@ -109,7 +113,7 @@ public class TimbradoDetalleController {
      * Desactiva un detalle de timbrado.
      */
     @DeleteMapping("/timbrado-detalles/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     public ResponseEntity<Void> desactivarDetalle(@PathVariable Long id) {
         timbradoDetalleService.desactivar(id);
         return ResponseEntity.noContent().build();
@@ -125,6 +129,22 @@ public class TimbradoDetalleController {
             @RequestParam(defaultValue = "80.0") double umbralPorcentaje) {
         
         List<TimbradoDetalle> detalles = timbradoDetalleService.obtenerDetallesPorAgotarse(timbradoId, umbralPorcentaje);
+        List<TimbradoDetalleDto> detallesDto = detalles.stream()
+                .map(timbradoDetalleMapper::toDto)
+                .toList();
+        
+        return ResponseEntity.ok(detallesDto);
+    }
+
+    /**
+     * Lista todos los detalles activos de una empresa.
+     */
+    @GetMapping("/timbrado-detalles/empresa/{empresaId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    public ResponseEntity<List<TimbradoDetalleDto>> listarDetallesActivosPorEmpresa(
+            @PathVariable Long empresaId) {
+        
+        List<TimbradoDetalle> detalles = timbradoDetalleService.listarActivosPorEmpresa(empresaId);
         List<TimbradoDetalleDto> detallesDto = detalles.stream()
                 .map(timbradoDetalleMapper::toDto)
                 .toList();

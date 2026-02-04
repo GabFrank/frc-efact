@@ -19,13 +19,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * Controlador REST para gestión de documentos electrónicos.
  */
 @RestController
-@RequestMapping("/api/documentos-electronicos")
+@RequestMapping("/documentos-electronicos")
 @Tag(name = "Documentos Electrónicos", description = "Gestión de documentos electrónicos (DEs)")
 public class DocumentoElectronicoController {
 
@@ -48,6 +49,7 @@ public class DocumentoElectronicoController {
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    @Transactional(readOnly = true)
     @Operation(summary = "Listar documentos electrónicos", 
                description = "Lista documentos electrónicos con filtros opcionales por estado y empresa")
     public ResponseEntity<Page<DocumentoElectronicoDto>> listar(

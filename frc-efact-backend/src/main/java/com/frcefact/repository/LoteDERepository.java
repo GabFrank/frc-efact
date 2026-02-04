@@ -38,7 +38,7 @@ public interface LoteDERepository extends JpaRepository<LoteDE, Long> {
      * Busca lotes con error que pueden ser reintentados
      */
     @Query("SELECT l FROM LoteDE l " +
-           "WHERE l.estado = 'ERROR' " +
+           "WHERE l.estado IN ('ERROR', 'ERROR_ENVIO') " +
            "AND l.intentos < :maxIntentos " +
            "AND (l.fechaUltimoIntento IS NULL OR l.fechaUltimoIntento < :fechaLimite) " +
            "ORDER BY l.fechaUltimoIntento ASC")

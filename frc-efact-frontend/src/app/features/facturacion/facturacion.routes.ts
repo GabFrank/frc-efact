@@ -10,7 +10,11 @@ export const FACTURACION_ROUTES: Routes = [
       {
         path: '',
         loadComponent: () => import('./factura-list.component').then(m => m.FacturaListComponent),
-        data: { title: 'Facturas' }
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Facturas',
+          roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']
+        }
       },
       {
         path: 'nueva',
@@ -22,17 +26,21 @@ export const FACTURACION_ROUTES: Routes = [
         }
       },
       {
-        path: ':id',
-        loadComponent: () => import('./factura-view.component').then(m => m.FacturaViewComponent),
-        data: { title: 'Ver Factura' }
-      },
-      {
         path: ':id/editar',
         loadComponent: () => import('./factura-form.component').then(m => m.FacturaFormComponent),
         canActivate: [roleGuard],
         data: { 
           title: 'Editar Factura',
           roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']
+        }
+      },
+      {
+        path: ':id',
+        loadComponent: () => import('./factura-view.component').then(m => m.FacturaViewComponent),
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Ver Factura',
+          roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']
         }
       }
     ]

@@ -24,6 +24,17 @@ export interface DashboardEmpresa {
   totalGuaraniesMesActual: number;
   totalesPorIva: TotalesPorIva;
   top10Clientes: ClienteRanking[];
+  top10Productos: ProductoRanking[];
+  facturasAprobadas: FacturasAprobadas;
+  facturasCanceladas: FacturasCanceladas;
+}
+
+export interface ProductoRanking {
+  productoId: number;
+  codigo?: string;
+  descripcion: string;
+  cantidadVendida: number;
+  montoTotal: number;
 }
 
 export interface TotalesPorIva {
@@ -39,4 +50,17 @@ export interface ClienteRanking {
   ruc?: string;
   cantidadFacturas: number;
   montoTotal: number;
+}
+
+export interface FacturasAprobadas {
+  cantidad: number;
+  totalGs: number;
+  totalIva10: number;
+  totalIva5: number;
+  totalExentas: number;
+}
+
+export interface FacturasCanceladas {
+  cantidad: number;
+  totalGs: number;
 }

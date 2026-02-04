@@ -19,6 +19,7 @@ import java.util.Set;
 @Table(name = "usuario", schema = "persona", indexes = {
     @Index(name = "idx_usuario_username", columnList = "username"),
     @Index(name = "idx_usuario_email", columnList = "email"),
+    @Index(name = "idx_usuario_auth0_id", columnList = "auth0_id"),
     @Index(name = "idx_usuario_is_active", columnList = "is_active"),
     @Index(name = "idx_usuario_creado_en", columnList = "creado_en")
 })
@@ -39,9 +40,14 @@ public class Usuario extends AuditableEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @NotBlank(message = "Password es requerido")
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(name = "auth0_id", unique = true)
+    private String auth0Id;
+
+    @Column(name = "imagen_perfil", length = 500)
+    private String imagenPerfil;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
@@ -126,6 +132,22 @@ public class Usuario extends AuditableEntity {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getAuth0Id() {
+        return auth0Id;
+    }
+
+    public void setAuth0Id(String auth0Id) {
+        this.auth0Id = auth0Id;
+    }
+
+    public String getImagenPerfil() {
+        return imagenPerfil;
+    }
+
+    public void setImagenPerfil(String imagenPerfil) {
+        this.imagenPerfil = imagenPerfil;
     }
 
     public Boolean getIsActive() {

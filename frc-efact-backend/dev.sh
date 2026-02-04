@@ -9,14 +9,24 @@ COMMAND=${1:-run}
 
 case $COMMAND in
   run|start)
-    echo "🚀 Iniciando aplicación en modo desarrollo..."
-    ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+    echo "🚀 Iniciando aplicación en modo desarrollo con debugger..."
+    echo "📍 Debugger disponible en puerto 5005"
+    echo "💡 Conecta tu IDE al puerto 5005 para debugging remoto"
+    # Cargar variables de entorno desde ~/.zshrc si existe
+    if [ -f ~/.zshrc ]; then
+      source ~/.zshrc
+    fi
+    ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.jvmArguments="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"
     ;;
     
   debug)
     echo "🐛 Iniciando aplicación en modo debug..."
     echo "📍 Debugger disponible en puerto 5005"
     echo "💡 Conecta tu IDE al puerto 5005 para debugging remoto"
+    # Cargar variables de entorno desde ~/.zshrc si existe
+    if [ -f ~/.zshrc ]; then
+      source ~/.zshrc
+    fi
     ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev -Dspring-boot.run.jvmArguments="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005"
     ;;
     
@@ -84,7 +94,7 @@ case $COMMAND in
     echo "Uso: ./dev.sh [comando]"
     echo ""
     echo "Comandos disponibles:"
-    echo "  run, start       - Iniciar aplicación en modo desarrollo (default)"
+    echo "  run, start       - Iniciar aplicación en modo desarrollo con debugger (puerto 5005)"
     echo "  debug            - Iniciar aplicación con debugger habilitado (puerto 5005)"
     echo "  test             - Ejecutar tests unitarios"
     echo "  test-coverage    - Ejecutar tests con reporte de cobertura"

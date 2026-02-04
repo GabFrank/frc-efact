@@ -19,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -34,9 +35,9 @@ public class EmpresaService {
 
     private static final Logger logger = LoggerFactory.getLogger(EmpresaService.class);
 
-    // Patrón para validar RUC paraguayo: formato XXXXXXXX-X (8 dígitos, guión, 1
-    // dígito verificador)
-    private static final Pattern RUC_PATTERN = Pattern.compile("^\\d{8}-\\d$");
+    // Patrón para validar RUC paraguayo: formato XXXXXX-X, XXXXXXX-X o XXXXXXXX-X 
+    // (6-8 dígitos, guión, 1 dígito verificador)
+    private static final Pattern RUC_PATTERN = Pattern.compile("^\\d{6,8}-\\d$");
 
     private final EmpresaRepository empresaRepository;
     private final UsuarioRepository usuarioRepository;
@@ -171,6 +172,11 @@ public class EmpresaService {
             empresaExistente.setCertificadoPath(empresaActualizada.getCertificadoPath());
             empresaExistente.setCertificadoPasswordEncrypted(empresaActualizada.getCertificadoPasswordEncrypted());
             empresaExistente.setCertificadoFechaExpiracion(empresaActualizada.getCertificadoFechaExpiracion());
+        }
+
+        // Actualizar configuración SIFEN
+        if (empresaActualizada.getSifenAmbiente() != null) {
+            empresaExistente.setSifenAmbiente(empresaActualizada.getSifenAmbiente());
         }
 
         Empresa empresaGuardada = empresaRepository.save(empresaExistente);
@@ -412,24 +418,38 @@ public class EmpresaService {
             throw new IllegalArgumentException("RUC no puede estar vacío");
         }
 
-        // Validar formato
-        if (!RUC_PATTERN.matcher(ruc).matches()) {
-            throw new IllegalArgumentException("Formato de RUC inválido");
+        String rucTrimmed = ruc.trim();
+        
+        // Validar formato: debe tener guión y dígito verificador (6-8 dígitos)
+        if (!RUC_PATTERN.matcher(rucTrimmed).matches()) {
+            throw new IllegalArgumentException("Formato de RUC inválido. Debe tener formato: 6-8 dígitos, guión y dígito verificador (ej: 123456-7, 4043581-4, 80016875-5)");
         }
 
         // Extraer partes del RUC
-        String[] partes = ruc.split("-");
+        String[] partes = rucTrimmed.split("-");
+        if (partes.length != 2) {
+            throw new IllegalArgumentException("Formato de RUC inválido. Debe incluir guión y dígito verificador");
+        }
+        
         String numeroBase = partes[0];
-        int digitoVerificador = Integer.parseInt(partes[1]);
+        int digitoVerificador;
+        
+        try {
+            digitoVerificador = Integer.parseInt(partes[1]);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Dígito verificador inválido");
+        }
 
         // Calcular dígito verificador usando la nueva utilidad
         Integer digitoCalculado = CalcularVerificadorRuc.getDigitoVerificador(numeroBase);
 
-        if (digitoCalculado == null || digitoCalculado != digitoVerificador) {
-            throw new IllegalArgumentException("Dígito verificador inválido");
+        if (digitoCalculado == null) {
+            throw new IllegalArgumentException("Error al calcular dígito verificador");
         }
 
-        logger.debug("RUC validado correctamente: {}", ruc);
+        if (digitoCalculado != digitoVerificador) {
+            throw new IllegalArgumentException("Dígito verificador del RUC es incorrecto. Dígito esperado: " + digitoCalculado);
+        }
     }
 
     /**
@@ -453,6 +473,47 @@ public class EmpresaService {
     public List<Empresa> obtenerEmpresasConCertificadoPorVencer() {
         logger.debug("Obteniendo empresas con certificado por vencer");
         return empresaRepository.findEmpresasConCertificadoPorVencer();
+    }
+
+    /**
+     * Actualiza solo los datos del certificado de una empresa.
+     *
+     * @param id ID de la empresa
+     * @param certificadoPath Path del certificado
+     * @param certificadoPasswordEncrypted Password del certificado ya encriptado
+     * @param fechaExpiracion Fecha de expiración del certificado
+     * @throws ResourceNotFoundException si la empresa no existe
+     * @throws AccessDeniedException   si el usuario no tiene permisos
+     */
+    @Transactional
+    public void actualizarCertificado(Long id, String certificadoPath, String certificadoPasswordEncrypted, LocalDate fechaExpiracion) {
+        logger.info("Actualizando certificado para empresa ID: {}", id);
+
+        // Verificar permisos
+        if (!empresaSecurityService.hasAccess(id, "WRITE")) {
+            throw new AccessDeniedException("No tiene permisos para modificar esta empresa");
+        }
+
+        Empresa empresa = empresaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa", "ID", id));
+
+        logger.info("📝 Path recibido para guardar en BD: {}", certificadoPath);
+        logger.info("📝 Path anterior en BD: {}", empresa.getCertificadoPath());
+
+        empresa.setCertificadoPath(certificadoPath);
+        empresa.setCertificadoPasswordEncrypted(certificadoPasswordEncrypted);
+        empresa.setCertificadoFechaExpiracion(fechaExpiracion);
+
+        Empresa empresaGuardada = empresaRepository.save(empresa);
+        
+        // Verificar que se guardó correctamente
+        Empresa empresaVerificada = empresaRepository.findById(id).orElse(null);
+        if (empresaVerificada != null) {
+            logger.info("✅ Certificado actualizado exitosamente - Path guardado en BD: {}", empresaVerificada.getCertificadoPath());
+            logger.info("✅ Password guardado: {}", empresaVerificada.getCertificadoPasswordEncrypted() != null ? "Sí" : "No");
+            logger.info("✅ Fecha expiración guardada: {}", empresaVerificada.getCertificadoFechaExpiracion());
+        }
+        logger.info("✅ Certificado actualizado para empresa ID: {}", id);
     }
 
     /**

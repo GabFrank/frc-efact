@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Observable, combineLatest, map } from 'rxjs';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -462,19 +462,31 @@ export class TimbradoListComponent implements OnInit {
     private timbradoApiService: TimbradoApiService,
     private empresaApiService: EmpresaApiService,
     private router: Router,
+    private route: ActivatedRoute,
     private dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
-    this.loadData();
+    // Leer empresaId de query params si existe
+    this.route.queryParams.subscribe(params => {
+      if (params['empresaId']) {
+        this.selectedEmpresaId = +params['empresaId'];
+      }
+      this.loadData();
+    });
   }
 
   private loadData(): void {
     this.loading = true;
     this.error = null;
 
+    // Si hay empresaId seleccionado, cargar solo timbrados de esa empresa
+    const timbradosObservable = this.selectedEmpresaId 
+      ? this.timbradoApiService.getByEmpresa(this.selectedEmpresaId)
+      : this.timbradoApiService.getAll();
+
     combineLatest([
-      this.timbradoApiService.getAll(),
+      timbradosObservable,
       this.empresaApiService.getAll()
     ]).subscribe({
       next: ([timbrados, empresas]) => {
@@ -539,7 +551,8 @@ export class TimbradoListComponent implements OnInit {
   }
 
   onFilterChange(): void {
-    this.updateFilteredTimbrados();
+    // Si cambia el filtro de empresa, recargar datos
+    this.loadData();
   }
 
   onCreateTimbrado(): void {

@@ -35,6 +35,27 @@ public class XmlGeneratorService {
     public String generarXmlOriginal(FacturaLegal factura) {
         log.debug("🔧 Generando XML original para factura ID: {}", factura.getId());
         
+        // Validar datos requeridos
+        if (factura.getEmpresa() == null) {
+            throw new BusinessException("La factura no tiene empresa asociada");
+        }
+        if (factura.getEmpresa().getRuc() == null || factura.getEmpresa().getRuc().isBlank()) {
+            throw new BusinessException("La empresa no tiene RUC configurado");
+        }
+        if (factura.getTimbradoDetalle() == null) {
+            throw new BusinessException("La factura no tiene timbrado detalle configurado");
+        }
+        if (factura.getTimbradoDetalle().getTimbrado() == null) {
+            throw new BusinessException("El timbrado detalle no tiene timbrado asociado");
+        }
+        if (factura.getItems() == null || factura.getItems().isEmpty()) {
+            throw new BusinessException("La factura no tiene items");
+        }
+        
+        log.debug("   - Empresa RUC: {}", factura.getEmpresa().getRuc());
+        log.debug("   - Timbrado: {}", factura.getTimbradoDetalle().getTimbrado().getNumero());
+        log.debug("   - Items: {}", factura.getItems().size());
+        
         try {
             // Generar XML simplificado con los datos básicos
             // El XML completo se generará cuando se envíe a SIFEN usando jsifenlib

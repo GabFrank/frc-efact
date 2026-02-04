@@ -40,21 +40,18 @@ public class TimbradoDetalle extends AuditableEntity {
     @Column(name = "codigo_establecimiento_factura", nullable = false, length = 10)
     private String codigoEstablecimientoFactura;
 
-    @NotNull(message = "Cantidad es requerida")
-    @Column(nullable = false)
+    // Campos de rango (opcionales para timbrados electrónicos)
+    @Column(nullable = true)
     private Long cantidad;
 
-    @NotNull(message = "Rango desde es requerido")
-    @Column(name = "rango_desde", nullable = false)
+    @Column(name = "rango_desde", nullable = true)
     private Long rangoDesde;
 
-    @NotNull(message = "Rango hasta es requerido")
-    @Column(name = "rango_hasta", nullable = false)
+    @Column(name = "rango_hasta", nullable = true)
     private Long rangoHasta;
 
-    @NotNull(message = "Número actual es requerido")
-    @Column(name = "numero_actual", nullable = false)
-    private Long numeroActual = 0L;
+    @Column(name = "numero_actual", nullable = true)
+    private Long numeroActual;
 
     // Ubicación del punto de expedición
     @NotNull(message = "Ciudad es requerida")
@@ -110,15 +107,28 @@ public class TimbradoDetalle extends AuditableEntity {
     }
 
     public boolean tieneNumerosDisponibles() {
+        if (rangoHasta == null || numeroActual == null) {
+            return false;
+        }
         return numeroActual <= rangoHasta;
     }
 
     public long getNumerosDisponibles() {
+        // Para timbrados electrónicos sin rangos (NULL), retornar 0
+        if (rangoHasta == null || numeroActual == null) {
+            return 0;
+        }
         return Math.max(0, rangoHasta - numeroActual + 1);
     }
 
     public double getPorcentajeUtilizado() {
-        if (cantidad == 0) return 0;
+        // Para timbrados electrónicos sin cantidad (NULL), retornar 0
+        if (cantidad == null || cantidad == 0) {
+            return 0.0;
+        }
+        if (numeroActual == null || rangoDesde == null) {
+            return 0.0;
+        }
         long utilizados = numeroActual - rangoDesde;
         return (utilizados * 100.0) / cantidad;
     }

@@ -367,15 +367,26 @@ export class TimbradoDetalleDialogComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Cargar datos de SIFEN
-    this.loadSifenData().then(() => {
-      if (this.isEditMode && this.data.detalle) {
-        this.loadGeografiaDataForEdit(this.data.detalle);
-      }
-    });
-
     // Agregar validador personalizado para rangos
     this.detalleForm.setValidators(this.rangoValidator.bind(this));
+
+    // Si estamos en modo edición, cargar los datos del detalle primero
+    if (this.isEditMode && this.data.detalle) {
+      const detalle = this.data.detalle;
+
+      // Cargar datos básicos primero
+      this.loadDetalleData(detalle);
+
+      // Luego cargar datos de SIFEN y geografía
+      this.loadSifenData().then(() => {
+        if (detalle) {
+          this.loadGeografiaDataForEdit(detalle);
+        }
+      });
+    } else {
+      // Solo cargar datos de SIFEN para nuevo detalle
+      this.loadSifenData();
+    }
   }
 
   get cantidadCalculada(): number {
@@ -411,6 +422,31 @@ export class TimbradoDetalleDialogComponent implements OnInit {
     });
   }
 
+  /**
+   * Carga los datos del detalle en el formulario cuando está en modo edición
+   */
+  private loadDetalleData(detalle: TimbradoDetalle): void {
+    this.detalleForm.patchValue({
+      puntoExpedicion: detalle.puntoExpedicion || '',
+      codigoEstablecimientoFactura: detalle.codigoEstablecimientoFactura || '',
+      rangoDesde: detalle.rangoDesde || null,
+      rangoHasta: detalle.rangoHasta || null,
+      numeroActual: detalle.numeroActual || null,
+      direccion: detalle.direccion || '',
+      telefono: detalle.telefono || '',
+      activo: detalle.activo !== undefined ? detalle.activo : true,
+      ciudadId: detalle.ciudadId || null,
+      barrioId: detalle.barrioId || null
+    });
+
+    // Habilitar numeroActual si existe (está disabled por defecto)
+    if (detalle.numeroActual !== null && detalle.numeroActual !== undefined) {
+      this.detalleForm.get('numeroActual')?.enable();
+      this.detalleForm.patchValue({ numeroActual: detalle.numeroActual });
+      this.detalleForm.get('numeroActual')?.disable(); // Volver a deshabilitar después de setear el valor
+    }
+  }
+
   private rangoValidator(control: AbstractControl): { [key: string]: boolean } | null {
     // Skip validation for electronic timbrados
     if (this.timbradoIsElectronico) {
@@ -429,25 +465,15 @@ export class TimbradoDetalleDialogComponent implements OnInit {
   }
 
   onSave(): void {
-    console.log('=== onSave START ===');
-    console.log('Form valid:', this.detalleForm.valid);
-    console.log('Form errors:', this.detalleForm.errors);
-    console.log('Form value:', this.detalleForm.value);
-    console.log('Is electronico:', this.timbradoIsElectronico);
-
     // Para timbrados electrónicos, deshabilitar validadores de rangos antes de validar
     if (this.timbradoIsElectronico) {
-      console.log('Limpiando validadores de rangos para timbrado electrónico');
       this.detalleForm.get('rangoDesde')?.clearValidators();
       this.detalleForm.get('rangoDesde')?.updateValueAndValidity();
       this.detalleForm.get('rangoHasta')?.clearValidators();
       this.detalleForm.get('rangoHasta')?.updateValueAndValidity();
     }
 
-    console.log('Form valid after clearing validators:', this.detalleForm.valid);
-
     if (this.detalleForm.invalid) {
-      console.log('Form is invalid. Errors:', this.getFormErrors());
       this.detalleForm.markAllAsTouched();
       return;
     }
@@ -456,13 +482,14 @@ export class TimbradoDetalleDialogComponent implements OnInit {
     const formValue = this.detalleForm.value;
 
     const detalleData: Partial<TimbradoDetalle> = {
-      puntoExpedicion: formValue.puntoExpedicion,
-      codigoEstablecimientoFactura: formValue.codigoEstablecimientoFactura,
+      timbradoId: this.timbradoId,
+      puntoExpedicion: formValue.puntoExpedicion?.toUpperCase(),
+      codigoEstablecimientoFactura: formValue.codigoEstablecimientoFactura?.toUpperCase(),
       ciudadId: formValue.ciudadId,
-      barrioId: formValue.barrioId,
-      direccion: formValue.direccion,
-      telefono: formValue.telefono,
-      activo: formValue.activo
+      barrioId: formValue.barrioId || null,
+      direccion: formValue.direccion || null,
+      telefono: formValue.telefono || null,
+      activo: formValue.activo !== undefined ? formValue.activo : true
     };
 
     // Solo incluir campos de rango para timbrados no electrónicos
@@ -471,8 +498,6 @@ export class TimbradoDetalleDialogComponent implements OnInit {
       detalleData.rangoDesde = formValue.rangoDesde;
       detalleData.rangoHasta = formValue.rangoHasta;
     }
-
-    console.log('Sending detalleData:', detalleData);
 
     if (this.isEditMode && this.data.detalle) {
       this.store.dispatch(TimbradoDetallesActions.updateDetalle({

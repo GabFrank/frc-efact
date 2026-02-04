@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { noAuthGuard } from './guards/no-auth.guard';
+import { empresaSelectedGuard } from './guards/empresa-selected.guard';
 
 export const routes: Routes = [
   {
@@ -31,23 +32,33 @@ export const routes: Routes = [
         loadChildren: () => import('./features/timbrados/timbrados.routes').then(m => m.TIMBRADOS_ROUTES)
       },
       {
-        path: 'productos',
-        loadComponent: () => import('./features/productos/productos-list.component').then(m => m.ProductosListComponent)
-      },
-      {
         path: 'clientes',
+        canActivate: [empresaSelectedGuard],
         loadComponent: () => import('./features/clientes/clientes-list.component').then(m => m.ClientesListComponent)
       },
       {
         path: 'facturacion',
-        loadComponent: () => import('./features/facturacion/factura-list.component').then(m => m.FacturaListComponent)
+        canActivate: [empresaSelectedGuard],
+        loadChildren: () => import('./features/facturacion/facturacion.routes').then(m => m.FACTURACION_ROUTES)
+      },
+      {
+        path: 'notas',
+        canActivate: [empresaSelectedGuard],
+        loadChildren: () => import('./features/notas/notas.routes').then(m => m.NOTAS_ROUTES)
+      },
+      {
+        path: 'transporte',
+        canActivate: [empresaSelectedGuard],
+        loadChildren: () => import('./features/transporte/transporte.routes').then(m => m.TRANSPORTE_ROUTES)
       },
       {
         path: 'documentos',
-        loadComponent: () => import('./features/documentos/documento-electronico-list.component').then(m => m.DocumentoElectronicoListComponent)
+        canActivate: [empresaSelectedGuard],
+        loadChildren: () => import('./features/documentos/documentos.routes').then(m => m.DOCUMENTOS_ROUTES)
       },
       {
         path: 'reportes',
+        canActivate: [empresaSelectedGuard],
         loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
       },
       {
@@ -55,7 +66,12 @@ export const routes: Routes = [
         loadChildren: () => import('./features/usuarios/usuarios.routes').then(m => m.USUARIOS_ROUTES)
       },
       {
+        path: 'perfil',
+        loadComponent: () => import('./features/usuarios/user-profile.component').then(m => m.UserProfileComponent)
+      },
+      {
         path: 'auditoria',
+        canActivate: [empresaSelectedGuard],
         loadComponent: () => import('./features/test-page.component').then(m => m.TestPageComponent)
       },
       {

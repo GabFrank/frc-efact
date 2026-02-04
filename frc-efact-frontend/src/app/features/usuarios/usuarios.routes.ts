@@ -9,24 +9,24 @@ export const USUARIOS_ROUTES: Routes = [
     path: '',
     component: UsuariosListComponent,
     canActivate: [roleGuard],
-    data: { roles: ['ADMIN'] }
+    data: { roles: ['ADMIN', 'EMPRESA_ADMIN'] }
   },
   {
     path: 'new',
     component: UsuarioFormComponent,
     canActivate: [roleGuard],
-    data: { roles: ['ADMIN'] }
+    data: { roles: ['ADMIN', 'EMPRESA_ADMIN'] }
   },
   {
     path: ':id/edit',
     component: UsuarioFormComponent,
     canActivate: [roleGuard],
-    data: { roles: ['ADMIN'] }
+    data: { roles: ['ADMIN', 'EMPRESA_ADMIN'] }
   },
   {
     path: ':id',
     component: UsuarioDetailComponent,
     canActivate: [roleGuard],
-    data: { roles: ['ADMIN'] }
+    data: { roles: ['ADMIN', 'EMPRESA_ADMIN'] }
   }
 ];

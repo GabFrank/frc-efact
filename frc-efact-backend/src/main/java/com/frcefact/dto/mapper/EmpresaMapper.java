@@ -87,6 +87,9 @@ public class EmpresaMapper {
         dto.setCertificadoPath(empresa.getCertificadoPath());
         dto.setCertificadoFechaExpiracion(empresa.getCertificadoFechaExpiracion());
 
+        // Configuración SIFEN
+        dto.setSifenAmbiente(empresa.getSifenAmbiente());
+
         return dto;
     }
 
@@ -161,6 +164,9 @@ public class EmpresaMapper {
                 throw new RuntimeException("Error al encriptar password del certificado", e);
             }
         }
+
+        // Configuración SIFEN
+        empresa.setSifenAmbiente(dto.getSifenAmbiente() != null ? dto.getSifenAmbiente() : "DEV");
 
         return empresa;
     }

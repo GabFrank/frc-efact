@@ -31,6 +31,10 @@ public class CreateUserRequest {
 
     private Boolean isActive = true;
 
+    // Campos opcionales para asignación automática a empresa
+    private Long empresaId; // ID de la empresa a la que se asignará el usuario
+    private String rolEmpresa; // Rol del usuario en la empresa (ADMINISTRADOR, FACTURADOR, LECTOR)
+
     // Constructores
     public CreateUserRequest() {
     }
@@ -81,6 +85,22 @@ public class CreateUserRequest {
 
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public Long getEmpresaId() {
+        return empresaId;
+    }
+
+    public void setEmpresaId(Long empresaId) {
+        this.empresaId = empresaId;
+    }
+
+    public String getRolEmpresa() {
+        return rolEmpresa;
+    }
+
+    public void setRolEmpresa(String rolEmpresa) {
+        this.rolEmpresa = rolEmpresa;
     }
 
     @Override

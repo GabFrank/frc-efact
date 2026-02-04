@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * Controlador REST para endpoints de dashboard y métricas.
  */
 @RestController
-@RequestMapping("/api/dashboard")
+@RequestMapping("/dashboard")
 @CrossOrigin(origins = "*")
 public class DashboardController {
 
@@ -39,7 +39,7 @@ public class DashboardController {
      * Obtiene el dashboard de una empresa.
      */
     @GetMapping("/empresa/{empresaId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     public ResponseEntity<DashboardEmpresaDto> getDashboardEmpresa(
             @PathVariable Long empresaId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaDesde,

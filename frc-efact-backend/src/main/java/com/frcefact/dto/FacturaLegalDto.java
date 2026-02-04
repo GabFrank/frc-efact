@@ -52,11 +52,14 @@ public class FacturaLegalDto {
     private BigDecimal totalParcial10;
 
     @DecimalMin(value = "0.0", message = "Descuento final no puede ser negativo")
-    @Digits(integer = 13, fraction = 2, message = "Descuento final debe tener máximo 13 dígitos enteros y 2 decimales")
     private BigDecimal descuentoFinal = BigDecimal.ZERO;
 
     private BigDecimal totalParcial;
     private BigDecimal totalFinal;
+
+    // Moneda extranjera
+    private String monedaExtranjera;
+    private BigDecimal cambio;
 
     private Boolean activo = true;
 
@@ -69,6 +72,13 @@ public class FacturaLegalDto {
     private String numeroFacturaFormateado;
     private String nombreEmpresa;
     private String nombreCliente;
+
+    // Datos del documento electrónico asociado (si existe)
+    private Long documentoElectronicoId;
+    private String estadoDocumentoElectronico;
+    private String cdcDocumentoElectronico;
+    private String urlQrDocumentoElectronico;
+    private Long loteDeId;
 
     // Constructores
     public FacturaLegalDto() {
@@ -316,6 +326,62 @@ public class FacturaLegalDto {
 
     public void setNombreCliente(String nombreCliente) {
         this.nombreCliente = nombreCliente;
+    }
+
+    public Long getDocumentoElectronicoId() {
+        return documentoElectronicoId;
+    }
+
+    public void setDocumentoElectronicoId(Long documentoElectronicoId) {
+        this.documentoElectronicoId = documentoElectronicoId;
+    }
+
+    public String getEstadoDocumentoElectronico() {
+        return estadoDocumentoElectronico;
+    }
+
+    public void setEstadoDocumentoElectronico(String estadoDocumentoElectronico) {
+        this.estadoDocumentoElectronico = estadoDocumentoElectronico;
+    }
+
+    public String getCdcDocumentoElectronico() {
+        return cdcDocumentoElectronico;
+    }
+
+    public void setCdcDocumentoElectronico(String cdcDocumentoElectronico) {
+        this.cdcDocumentoElectronico = cdcDocumentoElectronico;
+    }
+
+    public String getUrlQrDocumentoElectronico() {
+        return urlQrDocumentoElectronico;
+    }
+
+    public void setUrlQrDocumentoElectronico(String urlQrDocumentoElectronico) {
+        this.urlQrDocumentoElectronico = urlQrDocumentoElectronico;
+    }
+
+    public Long getLoteDeId() {
+        return loteDeId;
+    }
+
+    public void setLoteDeId(Long loteDeId) {
+        this.loteDeId = loteDeId;
+    }
+
+    public String getMonedaExtranjera() {
+        return monedaExtranjera;
+    }
+
+    public void setMonedaExtranjera(String monedaExtranjera) {
+        this.monedaExtranjera = monedaExtranjera;
+    }
+
+    public BigDecimal getCambio() {
+        return cambio;
+    }
+
+    public void setCambio(BigDecimal cambio) {
+        this.cambio = cambio;
     }
 
     @Override

@@ -2,6 +2,8 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  auth0Id?: string;
+  imagenPerfil?: string; // URL de la imagen de perfil de Google/Auth0
   isActive: boolean;
   roles: Role[] | string[]; // Puede ser array de objetos Role o array de strings
   ultimoLogin?: string; // Cambiado de lastLogin
@@ -36,6 +38,8 @@ export interface CreateUserRequest {
   password: string;
   roles: string[];
   isActive: boolean;
+  empresaId?: number;
+  rolEmpresa?: 'ADMINISTRADOR' | 'FACTURADOR' | 'LECTOR';
 }
 
 export interface UpdateUserRequest {
@@ -43,6 +47,17 @@ export interface UpdateUserRequest {
   email?: string;
   roles?: string[];
   isActive?: boolean;
+}
+
+export interface UpdateProfileRequest {
+  username?: string;
+  email?: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export interface ResetPasswordRequest {

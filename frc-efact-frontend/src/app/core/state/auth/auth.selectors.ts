@@ -37,14 +37,19 @@ export const selectUserRoles = createSelector(
   selectAuthState,
   (state) => {
     if (!state.user?.roles) return [];
-    
+
     return state.user.roles.map(role => {
-      // Si el rol es un objeto con propiedad 'nombre', devolver el nombre
+      let roleName = '';
+      // Si el rol es un objeto con propiedad 'nombre', obtener el nombre
       if (typeof role === 'object' && 'nombre' in role) {
-        return (role as any).nombre;
+        roleName = (role as any).nombre;
+      } else {
+        // Si es un string, usarlo directamente
+        roleName = role as string;
       }
-      // Si es un string, devolverlo directamente
-      return role;
+
+      // Normalizar quitando el prefijo ROLE_ si existe
+      return roleName.startsWith('ROLE_') ? roleName.substring(5) : roleName;
     });
   }
 );
@@ -54,20 +59,25 @@ export const selectUserRole = createSelector(
   (roles) => {
     // Jerarquía de roles (del más privilegiado al menos privilegiado)
     const roleHierarchy = ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR'];
-    
+
     // Encontrar el rol más privilegiado que tiene el usuario
     for (const role of roleHierarchy) {
       if (roles.includes(role)) {
         return role;
       }
     }
-    
+
     // Si no tiene ningún rol de la jerarquía, devolver el primero
     return roles[0] || null;
   }
 );
 
-export const selectHasRole = (roleName: string) => createSelector(
+export const selectHasRole = (roleName: string | string[]) => createSelector(
   selectUserRoles,
-  (roles) => roles.includes(roleName)
+  (roles) => {
+    if (Array.isArray(roleName)) {
+      return roleName.some(r => roles.includes(r));
+    }
+    return roles.includes(roleName);
+  }
 );

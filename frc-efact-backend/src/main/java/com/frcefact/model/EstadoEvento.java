@@ -6,17 +6,22 @@ package com.frcefact.model;
  */
 public enum EstadoEvento {
     /**
-     * Evento creado pero aún no enviado a SIFEN
+     * Evento creado pero aún no enviado a SIFEN o esperando procesamiento
      */
     PENDIENTE,
     
     /**
-     * Evento aprobado por SIFEN - el documento ha sido cancelado
+     * Evento aprobado por SIFEN
      */
     APROBADO,
     
     /**
-     * Evento rechazado por SIFEN - el documento no puede ser cancelado
+     * Evento rechazado por SIFEN
      */
-    RECHAZADO
+    RECHAZADO,
+    
+    /**
+     * Error al enviar el evento a SIFEN
+     */
+    ERROR_ENVIO
 }

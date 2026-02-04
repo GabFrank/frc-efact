@@ -71,7 +71,7 @@ public class TimbradoService {
      */
     @Auditable(entidad = "Timbrado", accion = AccionEnum.UPDATE)
     public Timbrado actualizar(Long id, Timbrado timbradoActualizado) {
-        Timbrado timbradoExistente = timbradoRepository.findById(id)
+        Timbrado timbradoExistente = timbradoRepository.findByIdWithEmpresa(id)
                 .orElseThrow(() -> new EntityNotFoundException("Timbrado no encontrado con ID: " + id));
 
         // Verificar permisos
@@ -80,7 +80,7 @@ public class TimbradoService {
         // Validar fechas
         validarFechas(timbradoActualizado.getFechaInicio(), timbradoActualizado.getFechaFin());
 
-        // Actualizar campos específicos del timbrado
+        // Actualizar campos
         timbradoExistente.setNumero(timbradoActualizado.getNumero());
         timbradoExistente.setIsElectronico(timbradoActualizado.getIsElectronico());
         timbradoExistente.setFechaInicio(timbradoActualizado.getFechaInicio());
@@ -110,7 +110,7 @@ public class TimbradoService {
      */
     @Transactional(readOnly = true)
     public Timbrado obtenerPorId(Long id) {
-        Timbrado timbrado = timbradoRepository.findById(id)
+        Timbrado timbrado = timbradoRepository.findByIdWithEmpresa(id)
                 .orElseThrow(() -> new EntityNotFoundException("Timbrado no encontrado con ID: " + id));
 
         // Verificar permisos de lectura
@@ -145,7 +145,7 @@ public class TimbradoService {
      * Desactiva un timbrado (soft delete).
      */
     public void desactivar(Long id) {
-        Timbrado timbrado = timbradoRepository.findById(id)
+        Timbrado timbrado = timbradoRepository.findByIdWithEmpresa(id)
                 .orElseThrow(() -> new EntityNotFoundException("Timbrado no encontrado con ID: " + id));
 
         // Verificar permisos
@@ -160,7 +160,7 @@ public class TimbradoService {
      */
     @Transactional(readOnly = true)
     public boolean verificarVigencia(Long id) {
-        Timbrado timbrado = timbradoRepository.findById(id)
+        Timbrado timbrado = timbradoRepository.findByIdWithEmpresa(id)
                 .orElseThrow(() -> new EntityNotFoundException("Timbrado no encontrado con ID: " + id));
 
         // Verificar permisos

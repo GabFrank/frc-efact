@@ -25,6 +25,10 @@ public class UsuarioDto {
     @Size(max = 100, message = "Email no debe exceder 100 caracteres")
     private String email;
 
+    private String auth0Id;
+
+    private String imagenPerfil;
+
     // Password solo se usa en creación, no se retorna en consultas
     @Size(min = 8, message = "Password debe tener al menos 8 caracteres")
     private String password;
@@ -73,6 +77,22 @@ public class UsuarioDto {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getAuth0Id() {
+        return auth0Id;
+    }
+
+    public void setAuth0Id(String auth0Id) {
+        this.auth0Id = auth0Id;
+    }
+
+    public String getImagenPerfil() {
+        return imagenPerfil;
+    }
+
+    public void setImagenPerfil(String imagenPerfil) {
+        this.imagenPerfil = imagenPerfil;
     }
 
     public String getPassword() {

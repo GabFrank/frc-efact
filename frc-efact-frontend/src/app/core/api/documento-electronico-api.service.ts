@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { DocumentoElectronico, LoteDE, EstadoDE } from '../../models/documento-electronico.model';
 
@@ -18,7 +19,26 @@ export class DocumentoElectronicoApiService {
     if (estado) {
       params = params.set('estado', estado);
     }
-    return this.http.get<DocumentoElectronico[]>(this.baseUrl, { params });
+    // El backend retorna Page<DocumentoElectronicoDto>, necesitamos extraer el content
+    // Usamos un tamaño grande para obtener todos los documentos
+    params = params.set('page', '0');
+    params = params.set('size', '10000');
+    return this.http.get<{ content: DocumentoElectronico[]; totalElements: number; totalPages: number }>(this.baseUrl, { params }).pipe(
+      map(response => response.content || [])
+    );
+  }
+
+  getAllPaginated(estado?: EstadoDE, empresaId?: number, page: number = 0, size: number = 20): Observable<{ content: DocumentoElectronico[]; totalElements: number; totalPages: number }> {
+    let params = new HttpParams();
+    if (estado) {
+      params = params.set('estado', estado);
+    }
+    if (empresaId) {
+      params = params.set('empresaId', empresaId.toString());
+    }
+    params = params.set('page', page.toString());
+    params = params.set('size', size.toString());
+    return this.http.get<{ content: DocumentoElectronico[]; totalElements: number; totalPages: number }>(this.baseUrl, { params });
   }
 
   getById(id: number): Observable<DocumentoElectronico> {

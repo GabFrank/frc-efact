@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap, of } from 'rxjs';
+import { BehaviorSubject, Observable, tap, of, from } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { AuthService as Auth0Service } from '@auth0/auth0-angular';
 import { environment } from '../../environments/environment';
 import { AuthResponse } from '../models/auth-response.model';
 import { LoginRequest } from '../models/login-request.model';
@@ -11,6 +13,7 @@ import { User } from '../models/user.model';
 })
 export class AuthService {
   private http = inject(HttpClient);
+  private auth0 = inject(Auth0Service);
   private readonly TOKEN_KEY = 'auth_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
   private readonly USER_KEY = 'current_user';
@@ -40,15 +43,55 @@ export class AuthService {
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
     this.currentUserSubject.next(null);
+    
+    // También cerrar sesión de Auth0 si está activo
+    this.auth0.logout({
+      logoutParams: {
+        returnTo: window.location.origin
+      }
+    }).subscribe();
+    
     return of(undefined);
   }
 
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    const localToken = this.getToken();
+    if (localToken) {
+      return true;
+    }
+    // Verificar si Auth0 está autenticado (síncrono, puede no ser 100% preciso)
+    // Para verificación precisa, usar isAuthenticated$ observable
+    return false;
   }
 
   getToken(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  /**
+   * Obtener token (local o Auth0)
+   * Retorna un Observable porque Auth0 puede requerir llamadas asíncronas
+   */
+  getTokenAsync(): Observable<string | null> {
+    const localToken = this.getToken();
+    if (localToken) {
+      return of(localToken);
+    }
+    
+    // Intentar obtener token de Auth0
+    return from(this.auth0.getAccessTokenSilently({ 
+      authorizationParams: {
+        audience: environment.auth0.authorizationParams.audience
+      }
+    })).pipe(
+      tap(token => {
+        // Guardar token de Auth0 en localStorage para uso futuro
+        if (token) {
+          localStorage.setItem(this.TOKEN_KEY, token);
+        }
+      }),
+      catchError(() => of(null))
+    );
   }
 
   getRefreshToken(): string | null {
@@ -65,7 +108,6 @@ export class AuthService {
   }
 
   private handleAuthResponse(response: AuthResponse): void {
-    console.log('Respuesta de autenticación:', response);
     localStorage.setItem(this.TOKEN_KEY, response.token);
     localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
 
@@ -73,14 +115,14 @@ export class AuthService {
     const mappedUser = this.mapBackendUserToFrontend(response.usuario);
     localStorage.setItem(this.USER_KEY, JSON.stringify(mappedUser));
     this.currentUserSubject.next(mappedUser);
-    console.log('Usuario guardado en localStorage:', mappedUser);
   }
 
-  private mapBackendUserToFrontend(backendUser: any): User {
+  mapBackendUserToFrontend(backendUser: any): User {
     return {
       id: backendUser.id,
       username: backendUser.username,
       email: backendUser.email,
+      auth0Id: backendUser.auth0Id,
       isActive: backendUser.isActive,
       roles: backendUser.roles || [],
       ultimoLogin: backendUser.ultimoLogin,

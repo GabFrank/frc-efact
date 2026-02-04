@@ -45,6 +45,10 @@ public class TimbradoDetalleDto {
     // Campos calculados (solo lectura)
     private Long numerosDisponibles;
     private Double porcentajeUtilizado;
+    
+    // Información del timbrado para mostrar (solo lectura)
+    private String timbradoNumero;
+    private Boolean timbradoIsElectronico;
 
     // Constructores
     public TimbradoDetalleDto() {
@@ -170,5 +174,21 @@ public class TimbradoDetalleDto {
 
     public void setPorcentajeUtilizado(Double porcentajeUtilizado) {
         this.porcentajeUtilizado = porcentajeUtilizado;
+    }
+
+    public String getTimbradoNumero() {
+        return timbradoNumero;
+    }
+
+    public void setTimbradoNumero(String timbradoNumero) {
+        this.timbradoNumero = timbradoNumero;
+    }
+
+    public Boolean getTimbradoIsElectronico() {
+        return timbradoIsElectronico;
+    }
+
+    public void setTimbradoIsElectronico(Boolean timbradoIsElectronico) {
+        this.timbradoIsElectronico = timbradoIsElectronico;
     }
 }

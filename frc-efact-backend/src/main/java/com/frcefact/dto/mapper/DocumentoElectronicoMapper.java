@@ -12,6 +12,7 @@ public class DocumentoElectronicoMapper {
 
     /**
      * Convierte una entidad DocumentoElectronico a DTO.
+     * Si la URL del QR no está guardada, la extrae del XML original.
      * 
      * @param entity Entidad
      * @return DTO
@@ -26,12 +27,21 @@ public class DocumentoElectronicoMapper {
         dto.setFacturaLegalId(entity.getFacturaLegal() != null ? entity.getFacturaLegal().getId() : null);
         dto.setLoteDeId(entity.getLoteDE() != null ? entity.getLoteDE().getId() : null);
         dto.setCdc(entity.getCdc());
-        dto.setUrlQr(entity.getUrlQr());
+        
+        // Extraer URL del QR si no está guardada
+        String urlQr = entity.getUrlQr();
+        if ((urlQr == null || urlQr.isBlank()) && entity.getXmlOriginal() != null && !entity.getXmlOriginal().isBlank()) {
+            urlQr = com.frcefact.sifen.util.SifenResponseParser.extractUrlQr(entity.getXmlOriginal());
+        }
+        dto.setUrlQr(urlQr);
+        
         dto.setNumeroDocumento(entity.getNumeroDocumento());
         dto.setTipoDocumento(entity.getTipoDocumento());
         dto.setEstado(entity.getEstado());
         dto.setCodigoRespuestaSifen(entity.getCodigoRespuestaSifen());
         dto.setMensajeRespuestaSifen(entity.getMensajeRespuestaSifen());
+        dto.setRespuestaSifen(entity.getRespuestaSifen());
+        dto.setProtocoloAutorizacion(entity.getProtocoloAutorizacion());
         dto.setFechaEmision(entity.getFechaEmision());
         dto.setFechaRecepcionSifen(entity.getFechaRecepcionSifen());
 

@@ -91,6 +91,23 @@ public interface FacturaLegalItemRepository extends JpaRepository<FacturaLegalIt
     List<Object[]> findProductosMasVendidos(@Param("empresaId") Long empresaId,
                                            @Param("fechaDesde") LocalDateTime fechaDesde,
                                            @Param("fechaHasta") LocalDateTime fechaHasta);
+    
+    /**
+     * Busca productos más vendidos en un rango de fechas para cálculos (excluye canceladas/rechazadas).
+     */
+    @Query("SELECT i.producto.id, i.producto.descripcion, " +
+           "SUM(i.cantidad) as cantidadTotal, SUM(i.total) as montoTotal " +
+           "FROM FacturaLegalItem i " +
+           "LEFT JOIN i.facturaLegal.documentoElectronico de " +
+           "WHERE i.facturaLegal.empresa.id = :empresaId " +
+           "AND i.facturaLegal.activo = true " +
+           "AND i.facturaLegal.fecha BETWEEN :fechaDesde AND :fechaHasta " +
+           "AND (de IS NULL OR de.estado NOT IN (com.frcefact.model.EstadoDE.CANCELADO, com.frcefact.model.EstadoDE.RECHAZADO, com.frcefact.model.EstadoDE.ERROR)) " +
+           "GROUP BY i.producto.id, i.producto.descripcion " +
+           "ORDER BY SUM(i.total) DESC")
+    List<Object[]> findProductosMasVendidosParaCalculos(@Param("empresaId") Long empresaId,
+                                                         @Param("fechaDesde") LocalDateTime fechaDesde,
+                                                         @Param("fechaHasta") LocalDateTime fechaHasta);
 
     /**
      * Elimina items de una factura.

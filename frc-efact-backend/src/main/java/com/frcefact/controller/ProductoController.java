@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  * Proporciona endpoints para CRUD, búsqueda e importación masiva.
  */
 @RestController
-@RequestMapping("/api/productos")
+@RequestMapping("/productos")
 @Tag(name = "Productos", description = "API para gestión de productos")
 @SecurityRequirement(name = "bearer-jwt")
 public class ProductoController {
@@ -66,7 +66,7 @@ public class ProductoController {
     public ResponseEntity<ProductoDto> crearProducto(
             @Valid @RequestBody ProductoDto productoDto) {
         
-        logger.info("POST /api/productos - Crear producto para empresa ID: {}", productoDto.getEmpresaId());
+        logger.info("POST /productos - Crear producto para empresa ID: {}", productoDto.getEmpresaId());
         
         Producto producto = productoMapper.toEntity(productoDto);
         Producto productoCreado = productoService.crearProducto(productoDto.getEmpresaId(), producto);
@@ -90,7 +90,7 @@ public class ProductoController {
             @PathVariable Long id,
             @Valid @RequestBody ProductoDto productoDto) {
         
-        logger.info("PUT /api/productos/{} - Actualizar producto", id);
+        logger.info("PUT /productos/{} - Actualizar producto", id);
         
         Producto producto = productoMapper.toEntity(productoDto);
         Producto productoActualizado = productoService.actualizarProducto(
@@ -114,7 +114,7 @@ public class ProductoController {
             @PathVariable Long id,
             @RequestParam Long empresaId) {
         
-        logger.debug("GET /api/productos/{} - Obtener producto", id);
+        logger.debug("GET /productos/{} - Obtener producto", id);
         
         Producto producto = productoService.obtenerProductoPorId(empresaId, id);
         ProductoDto responseDto = productoMapper.toDto(producto);
@@ -123,7 +123,7 @@ public class ProductoController {
     }
 
     @Operation(summary = "Listar productos de una empresa",
-               description = "Lista todos los productos activos de una empresa con paginación y ordenamiento")
+               description = "Lista productos de una empresa con paginación, ordenamiento y filtros opcionales")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Lista de productos obtenida exitosamente"),
         @ApiResponse(responseCode = "403", description = "Sin permisos para esta empresa")
@@ -133,6 +133,14 @@ public class ProductoController {
     public ResponseEntity<Page<ProductoDto>> listarProductos(
             @Parameter(description = "ID de la empresa") 
             @RequestParam Long empresaId,
+            @Parameter(description = "Filtro por estado activo/inactivo (null = todos)")
+            @RequestParam(required = false) Boolean activo,
+            @Parameter(description = "Búsqueda por código o descripción")
+            @RequestParam(required = false) String busqueda,
+            @Parameter(description = "Filtro por tipo de transacción")
+            @RequestParam(required = false) String tipoTransaccion,
+            @Parameter(description = "Filtro por tasa de IVA (0, 5, 10)")
+            @RequestParam(required = false) Integer iva,
             @Parameter(description = "Número de página (0-indexed)")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Tamaño de página")
@@ -142,14 +150,16 @@ public class ProductoController {
             @Parameter(description = "Dirección de ordenamiento (asc/desc)")
             @RequestParam(defaultValue = "asc") String sortDir) {
         
-        logger.debug("GET /api/productos - Listar productos de empresa ID: {}", empresaId);
+        logger.debug("GET /productos - Listar productos de empresa ID: {} con filtros - activo: {}, busqueda: {}, tipoTransaccion: {}, iva: {}", 
+                     empresaId, activo, busqueda, tipoTransaccion, iva);
         
         Sort sort = sortDir.equalsIgnoreCase("desc") 
             ? Sort.by(sortBy).descending() 
             : Sort.by(sortBy).ascending();
         
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Producto> productosPage = productoService.listarProductos(empresaId, pageable);
+        Page<Producto> productosPage = productoService.listarProductosConFiltros(
+            empresaId, activo, busqueda, tipoTransaccion, iva, pageable);
         Page<ProductoDto> productosDto = productosPage.map(productoMapper::toDto);
         
         return ResponseEntity.ok(productosDto);
@@ -177,7 +187,7 @@ public class ProductoController {
             @Parameter(description = "Dirección de ordenamiento (asc/desc)")
             @RequestParam(defaultValue = "asc") String sortDir) {
         
-        logger.debug("GET /api/productos/buscar - Buscar productos en empresa ID: {} con término: {}", 
+        logger.debug("GET /productos/buscar - Buscar productos en empresa ID: {} con término: {}", 
                     empresaId, busqueda);
         
         Sort sort = sortDir.equalsIgnoreCase("desc") 
@@ -204,7 +214,7 @@ public class ProductoController {
             @PathVariable Long id,
             @RequestParam Long empresaId) {
         
-        logger.info("DELETE /api/productos/{} - Desactivar producto", id);
+        logger.info("DELETE /productos/{} - Desactivar producto", id);
         
         productoService.desactivarProducto(empresaId, id);
         
@@ -213,7 +223,8 @@ public class ProductoController {
 
     @Operation(summary = "Importar productos desde Excel",
                description = "Importa productos masivamente desde un archivo Excel. " +
-                           "Formato esperado: Código | Descripción | Precio | IVA | Balanza")
+                           "Formato esperado: Código | Descripción | Precio | IVA | Tipo Transacción | Unidad Medida | Balanza. " +
+                           "Columnas opcionales: Código, Tipo Transacción (default: VENTA_MERCADERIA), Unidad Medida (default: UNI), Balanza (default: false)")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Importación completada",
                     content = @Content(schema = @Schema(implementation = Map.class))),
@@ -228,7 +239,7 @@ public class ProductoController {
             @Parameter(description = "Archivo Excel (.xlsx)")
             @RequestParam("archivo") MultipartFile archivo) {
         
-        logger.info("POST /api/productos/importar - Importar productos para empresa ID: {}", empresaId);
+        logger.info("POST /productos/importar - Importar productos para empresa ID: {}", empresaId);
         
         // Validar archivo
         if (archivo.isEmpty()) {
@@ -258,5 +269,57 @@ public class ProductoController {
             logger.error("Error al procesar archivo Excel", e);
             throw new RuntimeException("Error al procesar el archivo Excel: " + e.getMessage());
         }
+    }
+
+    @Operation(summary = "Verificar si existe un código duplicado",
+               description = "Verifica si ya existe un producto con el código dado en la empresa")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Verificación completada"),
+        @ApiResponse(responseCode = "403", description = "Sin permisos para esta empresa")
+    })
+    @GetMapping("/verificar-codigo")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    public ResponseEntity<Map<String, Boolean>> verificarCodigo(
+            @Parameter(description = "ID de la empresa")
+            @RequestParam Long empresaId,
+            @Parameter(description = "Código a verificar")
+            @RequestParam String codigo,
+            @Parameter(description = "ID del producto a excluir (opcional, para edición)")
+            @RequestParam(required = false) Long productoId) {
+        
+        logger.debug("GET /productos/verificar-codigo - Verificar código {} en empresa {}", codigo, empresaId);
+        
+        boolean existe = productoService.existeCodigo(empresaId, codigo, productoId);
+        
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("existe", existe);
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Verificar si existe una descripción duplicada",
+               description = "Verifica si ya existe un producto con la descripción dada en la empresa")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Verificación completada"),
+        @ApiResponse(responseCode = "403", description = "Sin permisos para esta empresa")
+    })
+    @GetMapping("/verificar-descripcion")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    public ResponseEntity<Map<String, Boolean>> verificarDescripcion(
+            @Parameter(description = "ID de la empresa")
+            @RequestParam Long empresaId,
+            @Parameter(description = "Descripción a verificar")
+            @RequestParam String descripcion,
+            @Parameter(description = "ID del producto a excluir (opcional, para edición)")
+            @RequestParam(required = false) Long productoId) {
+        
+        logger.debug("GET /productos/verificar-descripcion - Verificar descripción en empresa {}", empresaId);
+        
+        boolean existe = productoService.existeDescripcion(empresaId, descripcion, productoId);
+        
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("existe", existe);
+        
+        return ResponseEntity.ok(response);
     }
 }

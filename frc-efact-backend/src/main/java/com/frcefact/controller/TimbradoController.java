@@ -35,7 +35,7 @@ public class TimbradoController {
      * Crea un nuevo timbrado.
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     @Operation(summary = "Crear timbrado", description = "Crea un nuevo timbrado fiscal para una empresa")
     public ResponseEntity<TimbradoDto> crear(@Valid @RequestBody TimbradoDto timbradoDto) {
         Timbrado timbrado = timbradoMapper.toEntity(timbradoDto);
@@ -48,7 +48,7 @@ public class TimbradoController {
      * Actualiza un timbrado existente.
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     @Operation(summary = "Actualizar timbrado", description = "Actualiza un timbrado existente")
     public ResponseEntity<TimbradoDto> actualizar(
             @PathVariable Long id,

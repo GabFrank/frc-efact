@@ -41,11 +41,27 @@ export class TimbradoDetallesEffects {
           map((detalleCreado) =>
             TimbradoDetallesActions.createDetalleSuccess({ detalle: detalleCreado })
           ),
-          catchError((error) =>
-            of(TimbradoDetallesActions.createDetalleFailure({
-              error: error.message || 'Error al crear el detalle del timbrado'
-            }))
-          )
+          catchError((error) => {
+            // Extraer mensajes de error de validación si existen
+            let errorMessage = 'Error al crear el detalle del timbrado';
+            if (error.error) {
+              if (error.error.errors && typeof error.error.errors === 'object') {
+                // Hay errores de validación específicos
+                const validationErrors = Object.entries(error.error.errors)
+                  .map(([field, message]) => `${field}: ${message}`)
+                  .join(', ');
+                errorMessage = `Error de validación: ${validationErrors}`;
+              } else if (error.error.message) {
+                errorMessage = error.error.message;
+              }
+            } else if (error.message) {
+              errorMessage = error.message;
+            }
+            
+            return of(TimbradoDetallesActions.createDetalleFailure({
+              error: errorMessage
+            }));
+          })
         )
       )
     )
@@ -182,6 +198,21 @@ export class TimbradoDetallesEffects {
     { dispatch: false }
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

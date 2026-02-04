@@ -30,7 +30,7 @@ public class LoteDE extends AuditableEntity {
      * Estado actual del lote
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "estado", columnDefinition = "financiero.estado_lote_enum", nullable = false)
+    @Column(name = "estado", length = 50, nullable = false)
     private EstadoLoteDE estado = EstadoLoteDE.PENDIENTE;
 
     /**
@@ -44,6 +44,18 @@ public class LoteDE extends AuditableEntity {
      */
     @Column(name = "respuesta_sifen", columnDefinition = "TEXT")
     private String respuestaSifen;
+
+    /**
+     * Código de respuesta principal devuelto por SIFEN
+     */
+    @Column(name = "codigo_respuesta", length = 10)
+    private String codigoRespuesta;
+
+    /**
+     * Mensaje de respuesta principal devuelto por SIFEN
+     */
+    @Column(name = "mensaje_respuesta", columnDefinition = "TEXT")
+    private String mensajeRespuesta;
 
     /**
      * Fecha en que el lote fue procesado por SIFEN
@@ -114,6 +126,22 @@ public class LoteDE extends AuditableEntity {
 
     public void setRespuestaSifen(String respuestaSifen) {
         this.respuestaSifen = respuestaSifen;
+    }
+
+    public String getCodigoRespuesta() {
+        return codigoRespuesta;
+    }
+
+    public void setCodigoRespuesta(String codigoRespuesta) {
+        this.codigoRespuesta = codigoRespuesta;
+    }
+
+    public String getMensajeRespuesta() {
+        return mensajeRespuesta;
+    }
+
+    public void setMensajeRespuesta(String mensajeRespuesta) {
+        this.mensajeRespuesta = mensajeRespuesta;
     }
 
     public LocalDateTime getFechaProcesado() {
