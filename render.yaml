@@ -22,8 +22,9 @@ services:
         value: INFO
 
   # Frontend - Angular SPA
-  - type: static
+  - type: web
     name: frc-efact-frontend
+    runtime: static
     buildCommand: cd frc-efact-frontend && npm ci && npm run build:prod
     staticPublishPath: frc-efact-frontend/dist/frc-efact-frontend/browser
     routes:
