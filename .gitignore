@@ -14,8 +14,9 @@
 *.iml
 *.ipr
 *.iws
-.cursor/
+# Cursor MCP configuration (ignore real config, allow example)
 .cursor/mcp.json
+!.cursor/mcp.json.example
 
 # ============================================
 # OS generated files
