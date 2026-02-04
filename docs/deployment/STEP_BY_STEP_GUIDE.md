@@ -2,6 +2,8 @@
 
 Esta guía te llevará paso a paso a través del proceso completo de deployment.
 
+> 💡 **Tip:** Configura el MCP de Render para acceder a información de deployments directamente desde Cursor. Ver [RENDER_MCP_SETUP.md](RENDER_MCP_SETUP.md)
+
 ## Paso 1: Preparación (Completado ✅)
 
 Las siguientes verificaciones ya están completas:

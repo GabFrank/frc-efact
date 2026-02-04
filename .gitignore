@@ -14,6 +14,8 @@
 *.iml
 *.ipr
 *.iws
+.cursor/
+.cursor/mcp.json
 
 # ============================================
 # OS generated files
