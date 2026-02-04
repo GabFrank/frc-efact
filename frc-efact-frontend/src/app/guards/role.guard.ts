@@ -58,7 +58,7 @@ export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
         const isUserAdminRoute = route.url.some(segment => segment.path === 'usuarios');
         
         if (isUserAdminRoute) {
-          snackBar.open('No tiene permisos para acceder a la administración de usuarios. Solo los administradores pueden gestionar usuarios.', 'Cerrar', {
+          snackBar.open('No tiene permisos para acceder a la administración de usuarios. Solo los administradores del sistema o de empresa pueden gestionar usuarios.', 'Cerrar', {
             duration: 7000,
             panelClass: ['error-snackbar']
           });

@@ -103,12 +103,12 @@ public class UsuarioController {
      * @return lista de usuarios asignables
      */
     @GetMapping("/asignables")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Listar usuarios asignables", description = "Obtiene lista de usuarios que pueden ser asignados a empresas (excluye ADMIN)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista obtenida exitosamente"),
             @ApiResponse(responseCode = "401", description = "No autenticado"),
-            @ApiResponse(responseCode = "403", description = "Sin permisos")
+            @ApiResponse(responseCode = "403", description = "Sin permisos para acceder")
     })
     public ResponseEntity<List<UsuarioDto>> obtenerUsuariosAsignables() {
         logger.debug("GET /usuarios/asignables - Obteniendo usuarios asignables a empresas");
@@ -125,24 +125,17 @@ public class UsuarioController {
      * @return lista de todos los usuarios
      */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Listar todos los usuarios", description = "Obtiene lista de todos los usuarios del sistema")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Lista obtenida exitosamente"),
             @ApiResponse(responseCode = "401", description = "No autenticado"),
-            @ApiResponse(responseCode = "403", description = "Sin permisos de administrador")
+            @ApiResponse(responseCode = "403", description = "Sin permisos para acceder")
     })
     public ResponseEntity<List<UsuarioDto>> obtenerTodosLosUsuarios(
             org.springframework.security.core.Authentication authentication) {
-        logger.warn("⚠️ ============================================");
-        logger.warn("⚠️ WRONG ENDPOINT CALLED: GET /usuarios (ADMIN only)");
-        logger.warn("⚠️ User: {}", authentication != null ? authentication.getName() : "null");
-        if (authentication != null) {
-            logger.warn("⚠️ Authorities: {}", authentication.getAuthorities());
-        }
-        logger.warn("⚠️ This endpoint requires ADMIN role!");
-        logger.warn("⚠️ Use /usuarios/asignables instead for EMPRESA_ADMIN");
-        logger.warn("⚠️ ============================================");
+        logger.debug("GET /usuarios - Listing all users");
+        logger.debug("User: {}", authentication != null ? authentication.getName() : "null");
 
         List<Usuario> usuarios = usuarioService.listarTodos();
         List<UsuarioDto> usuariosDto = usuarioMapper.toDtoList(usuarios);
@@ -162,12 +155,12 @@ public class UsuarioController {
      * @return página de usuarios
      */
     @GetMapping("/buscar")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Buscar usuarios", description = "Busca usuarios con filtros y paginación")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Búsqueda completada"),
             @ApiResponse(responseCode = "401", description = "No autenticado"),
-            @ApiResponse(responseCode = "403", description = "Sin permisos de administrador")
+            @ApiResponse(responseCode = "403", description = "Sin permisos para acceder")
     })
     public ResponseEntity<Page<UsuarioDto>> buscarUsuarios(
             @Parameter(description = "Término a buscar en username o email") @RequestParam(required = false) String searchTerm,
@@ -201,12 +194,12 @@ public class UsuarioController {
      * @return usuario encontrado
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener usuario por ID", description = "Obtiene los detalles de un usuario específico")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Usuario encontrado"),
             @ApiResponse(responseCode = "401", description = "No autenticado"),
-            @ApiResponse(responseCode = "403", description = "Sin permisos de administrador"),
+            @ApiResponse(responseCode = "403", description = "Sin permisos para acceder"),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
     public ResponseEntity<UsuarioDto> obtenerUsuarioPorId(
@@ -227,13 +220,13 @@ public class UsuarioController {
      * @return usuario creado
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Crear usuario", description = "Crea un nuevo usuario en el sistema")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
+    @Operation(summary = "Crear usuario", description = "Crea un nuevo usuario en el sistema. Si se proporciona empresaId y rolEmpresa, asigna automáticamente el usuario a la empresa. EMPRESA_ADMIN solo puede crear usuarios y asignarlos a empresas donde es ADMINISTRADOR.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Usuario creado exitosamente"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos o username/email duplicado"),
             @ApiResponse(responseCode = "401", description = "No autenticado"),
-            @ApiResponse(responseCode = "403", description = "Sin permisos de administrador")
+            @ApiResponse(responseCode = "403", description = "Sin permisos para crear usuario o asignar a la empresa")
     })
     public ResponseEntity<UsuarioDto> crearUsuario(@Valid @RequestBody CreateUserRequest request) {
         logger.info("POST /usuarios - Creando nuevo usuario: {}", request.getUsername());
@@ -402,12 +395,12 @@ public class UsuarioController {
      * @return conjunto de roles del usuario
      */
     @GetMapping("/{id}/roles")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener roles de usuario", description = "Obtiene los roles asignados a un usuario")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Roles obtenidos exitosamente"),
             @ApiResponse(responseCode = "401", description = "No autenticado"),
-            @ApiResponse(responseCode = "403", description = "Sin permisos de administrador"),
+            @ApiResponse(responseCode = "403", description = "Sin permisos para acceder"),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
     public ResponseEntity<Set<String>> obtenerRolesUsuario(
@@ -424,12 +417,12 @@ public class UsuarioController {
      * @return lista de todos los roles
      */
     @GetMapping("/roles")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Obtener todos los roles", description = "Obtiene la lista de todos los roles disponibles en el sistema")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Roles obtenidos exitosamente"),
             @ApiResponse(responseCode = "401", description = "No autenticado"),
-            @ApiResponse(responseCode = "403", description = "Sin permisos de administrador")
+            @ApiResponse(responseCode = "403", description = "Sin permisos para acceder")
     })
     public ResponseEntity<List<RolDto>> obtenerTodosLosRoles() {
         logger.debug("GET /usuarios/roles - Obteniendo todos los roles");

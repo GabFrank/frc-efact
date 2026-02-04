@@ -34,7 +34,7 @@ public class TimbradoDetalleController {
      * Crea un nuevo detalle de timbrado.
      */
     @PostMapping("/timbrados/{timbradoId}/detalles")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     public ResponseEntity<TimbradoDetalleDto> crearDetalle(
             @PathVariable Long timbradoId,
             @Valid @RequestBody TimbradoDetalleDto dto) {
@@ -98,7 +98,7 @@ public class TimbradoDetalleController {
      * Actualiza un detalle de timbrado.
      */
     @PutMapping("/timbrado-detalles/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     public ResponseEntity<TimbradoDetalleDto> actualizarDetalle(
             @PathVariable Long id,
             @Valid @RequestBody TimbradoDetalleDto dto) {
@@ -113,7 +113,7 @@ public class TimbradoDetalleController {
      * Desactiva un detalle de timbrado.
      */
     @DeleteMapping("/timbrado-detalles/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     public ResponseEntity<Void> desactivarDetalle(@PathVariable Long id) {
         timbradoDetalleService.desactivar(id);
         return ResponseEntity.noContent().build();

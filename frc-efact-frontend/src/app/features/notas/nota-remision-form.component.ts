@@ -38,6 +38,8 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { NotaRemisionItemDialogComponent } from './nota-remision-item-dialog.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { VehiculoDialogComponent } from '../../shared/components/vehiculo-dialog/vehiculo-dialog.component';
+import { ChoferDialogComponent } from '../../shared/components/chofer-dialog/chofer-dialog.component';
 import { SifenApiService } from '../../core/api/sifen-api.service';
 
 interface NotaRemisionItemView {
@@ -328,7 +330,7 @@ interface NotaRemisionItemView {
 
             <h3>Vehículo</h3>
             <div class="form-row">
-              <mat-form-field appearance="outline" class="full-width">
+              <mat-form-field appearance="outline" class="search-field-with-button">
                 <mat-label>Buscar Vehículo</mat-label>
                 <input matInput formControlName="vehiculoSearch" [matAutocomplete]="autoVehiculo" placeholder="Buscar por matrícula o marca">
                 <mat-icon matPrefix>search</mat-icon>
@@ -336,12 +338,12 @@ interface NotaRemisionItemView {
                   <mat-option *ngFor="let v of vehiculosFiltrados()" [value]="v">
                     {{ v.matricula }} - {{ v.marca }}
                   </mat-option>
-                  <mat-option (click)="abrirGestionVehiculos()" class="add-option">
-                    <mat-icon>add</mat-icon>
-                    <span>Adicionar Vehículo</span>
-                  </mat-option>
                 </mat-autocomplete>
               </mat-form-field>
+              <button mat-raised-button color="primary" type="button" (click)="abrirDialogoNuevoVehiculo()" [disabled]="!empresaActual()">
+                <mat-icon>add</mat-icon>
+                Nuevo Vehículo
+              </button>
             </div>
             <div class="form-row" *ngIf="form.get('vehiculoId')?.value">
               <mat-form-field appearance="outline">
@@ -374,7 +376,7 @@ interface NotaRemisionItemView {
 
             <h3>Conductor</h3>
             <div class="form-row">
-              <mat-form-field appearance="outline" class="full-width">
+              <mat-form-field appearance="outline" class="search-field-with-button">
                 <mat-label>Buscar Chofer</mat-label>
                 <input matInput formControlName="choferSearch" [matAutocomplete]="autoChofer" placeholder="Buscar por nombre o documento">
                 <mat-icon matPrefix>search</mat-icon>
@@ -382,12 +384,12 @@ interface NotaRemisionItemView {
                   <mat-option *ngFor="let c of choferesFiltrados()" [value]="c">
                     {{ c.nombre }} {{ c.documento ? '- ' + c.documento : '' }}
                   </mat-option>
-                  <mat-option (click)="abrirGestionChoferes()" class="add-option">
-                    <mat-icon>add</mat-icon>
-                    <span>Adicionar Chofer</span>
-                  </mat-option>
                 </mat-autocomplete>
               </mat-form-field>
+              <button mat-raised-button color="primary" type="button" (click)="abrirDialogoNuevoChofer()" [disabled]="!empresaActual()">
+                <mat-icon>add</mat-icon>
+                Nuevo Chofer
+              </button>
             </div>
             <div class="form-row" *ngIf="form.get('choferId')?.value">
               <mat-form-field appearance="outline">
@@ -501,6 +503,7 @@ interface NotaRemisionItemView {
     .form-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
     .full-width { flex: 1 1 100%; }
     mat-form-field { flex: 1; min-width: 200px; }
+    .search-field-with-button { flex: 1; min-width: 250px; }
     .items-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
     .items-table-wrapper { overflow-x: auto; }
     .items-table { width: 100%; min-width: 640px; }
@@ -516,6 +519,14 @@ interface NotaRemisionItemView {
     }
     .add-option mat-icon {
       margin-right: 8px;
+    }
+    .form-row button[mat-raised-button] {
+      white-space: nowrap;
+      min-width: auto;
+      flex-shrink: 0;
+    }
+    .form-row button[mat-raised-button] mat-icon {
+      margin-right: 4px;
     }
   `]
 })
@@ -1236,6 +1247,62 @@ export class NotaRemisionFormComponent implements OnInit, OnDestroy {
       conductorNombre: chofer.nombre,
       conductorDoc: chofer.documento || '',
       conductorDireccion: chofer.direccion || ''
+    });
+  }
+
+  abrirDialogoNuevoVehiculo(): void {
+    const empresaId = this.form.get('empresaId')?.value;
+    if (!empresaId) {
+      this.snackBar.open('No se puede crear vehículo sin empresa seleccionada', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(VehiculoDialogComponent, {
+      width: '600px',
+      disableClose: false
+    });
+
+    dialogRef.componentInstance.empresaId = empresaId;
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((vehiculo?: Vehiculo) => {
+      if (vehiculo) {
+        // Cargar el nuevo vehículo en el formulario
+        this.onVehiculoSelected(vehiculo);
+        // Actualizar la lista de vehículos filtrados
+        this.vehiculosFiltrados.set([...this.vehiculosFiltrados(), vehiculo]);
+        // Establecer el valor en el campo de búsqueda
+        this.form.patchValue({
+          vehiculoSearch: vehiculo
+        });
+      }
+    });
+  }
+
+  abrirDialogoNuevoChofer(): void {
+    const empresaId = this.form.get('empresaId')?.value;
+    if (!empresaId) {
+      this.snackBar.open('No se puede crear chofer sin empresa seleccionada', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ChoferDialogComponent, {
+      width: '600px',
+      disableClose: false
+    });
+
+    dialogRef.componentInstance.empresaId = empresaId;
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((chofer?: Chofer) => {
+      if (chofer) {
+        // Cargar el nuevo chofer en el formulario
+        this.onChoferSelected(chofer);
+        // Actualizar la lista de choferes filtrados
+        this.choferesFiltrados.set([...this.choferesFiltrados(), chofer]);
+        // Establecer el valor en el campo de búsqueda
+        this.form.patchValue({
+          choferSearch: chofer
+        });
+      }
     });
   }
 

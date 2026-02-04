@@ -36,6 +36,15 @@ public class UsuarioEmpresaMapper {
         // Información adicional para visualización
         if (usuarioEmpresa.getUsuario() != null) {
             dto.setUsuarioUsername(usuarioEmpresa.getUsuario().getUsername());
+            dto.setUsuarioEmail(usuarioEmpresa.getUsuario().getEmail());
+            
+            // Mapear roles del usuario
+            if (usuarioEmpresa.getUsuario().getUsuarioRoles() != null) {
+                dto.setUsuarioRoles(usuarioEmpresa.getUsuario().getUsuarioRoles().stream()
+                        .map(usuarioRol -> usuarioRol.getRol() != null ? usuarioRol.getRol().getNombre() : null)
+                        .filter(rolNombre -> rolNombre != null)
+                        .collect(java.util.stream.Collectors.toList()));
+            }
         }
         if (usuarioEmpresa.getEmpresa() != null) {
             dto.setEmpresaRazonSocial(usuarioEmpresa.getEmpresa().getRazonSocial());

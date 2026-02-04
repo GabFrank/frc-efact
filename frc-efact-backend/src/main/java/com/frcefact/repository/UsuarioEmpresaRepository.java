@@ -41,11 +41,16 @@ public interface UsuarioEmpresaRepository extends JpaRepository<UsuarioEmpresa, 
 
     /**
      * Busca todas las relaciones activas de una empresa.
+     * Incluye fetch join de usuario, empresa y roles del usuario para evitar LazyInitializationException.
      *
      * @param empresaId ID de la empresa
      * @return lista de relaciones usuario-empresa activas
      */
-    @Query("SELECT ue FROM UsuarioEmpresa ue " +
+    @Query("SELECT DISTINCT ue FROM UsuarioEmpresa ue " +
+           "LEFT JOIN FETCH ue.usuario u " +
+           "LEFT JOIN FETCH u.usuarioRoles ur " +
+           "LEFT JOIN FETCH ur.rol " +
+           "LEFT JOIN FETCH ue.empresa " +
            "WHERE ue.empresa.id = :empresaId AND ue.activo = true")
     List<UsuarioEmpresa> findByEmpresaIdAndActivoTrue(@Param("empresaId") Long empresaId);
 

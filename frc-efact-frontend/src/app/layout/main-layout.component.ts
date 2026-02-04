@@ -11,6 +11,7 @@ import { User } from '../models/user.model';
 import { Empresa } from '../models/empresa.model';
 import { AuthService } from '../services/auth.service';
 import { ConnectionStatusBannerComponent } from '../components/connection-status-banner/connection-status-banner.component';
+import { PermissionsService } from '../core/services/permissions.service';
 
 @Component({
   selector: 'app-main-layout',
@@ -37,11 +38,11 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
             <!-- Company Dropdown Menu -->
             <div class="company-menu" *ngIf="showCompanyMenu" (click)="$event.stopPropagation()">
               <ul class="company-menu-list">
-                <li class="company-menu-item" (click)="navigateToNewEmpresa()">
+                <li class="company-menu-item" (click)="navigateToNewEmpresa()" *ngIf="canAccessEmpresas">
                   <i class="fas fa-plus-circle"></i>
                   <span>Crear nueva empresa</span>
                 </li>
-                <li class="company-menu-divider" *ngIf="empresas.length > 0"></li>
+                <li class="company-menu-divider" *ngIf="canAccessEmpresas && empresas.length > 0"></li>
                 <li 
                   class="company-menu-item" 
                   *ngFor="let empresa of empresas"
@@ -143,15 +144,6 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                 </button>
                 <ul class="nav-section-content" *ngIf="expandedSections['gestionEmpresa']">
                   <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? ['/timbrados'] : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                      <i class="fas fa-stamp"></i>
-                      <span>Timbrados</span>
-                    </a>
-                  </li>
-                  <li class="nav-sub-item">
                     <a [routerLink]="selectedEmpresa ? ['/empresas', selectedEmpresa.id, 'productos'] : null" 
                        routerLinkActive="active" 
                        class="nav-link"
@@ -160,21 +152,53 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                       <span>Productos</span>
                     </a>
                   </li>
+                  <li class="nav-sub-item" *ngIf="canAccessClientes">
+                    <a [routerLink]="selectedEmpresa ? '/clientes' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [class.disabled]="!selectedEmpresa"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-users"></i>
+                      <span>Clientes</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? ['/transporte/vehiculos/empresa', selectedEmpresa.id] : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [class.disabled]="!selectedEmpresa">
+                      <i class="fas fa-truck"></i>
+                      <span>Vehículos</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? ['/transporte/choferes/empresa', selectedEmpresa.id] : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [class.disabled]="!selectedEmpresa">
+                      <i class="fas fa-id-card"></i>
+                      <span>Choferes</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item">
+                    <a [routerLink]="selectedEmpresa ? ['/timbrados'] : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-stamp"></i>
+                      <span>Timbrados</span>
+                    </a>
+                  </li>
+                  <li class="nav-sub-item" *ngIf="canAccessUsuarios">
+                    <a [routerLink]="selectedEmpresa ? '/usuarios' : null" 
+                       routerLinkActive="active" 
+                       class="nav-link"
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                      <i class="fas fa-user-cog"></i>
+                      <span>Usuarios</span>
+                    </a>
+                  </li>
                 </ul>
-              </li>
-
-              <!-- Item Simple: Clientes -->
-              <li class="nav-item" *ngIf="canAccessClientes">
-                <a 
-                  [routerLink]="selectedEmpresa ? '/clientes' : null" 
-                  routerLinkActive="active" 
-                  class="nav-link"
-                  [class.disabled]="!selectedEmpresa"
-                  [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
-                  (click)="handleNavClick($event, !selectedEmpresa)">
-                  <i class="fas fa-users"></i>
-                  <span>Clientes</span>
-                </a>
               </li>
 
               <!-- Sección: Facturación -->
@@ -240,139 +264,22 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                 </ul>
               </li>
 
-              <!-- Sección: Documentos Electrónicos -->
-              <li class="nav-item nav-section" 
-                  [class.expanded]="expandedSections['documentos']"
-                  [class.disabled]="!selectedEmpresa"
-                  *ngIf="canAccessDocumentos">
-                <button 
-                  class="nav-section-header" 
-                  (click)="toggleSection('documentos')"
-                  [disabled]="!selectedEmpresa"
-                  [title]="!selectedEmpresa ? 'Selecciona una empresa primero' : ''">
-                  <i class="fas fa-file-alt"></i>
-                  <span>Documentos Electrónicos</span>
-                  <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['documentos']"></i>
-                </button>
-                <ul class="nav-section-content" *ngIf="expandedSections['documentos']">
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/documentos' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                      <i class="fas fa-list"></i>
-                      <span>Lista de Documentos</span>
-                    </a>
-                  </li>
-                  <li class="nav-sub-item">
-                    <div class="nav-sub-section" [class.expanded]="expandedSections['eventos']">
-                      <button 
-                        class="nav-sub-section-header" 
-                        (click)="toggleSection('eventos')">
-                        <i class="fas fa-cog"></i>
-                        <span>Gestión de Eventos</span>
-                        <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['eventos']"></i>
-                      </button>
-                      <ul class="nav-sub-section-content" *ngIf="expandedSections['eventos']">
-                        <li class="nav-sub-sub-item">
-                          <a [routerLink]="selectedEmpresa ? '/documentos/cancelacion' : null" 
-                             routerLinkActive="active" 
-                             class="nav-link"
-                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                            <i class="fas fa-ban"></i>
-                            <span>Cancelación</span>
-                          </a>
-                        </li>
-                        <li class="nav-sub-sub-item">
-                          <a [routerLink]="selectedEmpresa ? '/documentos/nominacion' : null" 
-                             routerLinkActive="active" 
-                             class="nav-link"
-                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                            <i class="fas fa-user-tag"></i>
-                            <span>Nominación</span>
-                          </a>
-                        </li>
-                        <li class="nav-sub-sub-item">
-                          <a [routerLink]="selectedEmpresa ? '/documentos/inutilizacion' : null" 
-                             routerLinkActive="active" 
-                             class="nav-link"
-                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                            <i class="fas fa-times-circle"></i>
-                            <span>Inutilización</span>
-                          </a>
-                        </li>
-                      </ul>
-                    </div>
-                  </li>
-                </ul>
-              </li>
-
-              <!-- Sección: Reportes -->
-              <li class="nav-item nav-section" 
-                  [class.expanded]="expandedSections['reportes']"
-                  [class.disabled]="!selectedEmpresa"
-                  *ngIf="canAccessReportes">
-                <button 
-                  class="nav-section-header" 
-                  (click)="toggleSection('reportes')"
-                  [disabled]="!selectedEmpresa"
-                  [title]="!selectedEmpresa ? 'Selecciona una empresa primero' : ''">
+              <!-- Sección: Reportes (Deshabilitado) -->
+              <li class="nav-item" *ngIf="canAccessReportes">
+                <div class="nav-link disabled">
                   <i class="fas fa-chart-bar"></i>
                   <span>Reportes</span>
-                  <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['reportes']"></i>
-                </button>
-                <ul class="nav-section-content" *ngIf="expandedSections['reportes']">
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/reportes/facturas' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                      <i class="fas fa-file-invoice"></i>
-                      <span>Reporte de Facturas</span>
-                    </a>
-                  </li>
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/reportes/clientes' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                      <i class="fas fa-users"></i>
-                      <span>Reporte de Clientes</span>
-                    </a>
-                  </li>
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/reportes/productos' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                      <i class="fas fa-box"></i>
-                      <span>Reporte de Productos</span>
-                    </a>
-                  </li>
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/reportes/usuarios' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
-                      <i class="fas fa-user-cog"></i>
-                      <span>Reporte de Usuarios</span>
-                    </a>
-                  </li>
-                </ul>
+                  <span class="badge-coming-soon">Próximamente</span>
+                </div>
               </li>
 
-              <!-- Item Simple: Auditoría -->
+              <!-- Item Simple: Auditoría (Deshabilitado) -->
               <li class="nav-item" *ngIf="canAccessAuditoria">
-                <a 
-                  [routerLink]="selectedEmpresa ? '/auditoria' : null" 
-                  routerLinkActive="active" 
-                  class="nav-link"
-                  [class.disabled]="!selectedEmpresa"
-                  [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
-                  (click)="handleNavClick($event, !selectedEmpresa)">
+                <div class="nav-link disabled">
                   <i class="fas fa-history"></i>
                   <span>Auditoría</span>
-                </a>
+                  <span class="badge-coming-soon">Próximamente</span>
+                </div>
               </li>
 
               <!-- Sección: Administración -->
@@ -1015,9 +922,15 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
     }
 
     .nav-link.disabled {
-      opacity: 0.5;
+      opacity: 0.6;
       cursor: not-allowed;
       pointer-events: none;
+    }
+
+    .nav-link.disabled:hover {
+      background: transparent;
+      color: #bdc3c7;
+      border-left-color: transparent;
     }
 
     /* Main Content */
@@ -1116,9 +1029,6 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   expandedSections: { [key: string]: boolean } = {
     gestionEmpresa: false,
     facturacion: false,
-    documentos: false,
-    eventos: false,
-    reportes: false,
     administracion: false
   };
   
@@ -1127,7 +1037,8 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   constructor(
     private store: Store,
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private permissionsService: PermissionsService
   ) {
     this.currentUser$ = this.store.select(selectCurrentUser);
     this.userRole$ = this.store.select(selectUserRole);
@@ -1229,38 +1140,19 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     });
     
     // Expandir según la ruta actual
-    if (url.startsWith('/empresas') || url.startsWith('/timbrados') || url.includes('/productos')) {
+    if (url.startsWith('/empresas') || url.startsWith('/timbrados') || url.includes('/productos') || 
+        url.startsWith('/clientes') || url.includes('/vehiculos') || url.includes('/choferes') || 
+        url.startsWith('/usuarios')) {
       this.expandedSections['gestionEmpresa'] = true;
     } else if (url.startsWith('/facturacion') || url.startsWith('/notas')) {
       this.expandedSections['facturacion'] = true;
-    } else if (url.startsWith('/documentos')) {
-      this.expandedSections['documentos'] = true;
-      // Expandir sub-sección de eventos si la ruta corresponde
-      if (url.includes('/cancelacion') || url.includes('/nominacion') || url.includes('/inutilizacion')) {
-        this.expandedSections['eventos'] = true;
-      }
-    } else if (url.startsWith('/reportes')) {
-      this.expandedSections['reportes'] = true;
     } else if (url.startsWith('/usuarios')) {
       this.expandedSections['administracion'] = true;
     }
   }
   
   toggleSection(section: string): void {
-    // Si es la sub-sección de eventos, manejar de forma especial
-    if (section === 'eventos') {
-      this.expandedSections['eventos'] = !this.expandedSections['eventos'];
-      // Si se expande eventos, también expandir documentos
-      if (this.expandedSections['eventos']) {
-        this.expandedSections['documentos'] = true;
-      }
-    } else {
-      this.expandedSections[section] = !this.expandedSections[section];
-      // Si se colapsa documentos, también colapsar eventos
-      if (section === 'documentos' && !this.expandedSections['documentos']) {
-        this.expandedSections['eventos'] = false;
-      }
-    }
+    this.expandedSections[section] = !this.expandedSections[section];
   }
 
   ngOnDestroy(): void {
@@ -1279,23 +1171,71 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   }
 
   get canAccessClientes(): boolean {
-    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canManageClientes(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
   }
 
   get canAccessFacturacion(): boolean {
-    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canManageFacturacion(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
   }
 
   get canAccessDocumentos(): boolean {
-    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
   }
 
   get canAccessReportes(): boolean {
-    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
   }
 
   get canAccessAuditoria(): boolean {
-    return this.hasAnyRole(['ADMIN', 'EMPRESA_ADMIN']);
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canAccessUsuarios(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canManageUsuarios(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN']);
+  }
+
+  get canAccessTimbrados(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canManageTimbrados(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN']);
+  }
+
+  get canAccessProductos(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canManageProductos(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessVehiculos(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canManageVehiculos(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canAccessChoferes(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canManageChoferes(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
   }
 
   private hasAnyRole(roles: string[]): boolean {
@@ -1337,9 +1277,33 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   }
 
   selectEmpresaById(empresaId: number): void {
+    // Verificar si la empresa está cambiando
+    const empresaAnterior = this.selectedEmpresa?.id;
+    const estaCambiandoEmpresa = empresaAnterior && empresaAnterior !== empresaId;
+    
+    // Cerrar todos los menús y componentes abiertos
+    this.showCompanyMenu = false;
+    this.showUserMenu = false;
+    
+    // Colapsar todas las secciones expandidas
+    Object.keys(this.expandedSections).forEach(key => {
+      this.expandedSections[key] = false;
+    });
+    
+    // Guardar la nueva empresa seleccionada
     localStorage.setItem('selectedEmpresaId', empresaId.toString());
     this.store.dispatch(selectEmpresa({ empresaId }));
-    this.showCompanyMenu = false;
+    
+    // Si se está cambiando de empresa, redirigir al dashboard para recargar todo
+    if (estaCambiandoEmpresa) {
+      this.router.navigate(['/dashboard'], { 
+        queryParams: { empresaId: empresaId },
+        replaceUrl: true 
+      }).then(() => {
+        // Forzar recarga completa de la página para limpiar todo el estado
+        window.location.reload();
+      });
+    }
   }
 
   navigateToNewEmpresa(): void {

@@ -48,6 +48,7 @@ public class TimbradoDetalleDto {
     
     // Información del timbrado para mostrar (solo lectura)
     private String timbradoNumero;
+    private Boolean timbradoIsElectronico;
 
     // Constructores
     public TimbradoDetalleDto() {
@@ -181,5 +182,13 @@ public class TimbradoDetalleDto {
 
     public void setTimbradoNumero(String timbradoNumero) {
         this.timbradoNumero = timbradoNumero;
+    }
+
+    public Boolean getTimbradoIsElectronico() {
+        return timbradoIsElectronico;
+    }
+
+    public void setTimbradoIsElectronico(Boolean timbradoIsElectronico) {
+        this.timbradoIsElectronico = timbradoIsElectronico;
     }
 }

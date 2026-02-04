@@ -28,6 +28,7 @@ public class TimbradoDetalleMapper {
         if (detalle.getTimbrado() != null) {
             dto.setTimbradoId(detalle.getTimbrado().getId());
             dto.setTimbradoNumero(detalle.getTimbrado().getNumero());
+            dto.setTimbradoIsElectronico(detalle.getTimbrado().getIsElectronico());
         }
         
         dto.setPuntoExpedicion(detalle.getPuntoExpedicion());
