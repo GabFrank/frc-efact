@@ -20,6 +20,12 @@ services:
         value: "86400000"
       - key: LOG_LEVEL
         value: INFO
+      # GitHub Packages credentials (required for jsifenlib dependency)
+      # IMPORTANT: Set these in Render Dashboard → Environment Variables
+      # - key: GITHUB_USERNAME
+      #   value: "your-github-username"
+      # - key: GITHUB_TOKEN
+      #   value: "your-github-personal-access-token"
 
   # Frontend - Angular SPA
   - type: web

@@ -20,7 +20,7 @@
 
     <repositories>
         <repository>
-            <id>github</id>
+            <id>github-jsifenlib</id>
             <url>https://maven.pkg.github.com/GabFrank/rshk-jsifenlib</url>
             <snapshots>
                 <enabled>false</enabled>

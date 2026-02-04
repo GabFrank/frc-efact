@@ -119,7 +119,18 @@ cors:
 
 3. Guardar el archivo
 
-### 4.3 Commit y Push
+### 4.3 Configurar Credenciales de GitHub Packages
+
+**⚠️ IMPORTANTE:** El backend necesita credenciales de GitHub Packages para descargar la dependencia `jsifenlib`.
+
+1. Ir a Render Dashboard → `frc-efact-backend` → "Environment"
+2. Agregar las siguientes variables de entorno:
+   - **`GITHUB_USERNAME`**: Tu nombre de usuario de GitHub
+   - **`GITHUB_TOKEN`**: Un Personal Access Token de GitHub con scope `read:packages`
+   
+   Ver guía completa en [RENDER_GITHUB_PACKAGES.md](RENDER_GITHUB_PACKAGES.md)
+
+### 4.4 Commit y Push
 
 ```bash
 git add frc-efact-frontend/src/environments/environment.prod.ts
