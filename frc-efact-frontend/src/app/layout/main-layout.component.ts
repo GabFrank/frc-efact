@@ -116,7 +116,7 @@ import { PermissionsService } from '../core/services/permissions.service';
         <aside class="sidebar">
           <!-- Logo en la parte superior de la sidebar -->
           <div class="sidebar-logo">
-            <img src="assets/logo.svg" alt="FRC eFACT" class="sidebar-logo-img" />
+            <img src="assets/256.png" alt="FRC eFACT" class="sidebar-logo-img" />
           </div>
           <nav class="sidebar-nav">
             <ul class="nav-menu">
