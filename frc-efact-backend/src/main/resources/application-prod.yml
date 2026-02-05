@@ -106,3 +106,8 @@ rate:
     enabled: true  # Habilitar/deshabilitar rate limiting
     max-attempts: 100  # Máximo de intentos de login permitidos
     time-window-minutes: 15  # Ventana de tiempo en minutos
+
+# Certificates Configuration for Production
+# Use a directory within the app directory where the user has write permissions
+certificates:
+  upload-dir: ./certificates  # Relative path - will be resolved to /app/certificates in Docker

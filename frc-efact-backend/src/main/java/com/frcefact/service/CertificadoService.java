@@ -48,21 +48,22 @@ public class CertificadoService {
     public CertificadoService(
             EmpresaRepository empresaRepository,
             EncryptionService encryptionService,
-            @Value("${certificates.upload-dir:/var/certificates}") String uploadDir) {
+            @Value("${certificates.upload-dir:./certificates}") String uploadDir) {
         this.empresaRepository = empresaRepository;
         this.encryptionService = encryptionService;
         
-        // Resolver path: si es relativo, resolverlo desde el directorio del proyecto backend
-        // Esto asegura consistencia independientemente del directorio de trabajo actual
+        // Resolver path: si es relativo, resolverlo desde el directorio de trabajo actual
+        // En Docker, el WORKDIR es /app, así que ./certificates se resuelve a /app/certificates
         Path baseDir;
         if (Paths.get(uploadDir).isAbsolute()) {
             // Path absoluto: usarlo directamente
             baseDir = Paths.get(uploadDir);
         } else {
-            // Path relativo: resolverlo desde el directorio del proyecto backend
-            // Buscar el directorio del proyecto backend de forma confiable
-            Path backendDir = encontrarDirectorioBackend();
-            baseDir = backendDir.resolve(uploadDir);
+            // Path relativo: resolverlo desde el directorio de trabajo actual
+            // En desarrollo: desde el directorio del proyecto backend
+            // En producción (Docker): desde /app (WORKDIR)
+            Path workingDir = Paths.get(System.getProperty("user.dir", "."));
+            baseDir = workingDir.resolve(uploadDir);
         }
         
         this.certificatesDir = baseDir.toAbsolutePath().normalize();
@@ -390,64 +391,6 @@ public class CertificadoService {
         }
     }
 
-    /**
-     * Encuentra el directorio del proyecto backend de forma confiable.
-     * Busca el directorio que contiene application.yml o el directorio actual si no se encuentra.
-     */
-    private Path encontrarDirectorioBackend() {
-        try {
-            // Obtener el directorio de trabajo actual
-            String currentDir = System.getProperty("user.dir");
-            Path currentPath = Paths.get(currentDir);
-            
-            // Si el nombre del directorio actual es "frc-efact-backend", estamos en el backend
-            if (currentPath.getFileName().toString().equals("frc-efact-backend")) {
-                return currentPath;
-            }
-            
-            // Si estamos en la raíz "frc-efact", buscar el subdirectorio backend
-            if (currentPath.getFileName().toString().equals("frc-efact")) {
-                Path backendPath = currentPath.resolve("frc-efact-backend");
-                if (Files.exists(backendPath) && Files.isDirectory(backendPath)) {
-                    return backendPath;
-                }
-            }
-            
-            // Buscar hacia arriba en la jerarquía hasta encontrar el directorio backend
-            Path searchPath = currentPath;
-            for (int i = 0; i < 5; i++) { // Máximo 5 niveles hacia arriba
-                Path backendPath = searchPath.resolve("frc-efact-backend");
-                if (Files.exists(backendPath) && Files.isDirectory(backendPath)) {
-                    // Verificar que contiene application.yml
-                    Path appYml = backendPath.resolve("src/main/resources/application.yml");
-                    if (Files.exists(appYml)) {
-                        return backendPath;
-                    }
-                }
-                
-                // Si estamos en la raíz del proyecto, buscar directamente
-                if (searchPath.getFileName().toString().equals("frc-efact")) {
-                    backendPath = searchPath.resolve("frc-efact-backend");
-                    if (Files.exists(backendPath) && Files.isDirectory(backendPath)) {
-                        return backendPath;
-                    }
-                }
-                
-                searchPath = searchPath.getParent();
-                if (searchPath == null) {
-                    break;
-                }
-            }
-            
-            // Fallback: usar el directorio actual
-            log.warn("⚠️ No se pudo encontrar el directorio del proyecto backend, usando directorio actual: {}", currentPath);
-            return currentPath;
-            
-        } catch (Exception e) {
-            log.warn("⚠️ Error al buscar directorio del proyecto backend: {}", e.getMessage());
-            return Paths.get(System.getProperty("user.dir"));
-        }
-    }
 
     /**
      * Extrae la fecha de expiración de un certificado PFX.
