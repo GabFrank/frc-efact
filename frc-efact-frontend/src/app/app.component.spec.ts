@@ -14,10 +14,10 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'frc-efact-frontend' title`, () => {
+  it(`should have the 'FRC eFACT' title`, () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
-    expect(app.title).toEqual('frc-efact-frontend');
+    expect(app.title).toEqual('FRC eFACT');
   });
 
   it('should render title', () => {

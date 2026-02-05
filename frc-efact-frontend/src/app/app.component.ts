@@ -16,7 +16,7 @@ import { environment } from '../environments/environment';
   styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnInit {
-  title = 'frc-efact-frontend';
+  title = 'FRC eFACT';
   private readonly store = inject(Store);
   private readonly auth0 = inject(Auth0Service);
   private readonly router = inject(Router);

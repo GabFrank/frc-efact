@@ -22,7 +22,7 @@ import { PermissionsService } from '../core/services/permissions.service';
       <!-- Top Navigation Bar -->
       <nav class="navbar">
         <div class="navbar-brand">
-          <!-- <span class="brand-text">FRC eFact</span> -->
+          <!-- <span class="brand-text">FRC eFACT</span> -->
         </div>
 
         <!-- Company Selector -->
@@ -116,7 +116,7 @@ import { PermissionsService } from '../core/services/permissions.service';
         <aside class="sidebar">
           <!-- Logo en la parte superior de la sidebar -->
           <div class="sidebar-logo">
-            <img src="assets/logo.svg" alt="FRC eFact" class="sidebar-logo-img" />
+            <img src="assets/eFact_logo_250.png" alt="FRC eFACT" class="sidebar-logo-img" />
           </div>
           <nav class="sidebar-nav">
             <ul class="nav-menu">
