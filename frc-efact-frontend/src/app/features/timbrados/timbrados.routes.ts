@@ -1,50 +1,48 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '../../guards/auth.guard';
+import { roleGuard } from '../../guards/role.guard';
+import { empresaSelectedGuard } from '../../guards/empresa-selected.guard';
 
 export const TIMBRADOS_ROUTES: Routes = [
   {
     path: '',
-    canActivate: [authGuard],
+    canActivate: [authGuard, empresaSelectedGuard],
     children: [
       {
         path: '',
-        loadComponent: () => import('../empresas/empresa-timbrados.component').then(m => m.EmpresaTimbradosComponent),
-        title: 'Timbrados'
+        loadComponent: () => import('./timbrado-list.component').then(m => m.TimbradoListComponent),
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Timbrados',
+          roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']
+        }
       },
       {
-        path: 'new',
+        path: 'nuevo',
         loadComponent: () => import('./timbrado-form.component').then(m => m.TimbradoFormComponent),
-        title: 'Nuevo Timbrado'
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Nuevo Timbrado',
+          roles: ['ADMIN', 'EMPRESA_ADMIN']
+        }
+      },
+      {
+        path: ':id/editar',
+        loadComponent: () => import('./timbrado-form.component').then(m => m.TimbradoFormComponent),
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Editar Timbrado',
+          roles: ['ADMIN', 'EMPRESA_ADMIN']
+        }
       },
       {
         path: ':id',
         loadComponent: () => import('./timbrado-form.component').then(m => m.TimbradoFormComponent),
-        title: 'Ver Timbrado'
-      },
-      {
-        path: ':id/edit',
-        loadComponent: () => import('./timbrado-form.component').then(m => m.TimbradoFormComponent),
-        title: 'Editar Timbrado'
-      },
-      {
-        path: ':id/detalles',
-        loadComponent: () => import('./timbrado-detalle-list.component').then(m => m.TimbradoDetalleListComponent),
-        title: 'Puntos de Expedición'
-      },
-      {
-        path: ':id/detalles/new',
-        loadComponent: () => import('./timbrado-detalle-form.component').then(m => m.TimbradoDetalleFormComponent),
-        title: 'Nuevo Punto de Expedición'
-      },
-      {
-        path: ':id/detalles/:detalleId',
-        loadComponent: () => import('./timbrado-detalle-form.component').then(m => m.TimbradoDetalleFormComponent),
-        title: 'Ver Punto de Expedición'
-      },
-      {
-        path: ':id/detalles/:detalleId/edit',
-        loadComponent: () => import('./timbrado-detalle-form.component').then(m => m.TimbradoDetalleFormComponent),
-        title: 'Editar Punto de Expedición'
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Ver Timbrado',
+          roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']
+        }
       }
     ]
   }

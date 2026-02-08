@@ -176,6 +176,7 @@ public class EmpresaController {
      * @return la empresa actualizada
      */
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     @Operation(summary = "Actualizar empresa con certificado", description = "Actualiza los datos de una empresa existente. Puede incluir certificado opcional.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa actualizada exitosamente"),
@@ -240,6 +241,7 @@ public class EmpresaController {
      * @return la empresa actualizada
      */
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     @Operation(summary = "Actualizar empresa", description = "Actualiza los datos de una empresa existente")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Empresa actualizada exitosamente"),
@@ -341,6 +343,7 @@ public class EmpresaController {
      * @return respuesta sin contenido
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
     @Operation(summary = "Desactivar empresa", description = "Desactiva una empresa (soft delete)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Empresa desactivada exitosamente"),
@@ -427,7 +430,7 @@ public class EmpresaController {
      * @return lista de usuarios asignados a la empresa
      */
     @GetMapping("/{id}/usuarios")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     @Operation(summary = "Listar usuarios de empresa", description = "Obtiene la lista de usuarios asignados a una empresa")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Usuarios obtenidos exitosamente"),
@@ -453,7 +456,8 @@ public class EmpresaController {
      * @return la relación usuario-empresa creada
      */
     @PostMapping("/{id}/usuarios")
-    @Operation(summary = "Asignar usuario a empresa", description = "Asigna un usuario a una empresa con rol ADMINISTRADOR o LECTOR")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
+    @Operation(summary = "Asignar usuario a empresa", description = "Asigna un usuario a una empresa con rol ADMINISTRADOR, FACTURADOR o LECTOR. Requiere ser ADMIN del sistema o EMPRESA_ADMIN con rol ADMINISTRADOR en la empresa.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Usuario asignado exitosamente"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos"),

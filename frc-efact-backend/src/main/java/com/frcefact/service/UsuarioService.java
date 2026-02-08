@@ -48,19 +48,22 @@ public class UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
     private final JwtDecoder jwtDecoder;
+    private final EmpresaService empresaService;
 
     public UsuarioService(UsuarioRepository usuarioRepository, 
                          RolRepository rolRepository,
                          UsuarioRolRepository usuarioRolRepository,
                          PasswordEncoder passwordEncoder,
                          AuditLogService auditLogService,
-                         JwtDecoder jwtDecoder) {
+                         JwtDecoder jwtDecoder,
+                         EmpresaService empresaService) {
         this.usuarioRepository = usuarioRepository;
         this.rolRepository = rolRepository;
         this.usuarioRolRepository = usuarioRolRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
         this.jwtDecoder = jwtDecoder;
+        this.empresaService = empresaService;
     }
 
     /**
@@ -296,6 +299,7 @@ public class UsuarioService {
 
     /**
      * Crear usuario desde request de administrador.
+     * Si se proporciona empresaId y rolEmpresa, asigna automáticamente el usuario a la empresa.
      *
      * @param request datos del usuario a crear
      * @return el usuario creado
@@ -319,6 +323,25 @@ public class UsuarioService {
 
         // Asignar roles
         asignarRoles(usuarioCreado, request.getRoles());
+
+        // Si se proporciona empresaId y rolEmpresa, asignar automáticamente a la empresa
+        if (request.getEmpresaId() != null && request.getRolEmpresa() != null) {
+            try {
+                empresaService.asignarUsuarioAEmpresa(
+                    request.getEmpresaId(),
+                    usuarioCreado.getId(),
+                    request.getRolEmpresa()
+                );
+            } catch (Exception e) {
+                // Si falla la asignación, loguear pero no fallar la creación del usuario
+                // El usuario ya fue creado, solo falló la asignación a la empresa
+                org.slf4j.LoggerFactory.getLogger(UsuarioService.class)
+                    .warn("No se pudo asignar el usuario {} a la empresa {}: {}", 
+                        usuarioCreado.getId(), request.getEmpresaId(), e.getMessage());
+                throw new IllegalArgumentException(
+                    "Usuario creado pero no se pudo asignar a la empresa: " + e.getMessage());
+            }
+        }
 
         return usuarioCreado;
     }

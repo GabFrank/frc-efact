@@ -1238,11 +1238,16 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
   }
 
   onTimbradoChange(): void {
-    // Validar que el timbrado tenga números disponibles
+    // Validar que el timbrado tenga números disponibles (solo para timbrados no electrónicos)
     const timbradoDetalleId = this.form.get('timbradoDetalleId')?.value;
     const timbrado = this.timbradosDetalle().find(td => td.id === timbradoDetalleId);
 
-    if (timbrado && timbrado.numeroActual >= timbrado.rangoHasta) {
+    // Solo validar rangos si NO es un timbrado electrónico y tiene rangos definidos
+    if (timbrado && 
+        !timbrado.timbradoIsElectronico && 
+        timbrado.rangoHasta != null && 
+        timbrado.numeroActual != null &&
+        timbrado.numeroActual >= timbrado.rangoHasta) {
       this.snackBar.open(
         'Advertencia: Este timbrado no tiene números disponibles',
         'Cerrar',

@@ -38,6 +38,8 @@ export interface CreateUserRequest {
   password: string;
   roles: string[];
   isActive: boolean;
+  empresaId?: number;
+  rolEmpresa?: 'ADMINISTRADOR' | 'FACTURADOR' | 'LECTOR';
 }
 
 export interface UpdateUserRequest {

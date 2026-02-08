@@ -580,12 +580,15 @@ export class UsuarioFormComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: (roles) => {
         this.roles = roles;
-        this.availableRoles = roles.map(role => role.nombre);
+        // Filtrar el rol ADMIN de la lista
+        this.availableRoles = roles
+          .map(role => role.nombre)
+          .filter(roleName => roleName !== 'ADMIN');
       },
       error: (error) => {
         console.error('Error al cargar roles:', error);
-        // Fallback a roles por defecto si hay error
-        this.availableRoles = ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR'];
+        // Fallback a roles por defecto sin ADMIN si hay error
+        this.availableRoles = ['EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR'];
       }
     });
   }

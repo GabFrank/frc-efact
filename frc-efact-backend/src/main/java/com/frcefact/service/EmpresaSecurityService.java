@@ -50,6 +50,10 @@ public class EmpresaSecurityService {
             return true;
         }
 
+        // Los usuarios EMPRESA_ADMIN y FACTURADOR del sistema también tienen acceso si están asignados a la empresa
+        boolean isEmpresaAdmin = hasRole(authentication, "EMPRESA_ADMIN");
+        boolean isFacturador = hasRole(authentication, "FACTURADOR");
+        
         // Buscar el usuario
         Optional<Usuario> usuarioOpt = usuarioRepository.findByUsername(username);
         if (usuarioOpt.isEmpty()) {
@@ -72,15 +76,27 @@ public class EmpresaSecurityService {
         if (!usuarioEmpresa.getActivo()) {
             return false;
         }
-
+        
+        // Si es EMPRESA_ADMIN o FACTURADOR del sistema y está asignado a la empresa, tiene acceso de lectura
+        if ((isEmpresaAdmin || isFacturador) && "READ".equalsIgnoreCase(tipoAcceso)) {
+            return true;
+        }
+        
         // Verificar el tipo de acceso
         if ("WRITE".equalsIgnoreCase(tipoAcceso)) {
-            // Solo ADMINISTRADOR puede escribir
+            // Usuarios con rol del sistema FACTURADOR o EMPRESA_ADMIN pueden escribir
+            // si están asignados a la empresa (independientemente del rol de empresa)
+            if (isFacturador || isEmpresaAdmin) {
+                return true;
+            }
+            // Si no tiene rol del sistema especial, solo ADMINISTRADOR de la empresa puede escribir
             return "ADMINISTRADOR".equals(usuarioEmpresa.getRolEmpresa());
         } else if ("READ".equalsIgnoreCase(tipoAcceso)) {
-            // Tanto ADMINISTRADOR como LECTOR pueden leer
-            return "ADMINISTRADOR".equals(usuarioEmpresa.getRolEmpresa()) ||
-                   "LECTOR".equals(usuarioEmpresa.getRolEmpresa());
+            // ADMINISTRADOR, FACTURADOR y LECTOR pueden leer
+            String rolEmpresa = usuarioEmpresa.getRolEmpresa();
+            return "ADMINISTRADOR".equals(rolEmpresa) ||
+                   "FACTURADOR".equals(rolEmpresa) ||
+                   "LECTOR".equals(rolEmpresa);
         }
 
         return false;

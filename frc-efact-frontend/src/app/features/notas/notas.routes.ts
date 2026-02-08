@@ -5,15 +5,21 @@ import { roleGuard } from '../../guards/role.guard';
 export const NOTAS_ROUTES: Routes = [
   {
     path: 'notas-credito',
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
     loadComponent: () => import('./nota-credito-list.component').then(m => m.NotaCreditoListComponent),
-    data: { title: 'Notas de Crédito' }
+    data: { 
+      title: 'Notas de Crédito',
+      roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']
+    }
   },
   {
     path: 'notas-debito',
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
     loadComponent: () => import('./nota-debito-list.component').then(m => m.NotaDebitoListComponent),
-    data: { title: 'Notas de Débito' }
+    data: { 
+      title: 'Notas de Débito',
+      roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']
+    }
   },
   {
     path: 'notas-remision',
@@ -22,17 +28,29 @@ export const NOTAS_ROUTES: Routes = [
       {
         path: '',
         loadComponent: () => import('./nota-remision-list.component').then(m => m.NotaRemisionListComponent),
-        data: { title: 'Notas de Remisión' }
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Notas de Remisión',
+          roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']
+        }
       },
       {
         path: 'nueva',
         loadComponent: () => import('./nota-remision-form.component').then(m => m.NotaRemisionFormComponent),
-        data: { title: 'Nueva Nota de Remisión' }
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Nueva Nota de Remisión',
+          roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']
+        }
       },
       {
         path: ':id',
         loadComponent: () => import('./nota-remision-form.component').then(m => m.NotaRemisionFormComponent),
-        data: { title: 'Editar Nota de Remisión' }
+        canActivate: [roleGuard],
+        data: { 
+          title: 'Editar Nota de Remisión',
+          roles: ['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']
+        }
       }
     ]
   }

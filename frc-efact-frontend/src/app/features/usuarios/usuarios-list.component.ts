@@ -1,9 +1,9 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { Observable, Subject, combineLatest } from 'rxjs';
-import { debounceTime, distinctUntilChanged, takeUntil, map } from 'rxjs/operators';
+import { Observable, Subject, combineLatest, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, takeUntil, map, switchMap, catchError } from 'rxjs/operators';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -21,7 +21,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormsModule } from '@angular/forms';
 
 import { User } from '../../models/user.model';
+import { UsuarioEmpresa } from '../../models/usuario-empresa.model';
 import { NotificationService } from '../../core/services/notification.service';
+import { EmpresaApiService } from '../../core/api/empresa-api.service';
 import * as UsuariosActions from '../../core/state/usuarios/usuarios.actions';
 import {
   selectFilteredUsers,
@@ -36,6 +38,8 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
 import { ErrorMessageComponent } from '../../shared/components/error-message/error-message.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ResetPasswordDialogComponent, ResetPasswordDialogData, ResetPasswordDialogResult } from './reset-password-dialog.component';
+import { UsuarioDialogComponent, UsuarioDialogData } from '../../shared/components/usuario-dialog/usuario-dialog.component';
+import { PermissionsService } from '../../core/services/permissions.service';
 
 @Component({
   selector: 'app-usuarios-list',
@@ -65,6 +69,7 @@ import { ResetPasswordDialogComponent, ResetPasswordDialogData, ResetPasswordDia
         <mat-card-header>
           <mat-card-title>
             <h2>Gestión de Usuarios</h2>
+            <p *ngIf="empresaId" class="empresa-context">Mostrando usuarios de la empresa seleccionada</p>
           </mat-card-title>
         </mat-card-header>
 
@@ -84,14 +89,15 @@ import { ResetPasswordDialogComponent, ResetPasswordDialogData, ResetPasswordDia
             <button
               mat-raised-button
               color="primary"
-              (click)="onCreateUser()">
+              (click)="onCreateUser()"
+              *ngIf="canManageUsers">
               <mat-icon>add</mat-icon>
               Nuevo Usuario
             </button>
           </div>
 
           <!-- Loading State -->
-          <app-loading-spinner *ngIf="loading$ | async"></app-loading-spinner>
+          <app-loading-spinner *ngIf="(loading$ | async) || loadingEmpresaUsers"></app-loading-spinner>
 
           <!-- Error State -->
           <app-error-message
@@ -309,6 +315,13 @@ import { ResetPasswordDialogComponent, ResetPasswordDialogData, ResetPasswordDia
       margin: 0;
       font-size: 24px;
       font-weight: 500;
+    }
+
+    .empresa-context {
+      margin: 8px 0 0 0;
+      font-size: 14px;
+      color: #666;
+      font-style: italic;
     }
 
     .actions-bar {
@@ -547,12 +560,18 @@ export class UsuariosListComponent implements OnInit, OnDestroy {
   private searchSubject = new Subject<string>();
   private destroy$ = new Subject<void>();
 
+  empresaId?: number;
+  loadingEmpresaUsers: boolean = false;
+
   constructor(
     private store: Store,
     private router: Router,
+    private route: ActivatedRoute,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private empresaApiService: EmpresaApiService,
+    private permissionsService: PermissionsService
   ) {
     this.users$ = this.store.select(selectFilteredUsers);
     this.loading$ = this.store.select(selectAnyLoading);
@@ -563,8 +582,59 @@ export class UsuariosListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Load users from store
-    this.store.dispatch(UsuariosActions.loadUsers({}));
+    // Check if empresaId is provided in query params
+    this.route.queryParams.pipe(
+      takeUntil(this.destroy$),
+      map(params => {
+        const empresaId = params['empresaId'] ? Number(params['empresaId']) : null;
+        return empresaId;
+      }),
+      switchMap(empresaId => {
+        this.empresaId = empresaId || undefined;
+        
+        if (empresaId) {
+          // Load users from empresa
+          this.loadingEmpresaUsers = true;
+          return this.empresaApiService.getUsuariosEmpresa(empresaId).pipe(
+            map((usuariosEmpresa: UsuarioEmpresa[]) => {
+              // Convert UsuarioEmpresa[] to User[]
+              const users: User[] = usuariosEmpresa.map(ue => {
+                const user: User = {
+                  id: ue.usuarioId,
+                  username: ue.usuarioUsername || `Usuario ${ue.usuarioId}`,
+                  email: ue.usuarioEmail || '',
+                  isActive: ue.activo ?? true,
+                  roles: ue.usuarioRoles || [], // Roles del usuario desde el backend
+                  creadoEn: ue.creadoEn,
+                  actualizadoEn: ue.actualizadoEn,
+                  ultimoLogin: undefined, // UsuarioEmpresa doesn't include ultimoLogin
+                };
+                // Add empresa-specific info as custom properties
+                (user as any).empresaRol = ue.rolEmpresa;
+                (user as any).empresaId = ue.empresaId;
+                (user as any).empresaRazonSocial = ue.empresaRazonSocial;
+                return user;
+              });
+              
+              this.loadingEmpresaUsers = false;
+              this.store.dispatch(UsuariosActions.loadUsersSuccess({ users }));
+              return users;
+            }),
+            catchError(error => {
+              this.loadingEmpresaUsers = false;
+              const errorMessage = error.error?.message || 'Error al cargar usuarios de la empresa';
+              this.store.dispatch(UsuariosActions.loadUsersFailure({ error: errorMessage }));
+              this.snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
+              return [];
+            })
+          );
+        } else {
+          // Load all users from store
+          this.store.dispatch(UsuariosActions.loadUsers({}));
+          return this.users$;
+        }
+      })
+    ).subscribe();
 
     // Subscribe to users changes
     this.users$.pipe(takeUntil(this.destroy$)).subscribe(users => {
@@ -745,7 +815,59 @@ export class UsuariosListComponent implements OnInit, OnDestroy {
   }
 
   onCreateUser(): void {
-    this.router.navigate(['/usuarios/new']);
+    const dialogData: UsuarioDialogData = {};
+    
+    // Si hay empresaId en los query params, incluirla en el diálogo
+    if (this.empresaId) {
+      dialogData.empresaId = this.empresaId;
+      // Por defecto asignar como FACTURADOR, pero el usuario puede cambiarlo si tiene permisos
+      dialogData.rolEmpresa = 'FACTURADOR';
+    }
+
+    const dialogRef = this.dialog.open(UsuarioDialogComponent, {
+      width: '600px',
+      disableClose: false,
+      data: dialogData
+    });
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((user?: User) => {
+      if (user) {
+        // Si se creó desde el contexto de una empresa, recargar usuarios de esa empresa
+        if (this.empresaId) {
+          // Recargar usuarios de la empresa
+          this.empresaApiService.getUsuariosEmpresa(this.empresaId).pipe(
+            map((usuariosEmpresa: UsuarioEmpresa[]) => {
+              const users: User[] = usuariosEmpresa.map(ue => {
+                const user: User = {
+                  id: ue.usuarioId,
+                  username: ue.usuarioUsername || `Usuario ${ue.usuarioId}`,
+                  email: ue.usuarioEmail || '',
+                  isActive: ue.activo ?? true,
+                  roles: ue.usuarioRoles || [],
+                  creadoEn: ue.creadoEn,
+                  actualizadoEn: ue.actualizadoEn,
+                  ultimoLogin: undefined,
+                };
+                (user as any).empresaRol = ue.rolEmpresa;
+                (user as any).empresaId = ue.empresaId;
+                (user as any).empresaRazonSocial = ue.empresaRazonSocial;
+                return user;
+              });
+              this.store.dispatch(UsuariosActions.loadUsersSuccess({ users }));
+              return users;
+            }),
+            catchError(error => {
+              const errorMessage = error.error?.message || 'Error al cargar usuarios de la empresa';
+              this.store.dispatch(UsuariosActions.loadUsersFailure({ error: errorMessage }));
+              return [];
+            })
+          ).subscribe();
+        } else {
+          // Recargar todos los usuarios
+          this.store.dispatch(UsuariosActions.loadUsers({}));
+        }
+      }
+    });
   }
 
   onViewUser(user: User): void {
@@ -854,5 +976,14 @@ export class UsuariosListComponent implements OnInit, OnDestroy {
         this.store.dispatch(UsuariosActions.deleteUser({ id: user.id }));
       }
     });
+  }
+
+  // Permission methods
+  get canManageUsers(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN']);
+  }
+
+  get canViewUsers(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
   }
 }

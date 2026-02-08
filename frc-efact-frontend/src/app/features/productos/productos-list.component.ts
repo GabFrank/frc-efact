@@ -27,6 +27,7 @@ import { DataTableComponent, TableColumn, TableAction } from '../../shared/compo
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { ProductoFormComponent } from './producto-form.component';
+import { PermissionsService } from '../../core/services/permissions.service';
 
 @Component({
   selector: 'app-productos-list',
@@ -67,11 +68,11 @@ import { ProductoFormComponent } from './producto-form.component';
                 </div>
               </div>
               <div class="header-actions">
-                <button mat-raised-button color="accent" (click)="importarExcel()">
+                <button mat-raised-button color="accent" (click)="importarExcel()" *ngIf="canManageProducts">
                   <mat-icon>upload_file</mat-icon>
                   Importar Excel
                 </button>
-                <button mat-raised-button color="primary" (click)="crearProducto()">
+                <button mat-raised-button color="primary" (click)="crearProducto()" *ngIf="canManageProducts">
                   <mat-icon>add</mat-icon>
                   Nuevo Producto
                 </button>
@@ -201,12 +202,12 @@ import { ProductoFormComponent } from './producto-form.component';
                   </button>
 
                   <mat-menu #actionsMenu="matMenu">
-                    <button mat-menu-item (click)="editarProducto(producto)">
+                    <button mat-menu-item (click)="editarProducto(producto)" *ngIf="canManageProducts">
                       <mat-icon>edit</mat-icon>
                       <span>Editar</span>
                     </button>
-                    <mat-divider></mat-divider>
-                    <button mat-menu-item (click)="eliminarProducto(producto)" class="delete-option">
+                    <mat-divider *ngIf="canManageProducts"></mat-divider>
+                    <button mat-menu-item (click)="eliminarProducto(producto)" class="delete-option" *ngIf="canManageProducts">
                       <mat-icon>delete</mat-icon>
                       <span>Eliminar</span>
                     </button>
@@ -553,7 +554,8 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private permissionsService: PermissionsService
   ) {}
 
   ngOnInit(): void {
@@ -821,5 +823,14 @@ export class ProductosListComponent implements OnInit, OnDestroy, AfterViewInit 
         }
       });
     }
+  }
+
+  // Permission methods
+  get canManageProducts(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR']);
+  }
+
+  get canViewProducts(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
   }
 }

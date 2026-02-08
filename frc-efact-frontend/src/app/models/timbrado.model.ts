@@ -22,10 +22,10 @@ export interface TimbradoDetalle {
   timbradoId: number;
   puntoExpedicion: string;
   codigoEstablecimientoFactura: string;
-  cantidad: number;
-  rangoDesde: number;
-  rangoHasta: number;
-  numeroActual: number;
+  cantidad?: number | null;
+  rangoDesde?: number | null;
+  rangoHasta?: number | null;
+  numeroActual?: number | null;
   ciudadId: number;
   barrioId?: number;
   direccion?: string;
@@ -38,4 +38,5 @@ export interface TimbradoDetalle {
 
   // Información del timbrado para mostrar (solo lectura)
   timbradoNumero?: string;
+  timbradoIsElectronico?: boolean;
 }
