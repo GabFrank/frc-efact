@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -18,6 +18,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatSortModule, MatSort, Sort } from '@angular/material/sort';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { ClienteApiService, PageResponse } from '../../core/api/cliente-api.service';
 import { EmpresaApiService } from '../../core/api/empresa-api.service';
 import { Cliente } from '../../models/cliente.model';
@@ -125,7 +126,8 @@ import { MatTableDataSource } from '@angular/material/table';
           <!-- Tabla de clientes -->
           <app-loading-spinner *ngIf="loading()" />
 
-          <div *ngIf="!loading()" class="table-wrapper">
+          <div class="list-desktop" *ngIf="!loading() && !isMobile()">
+          <div class="table-wrapper">
             <table mat-table [dataSource]="dataSource" matSort (matSortChange)="onSortChange($event)" class="clientes-table">
               <!-- Razón Social Column -->
               <ng-container matColumnDef="razonSocial">
@@ -209,6 +211,60 @@ import { MatTableDataSource } from '@angular/material/table';
               showFirstLastButtons>
             </mat-paginator>
           </div>
+          </div>
+
+          <div class="list-mobile" *ngIf="!loading() && isMobile()">
+            <div class="mobile-cards" *ngIf="dataSource.data.length">
+              <mat-card class="list-card" *ngFor="let item of dataSource.data">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">{{ item.razonSocial || '—' }}</span>
+                    <span class="list-card-date" *ngIf="item.nombre">{{ item.nombre }}</span>
+                  </mat-card-title>
+                  <button class="list-card-menu-trigger" mat-icon-button color="primary"
+                    [matMenuTriggerFor]="cardActionMenu" (click)="setMenuContext(item)"
+                    matTooltip="Acciones" aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content">
+                  <div class="list-card-field">
+                    <span class="list-card-label">RUC</span>
+                    <span class="list-card-value">{{ item.ruc || '—' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Tipo</span>
+                    <span class="list-card-value">{{ getTipoClienteDescripcion(item.tipoClienteSifen) }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Estado</span>
+                    <span class="list-card-value">{{ item.activo ? 'Activo' : 'Inactivo' }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="!dataSource.data.length">No hay clientes para mostrar.</div>
+            <mat-paginator
+              *ngIf="dataSource.data.length"
+              [length]="totalElements"
+              [pageSize]="pageSize"
+              [pageSizeOptions]="[10, 20, 50, 100]"
+              [pageIndex]="currentPage"
+              (page)="onPageChange($event)"
+              showFirstLastButtons>
+            </mat-paginator>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && editarCliente(menuRow)">
+                <mat-icon>edit</mat-icon>
+                <span>Editar</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button mat-menu-item type="button" class="list-card-menu-item delete-option" (click)="menuRow && eliminarCliente(menuRow)">
+                <mat-icon>delete</mat-icon>
+                <span>Eliminar</span>
+              </button>
+            </mat-menu>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -258,6 +314,20 @@ import { MatTableDataSource } from '@angular/material/table';
     .header-actions {
       display: flex;
       gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      .header-title-section { flex: none; }
+      .header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+      }
+      .header-actions button { flex: 1; min-width: 140px; }
     }
 
     .search-section {
@@ -364,11 +434,36 @@ import { MatTableDataSource } from '@angular/material/table';
     .mat-mdc-menu-item mat-icon {
       margin-right: 8px;
     }
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+    .mobile-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .list-card { margin: 0; }
+    .list-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 0; }
+    .list-card-title { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 1rem; }
+    .list-card-num { font-weight: 600; color: #2c3e50; }
+    .list-card-date { font-size: 0.875rem; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .list-card-num { color: #e0e0e0; }
+    :host-context(body.dark-theme) .list-card-date { color: rgba(255,255,255,0.6); }
+    .list-card-menu-trigger { flex-shrink: 0; }
+    .list-card-menu-trigger .mat-icon { font-size: 1.5rem; width: 24px; height: 24px; }
+    .list-card-content { display: flex; flex-direction: column; gap: 8px; padding-top: 0; }
+    .list-card-field { display: flex; flex-direction: column; gap: 2px; }
+    .list-card-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(0,0,0,0.6); }
+    .list-card-value { font-size: 0.9375rem; color: #2c3e50; word-break: break-word; }
+    :host-context(body.dark-theme) .list-card-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .list-card-value { color: #e0e0e0; }
+    .mobile-empty { padding: 24px 16px; text-align: center; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
+    .list-mobile mat-paginator { border-top: 1px solid rgba(0,0,0,0.12); }
+    :host-context(body.dark-theme) .list-mobile mat-paginator { border-top-color: rgba(255,255,255,0.12); }
   `]
 })
 export class ClientesListComponent implements OnInit, OnDestroy {
   loading = signal(false);
   dataSource = new MatTableDataSource<Cliente>([]);
+  isMobile = signal(false);
+  menuRow: Cliente | null = null;
+  private breakpointObserver = inject(BreakpointObserver);
 
   empresaId: number | null = null;
   empresaNombre: string = '';
@@ -410,8 +505,7 @@ export class ClientesListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    console.info('CLIENTES_LIST_INIT');
-    // Obtener empresaId de query params si está disponible
+    this.breakpointObserver.observe(['(max-width: 768px)']).pipe(takeUntil(this.destroy$)).subscribe(s => this.isMobile.set(s.matches));
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       console.info('CLIENTES_QP', params);
       const empresaIdFromRoute = params['empresaId'] ? Number(params['empresaId']) : null;
@@ -429,6 +523,10 @@ export class ClientesListComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.searchSubject.complete();
+  }
+
+  setMenuContext(item: Cliente): void {
+    this.menuRow = item;
   }
 
   goBack(): void {

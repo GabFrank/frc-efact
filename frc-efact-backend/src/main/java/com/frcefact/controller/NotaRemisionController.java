@@ -35,6 +35,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -108,6 +109,14 @@ public class NotaRemisionController {
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
     public ResponseEntity<Page<NotaRemisionDto>> listarNotasRemision(
             @RequestParam Long empresaId,
+            @RequestParam(required = false) String numero,
+            @RequestParam(required = false) LocalDate fechaDesde,
+            @RequestParam(required = false) LocalDate fechaHasta,
+            @RequestParam(required = false) String motivo,
+            @RequestParam(required = false) String destinatario,
+            @RequestParam(required = false) String vehiculo,
+            @RequestParam(required = false) String chofer,
+            @RequestParam(required = false) String estadoDE,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "fecha") String sortBy,
@@ -117,8 +126,8 @@ public class NotaRemisionController {
                 Sort.Direction.ASC : Sort.Direction.DESC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
         
-        Page<NotaRemision> pageResult = notaRemisionService.listarPorEmpresa(empresaId, pageable);
-        Page<NotaRemisionDto> pageDto = pageResult.map(notaRemisionMapper::toDto);
+        Page<NotaRemisionDto> pageDto = notaRemisionService.listarPorEmpresa(
+                empresaId, numero, fechaDesde, fechaHasta, motivo, destinatario, vehiculo, chofer, estadoDE, pageable);
         
         return ResponseEntity.ok(pageDto);
     }

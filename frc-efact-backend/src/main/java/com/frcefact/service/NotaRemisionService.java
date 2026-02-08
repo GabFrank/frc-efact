@@ -1,16 +1,21 @@
 package com.frcefact.service;
 
 import com.frcefact.annotation.Auditable;
+import com.frcefact.dto.NotaRemisionDto;
+import com.frcefact.dto.mapper.NotaRemisionMapper;
 import com.frcefact.model.*;
 import com.frcefact.repository.*;
+import com.frcefact.repository.specification.NotaRemisionSpecification;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Service
@@ -29,6 +34,7 @@ public class NotaRemisionService {
     private final ChoferRepository choferRepository;
     private final TimbradoDetalleService timbradoDetalleService;
     private final EmpresaSecurityService empresaSecurityService;
+    private final NotaRemisionMapper notaRemisionMapper;
 
     public NotaRemisionService(
             NotaRemisionRepository notaRemisionRepository,
@@ -40,7 +46,8 @@ public class NotaRemisionService {
             VehiculoRepository vehiculoRepository,
             ChoferRepository choferRepository,
             TimbradoDetalleService timbradoDetalleService,
-            EmpresaSecurityService empresaSecurityService) {
+            EmpresaSecurityService empresaSecurityService,
+            NotaRemisionMapper notaRemisionMapper) {
         this.notaRemisionRepository = notaRemisionRepository;
         this.empresaRepository = empresaRepository;
         this.timbradoDetalleRepository = timbradoDetalleRepository;
@@ -51,6 +58,7 @@ public class NotaRemisionService {
         this.choferRepository = choferRepository;
         this.timbradoDetalleService = timbradoDetalleService;
         this.empresaSecurityService = empresaSecurityService;
+        this.notaRemisionMapper = notaRemisionMapper;
     }
 
     @Auditable(entidad = "NotaRemision", accion = AccionEnum.CREATE)
@@ -161,9 +169,24 @@ public class NotaRemisionService {
     }
 
     @Transactional(readOnly = true)
-    public Page<NotaRemision> listarPorEmpresa(Long empresaId, Pageable pageable) {
+    public Page<NotaRemisionDto> listarPorEmpresa(
+            Long empresaId,
+            String numero,
+            LocalDate fechaDesde,
+            LocalDate fechaHasta,
+            String motivo,
+            String destinatario,
+            String vehiculo,
+            String chofer,
+            String estadoDE,
+            Pageable pageable) {
         empresaSecurityService.verificarAccesoLectura(empresaId);
-        return notaRemisionRepository.findByEmpresaIdAndActivoTrueWithItems(empresaId, pageable);
+
+        Specification<NotaRemision> spec = NotaRemisionSpecification.filterBy(
+                empresaId, numero, fechaDesde, fechaHasta, motivo, destinatario, vehiculo, chofer, estadoDE
+        );
+
+        return notaRemisionRepository.findAll(spec, pageable).map(notaRemisionMapper::toDto);
     }
 
     public void desactivar(Long id) {

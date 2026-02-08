@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -15,6 +15,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { FormsModule } from '@angular/forms';
 
 import { Empresa } from '../../models/empresa.model';
@@ -91,7 +92,8 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
           <div *ngIf="error$ | async as error" style="color: red">{{ error }}</div>
 
           <!-- Empresas Table -->
-          <div class="table-container" *ngIf="!(loading$ | async) && !(error$ | async)">
+          <div class="list-desktop" *ngIf="!(loading$ | async) && !(error$ | async) && !isMobile()">
+          <div class="table-container">
             <table mat-table [dataSource]="filteredEmpresas" class="empresas-table">
 
               <!-- RUC Column -->
@@ -207,6 +209,83 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
               </tr>
             </table>
           </div>
+          </div>
+
+          <div class="list-mobile" *ngIf="!(loading$ | async) && !(error$ | async) && isMobile()">
+            <div class="mobile-cards" *ngIf="filteredEmpresas.length">
+              <mat-card class="list-card" *ngFor="let item of filteredEmpresas">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">{{ item.razonSocial }}</span>
+                    <span class="list-card-date">{{ item.ruc }}</span>
+                  </mat-card-title>
+                  <button class="list-card-menu-trigger" mat-icon-button color="primary"
+                    [matMenuTriggerFor]="cardActionMenu" (click)="setMenuContext(item)"
+                    matTooltip="Acciones" aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content">
+                  <div class="list-card-field">
+                    <span class="list-card-label">Nombre fantasía</span>
+                    <span class="list-card-value">{{ item.nombreFantasia || '—' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Email</span>
+                    <span class="list-card-value">{{ item.email || '—' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Estado</span>
+                    <span class="list-card-value">{{ item.activo ? 'Activa' : 'Inactiva' }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="!filteredEmpresas.length">No se encontraron empresas.</div>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onViewEmpresa(menuRow)">
+                <mat-icon>visibility</mat-icon>
+                <span>Ver detalles</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onEditEmpresa(menuRow)">
+                <mat-icon>edit</mat-icon>
+                <span>Editar</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageUsers(menuRow)">
+                <mat-icon>people</mat-icon>
+                <span>Gestionar usuarios</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageTimbrados(menuRow)">
+                <mat-icon>receipt</mat-icon>
+                <span>Gestionar timbrados</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageProductos(menuRow)">
+                <mat-icon>inventory_2</mat-icon>
+                <span>Gestionar productos</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageClientes(menuRow)">
+                <mat-icon>people</mat-icon>
+                <span>Gestionar clientes</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageVehiculos(menuRow)">
+                <mat-icon>directions_car</mat-icon>
+                <span>Gestionar vehículos</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageChoferes(menuRow)">
+                <mat-icon>person</mat-icon>
+                <span>Gestionar choferes</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageFacturas(menuRow)">
+                <mat-icon>receipt_long</mat-icon>
+                <span>Gestionar facturas</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onToggleActive(menuRow)">
+                <mat-icon>{{ menuRow?.activo ? 'block' : 'check_circle' }}</mat-icon>
+                <span>{{ menuRow?.activo ? 'Desactivar' : 'Activar' }}</span>
+              </button>
+            </mat-menu>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -244,6 +323,27 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
       flex: 1;
       max-width: 500px;
     }
+
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+    .mobile-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .list-card { margin: 0; }
+    .list-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 0; }
+    .list-card-title { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 1rem; }
+    .list-card-num { font-weight: 600; color: #2c3e50; }
+    .list-card-date { font-size: 0.875rem; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .list-card-num { color: #e0e0e0; }
+    :host-context(body.dark-theme) .list-card-date { color: rgba(255,255,255,0.6); }
+    .list-card-menu-trigger { flex-shrink: 0; }
+    .list-card-menu-trigger .mat-icon { font-size: 1.5rem; width: 24px; height: 24px; }
+    .list-card-content { display: flex; flex-direction: column; gap: 8px; padding-top: 0; }
+    .list-card-field { display: flex; flex-direction: column; gap: 2px; }
+    .list-card-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(0,0,0,0.6); }
+    .list-card-value { font-size: 0.9375rem; color: #2c3e50; word-break: break-word; }
+    :host-context(body.dark-theme) .list-card-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .list-card-value { color: #e0e0e0; }
+    .mobile-empty { padding: 24px 16px; text-align: center; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
 
     .table-container {
       overflow-x: auto;
@@ -353,6 +453,9 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
   empresas$: Observable<Empresa[]>;
   loading$: Observable<boolean>;
   error$: Observable<string | null>;
+  isMobile = signal(false);
+  menuRow: Empresa | null = null;
+  private breakpointObserver = inject(BreakpointObserver);
 
   displayedColumns: string[] = ['ruc', 'razonSocial', 'nombreFantasia', 'email', 'activo', 'actions'];
   filteredEmpresas: Empresa[] = [];
@@ -372,7 +475,7 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Load empresas from store
+    this.breakpointObserver.observe(['(max-width: 768px)']).pipe(takeUntil(this.destroy$)).subscribe(s => this.isMobile.set(s.matches));
     this.store.dispatch(loadEmpresas());
 
     // Subscribe to empresas changes
@@ -393,6 +496,10 @@ export class EmpresasListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  setMenuContext(item: Empresa): void {
+    this.menuRow = item;
   }
 
   onSearchChange(): void {

@@ -5,6 +5,8 @@
     "ng": "ng",
     "start": "ng serve",
     "start:open": "ng serve --open",
+    "start:network": "ng serve --host 0.0.0.0 --disable-host-check",
+    "start:network:https": "ng serve --host 0.0.0.0 --disable-host-check --ssl",
     "start:prod": "ng serve --configuration production",
     "build": "ng build",
     "build:dev": "ng build --configuration development",

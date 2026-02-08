@@ -21,6 +21,11 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       <!-- Top Navigation Bar -->
       <nav class="navbar">
         <div class="navbar-brand">
+          <!-- Botón hamburguesa para mobile -->
+          <button class="mobile-menu-toggle" (click)="toggleMobileMenu()" aria-label="Toggle menu" type="button">
+            <span class="mobile-menu-icon" *ngIf="!isMobileMenuOpen">☰</span>
+            <span class="mobile-menu-icon" *ngIf="isMobileMenuOpen">✕</span>
+          </button>
           <!-- <span class="brand-text">FRC eFact</span> -->
         </div>
 
@@ -110,18 +115,25 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
         </div>
       </nav>
 
+      <!-- Overlay para mobile cuando el menú está abierto -->
+      <div class="mobile-overlay" *ngIf="isMobileMenuOpen" (click)="closeMobileMenu()"></div>
+
       <div class="layout-content">
         <!-- Side Navigation Menu -->
-        <aside class="sidebar">
+        <aside class="sidebar" [class.open]="isMobileMenuOpen">
           <!-- Logo en la parte superior de la sidebar -->
           <div class="sidebar-logo">
             <img src="assets/logo.svg" alt="FRC eFact" class="sidebar-logo-img" />
+            <!-- Botón cerrar para mobile -->
+            <button class="sidebar-close-mobile" (click)="closeMobileMenu()" aria-label="Cerrar menú">
+              <i class="fas fa-times"></i>
+            </button>
           </div>
           <nav class="sidebar-nav">
             <ul class="nav-menu">
               <!-- Items Simples -->
               <li class="nav-item">
-                <a routerLink="/dashboard" routerLinkActive="active" class="nav-link">
+                <a routerLink="/dashboard" routerLinkActive="active" class="nav-link" (click)="onNavLinkClick()">
                   <i class="fas fa-tachometer-alt"></i>
                   <span>Dashboard</span>
                 </a>
@@ -146,7 +158,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? ['/timbrados'] : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-stamp"></i>
                       <span>Timbrados</span>
                     </a>
@@ -155,7 +168,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? ['/empresas', selectedEmpresa.id, 'productos'] : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [class.disabled]="!selectedEmpresa">
+                       [class.disabled]="!selectedEmpresa"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-box"></i>
                       <span>Productos</span>
                     </a>
@@ -171,7 +185,7 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                   class="nav-link"
                   [class.disabled]="!selectedEmpresa"
                   [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
-                  (click)="handleNavClick($event, !selectedEmpresa)">
+                  (click)="handleNavClick($event, !selectedEmpresa); onNavLinkClick()">
                   <i class="fas fa-users"></i>
                   <span>Clientes</span>
                 </a>
@@ -196,7 +210,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/facturacion' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-list"></i>
                       <span>Lista de Facturas</span>
                     </a>
@@ -205,7 +220,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/facturacion/nueva' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-plus-circle"></i>
                       <span>Nueva Factura</span>
                     </a>
@@ -214,7 +230,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/notas/notas-credito' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-file-invoice-dollar"></i>
                       <span>Notas de Crédito</span>
                     </a>
@@ -223,7 +240,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/notas/notas-debito' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-file-invoice-dollar"></i>
                       <span>Notas de Débito</span>
                     </a>
@@ -232,7 +250,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/notas/notas-remision' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-file-alt"></i>
                       <span>Notas de Remisión</span>
                     </a>
@@ -259,7 +278,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/documentos' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-list"></i>
                       <span>Lista de Documentos</span>
                     </a>
@@ -278,7 +298,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                           <a [routerLink]="selectedEmpresa ? '/documentos/cancelacion' : null" 
                              routerLinkActive="active" 
                              class="nav-link"
-                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                             (click)="onNavLinkClick()">
                             <i class="fas fa-ban"></i>
                             <span>Cancelación</span>
                           </a>
@@ -287,7 +308,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                           <a [routerLink]="selectedEmpresa ? '/documentos/nominacion' : null" 
                              routerLinkActive="active" 
                              class="nav-link"
-                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                             (click)="onNavLinkClick()">
                             <i class="fas fa-user-tag"></i>
                             <span>Nominación</span>
                           </a>
@@ -296,7 +318,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                           <a [routerLink]="selectedEmpresa ? '/documentos/inutilizacion' : null" 
                              routerLinkActive="active" 
                              class="nav-link"
-                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                             [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                             (click)="onNavLinkClick()">
                             <i class="fas fa-times-circle"></i>
                             <span>Inutilización</span>
                           </a>
@@ -326,7 +349,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/reportes/facturas' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-file-invoice"></i>
                       <span>Reporte de Facturas</span>
                     </a>
@@ -335,7 +359,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/reportes/clientes' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-users"></i>
                       <span>Reporte de Clientes</span>
                     </a>
@@ -344,7 +369,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/reportes/productos' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-box"></i>
                       <span>Reporte de Productos</span>
                     </a>
@@ -353,7 +379,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                     <a [routerLink]="selectedEmpresa ? '/reportes/usuarios' : null" 
                        routerLinkActive="active" 
                        class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null">
+                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
+                       (click)="onNavLinkClick()">
                       <i class="fas fa-user-cog"></i>
                       <span>Reporte de Usuarios</span>
                     </a>
@@ -369,7 +396,7 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                   class="nav-link"
                   [class.disabled]="!selectedEmpresa"
                   [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
-                  (click)="handleNavClick($event, !selectedEmpresa)">
+                  (click)="handleNavClick($event, !selectedEmpresa); onNavLinkClick()">
                   <i class="fas fa-history"></i>
                   <span>Auditoría</span>
                 </a>
@@ -388,7 +415,7 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
                 </button>
                 <ul class="nav-section-content" *ngIf="expandedSections['administracion']">
                   <li class="nav-sub-item">
-                    <a routerLink="/usuarios" routerLinkActive="active" class="nav-link">
+                    <a routerLink="/usuarios" routerLinkActive="active" class="nav-link" (click)="onNavLinkClick()">
                       <i class="fas fa-user-cog"></i>
                       <span>Usuarios</span>
                     </a>
@@ -398,7 +425,7 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
 
               <!-- Item Simple: Perfil -->
               <li class="nav-item">
-                <a routerLink="/perfil" routerLinkActive="active" class="nav-link">
+                <a routerLink="/perfil" routerLinkActive="active" class="nav-link" (click)="onNavLinkClick()">
                   <i class="fas fa-user-circle"></i>
                   <span>Perfil</span>
                 </a>
@@ -435,12 +462,54 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       justify-content: space-between;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       z-index: 1000;
+      position: relative;
+      min-height: 60px;
     }
 
     .navbar-brand {
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      flex-shrink: 0;
+      z-index: 1001;
+    }
+
+    .mobile-menu-toggle {
+      display: none;
+      background: transparent;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+      flex-shrink: 0;
+      min-width: 44px;
+      width: 44px;
+      height: 44px;
+      position: relative;
+      z-index: 1002;
+      margin-right: 0.5rem;
+    }
+
+    .mobile-menu-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .mobile-menu-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      line-height: 1;
+      font-weight: bold;
+      color: white;
+      width: 100%;
+      height: 100%;
+    }
+
+    .mobile-overlay {
+      display: none;
     }
 
     .logo {
@@ -461,6 +530,8 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       justify-content: center;
       gap: 0.75rem;
       margin: 0 2rem;
+      min-width: 0;
+      z-index: 1000;
     }
 
     .company-label {
@@ -474,6 +545,7 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       position: relative;
       max-width: 400px;
       width: 100%;
+      min-width: 0;
     }
 
     .company-selector-btn {
@@ -804,6 +876,27 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       padding: 1.5rem 1rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       margin-bottom: 0.5rem;
+      position: relative;
+    }
+
+    .sidebar-close-mobile {
+      display: none;
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: white;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+      z-index: 10;
+    }
+
+    .sidebar-close-mobile:hover {
+      background: rgba(255, 255, 255, 0.2);
     }
 
     .sidebar-logo-img {
@@ -1031,6 +1124,16 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
 
     /* Responsive Design */
     @media (max-width: 768px) {
+      .mobile-menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .mobile-menu-icon {
+        font-size: 1.5rem;
+      }
+
       .sidebar {
         width: 200px;
       }
@@ -1053,31 +1156,94 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       }
 
       .navbar-company {
-        margin: 0 1rem;
+        flex: 1;
+        margin: 0 0.5rem;
+        min-width: 0;
+        max-width: none;
       }
 
       .company-label {
         display: none;
       }
 
+      .company-selector-container {
+        max-width: none;
+        width: 100%;
+      }
+
       .company-name {
-        display: none;
+        display: block;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: none;
+      }
+
+      .company-selector-btn {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        min-height: 44px;
+      }
+
+      .company-selector-btn i.fa-building {
+        font-size: 1rem;
+      }
+
+      .company-selector-btn i.fa-chevron-down {
+        font-size: 0.875rem;
       }
 
       .company-menu {
         left: 0;
         transform: none;
         min-width: 250px;
+        max-width: calc(100vw - 2rem);
+      }
+
+      .company-menu-item,
+      .user-menu-item {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+      }
+
+      .user-menu-logout {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
       }
     }
 
     @media (max-width: 576px) {
+      .navbar {
+        min-height: 64px;
+        height: 64px;
+        padding: 0 0.5rem;
+      }
+
+      .mobile-overlay {
+        display: block;
+        position: fixed;
+        top: 64px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 998;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+
       .sidebar {
         position: fixed;
-        left: -250px;
-        height: 100%;
+        left: -80vw;
+        top: 64px;
+        width: 80vw;
+        height: calc(100vh - 64px);
         z-index: 999;
-        transition: left 0.3s;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
       }
 
       .sidebar.open {
@@ -1085,12 +1251,110 @@ import { ConnectionStatusBannerComponent } from '../components/connection-status
       }
 
       .sidebar-logo-img {
-        height: 50px;
-        max-width: 140px;
+        height: 56px;
+        max-width: 160px;
+      }
+
+      .sidebar-close-mobile {
+        display: block;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0.5rem;
+        font-size: 1.25rem;
+      }
+
+      .nav-link {
+        padding: 1rem 1.25rem;
+        font-size: 1.15rem;
+      }
+
+      .nav-link i {
+        font-size: 1.15rem;
+      }
+
+      .nav-section-header {
+        padding: 1rem 1.25rem;
+        font-size: 1.15rem;
+      }
+
+      .nav-section-header i {
+        font-size: 1.15rem;
+      }
+
+      .nav-sub-item .nav-link {
+        padding-left: 3rem;
+        padding-top: 0.875rem;
+        padding-bottom: 0.875rem;
+        font-size: 1.05rem;
+      }
+
+      .nav-sub-section-header {
+        padding: 0.75rem 3rem;
+        font-size: 1.05rem;
+      }
+
+      .nav-sub-sub-item .nav-link {
+        padding-left: 4.5rem;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        font-size: 1.05rem;
       }
 
       .main-content {
         margin-left: 0;
+      }
+
+      .navbar-company {
+        flex: 1;
+        margin: 0 0.25rem;
+        min-width: 0;
+        max-width: none;
+        display: flex;
+      }
+
+      .company-selector-container {
+        max-width: none;
+        width: 100%;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .company-selector-btn {
+        width: 100%;
+        max-width: none;
+        padding: 0.65rem 0.75rem;
+        font-size: 1rem;
+        gap: 0.5rem;
+        min-height: 44px;
+      }
+
+      .company-selector-btn i.fa-building {
+        font-size: 1rem;
+      }
+
+      .company-selector-btn i.fa-chevron-down {
+        font-size: 0.875rem;
+      }
+
+      .company-name {
+        flex: 1;
+        min-width: 0;
+        max-width: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .avatar-btn {
+        padding: 0.5rem;
+        min-height: 44px;
+        min-width: 44px;
+      }
+
+      .avatar-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
       }
     }
   `]
@@ -1105,6 +1369,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   
   showUserMenu = false;
   showCompanyMenu = false;
+  isMobileMenuOpen = false;
   currentUser: User | null = null;
   userRole: string | null = null;
   isAdminUser = false;
@@ -1217,6 +1482,8 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(() => {
       this.expandSectionByRoute();
+      // Cerrar menú móvil al navegar
+      this.closeMobileMenu();
     });
   }
   
@@ -1267,6 +1534,8 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     document.removeEventListener('click', this.handleDocumentClick.bind(this));
+    // Limpiar overflow del body
+    document.body.style.overflow = '';
   }
 
   get isAdmin(): boolean {
@@ -1318,6 +1587,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
     if (this.showCompanyMenu) {
       this.showCompanyMenu = false;
     }
+    // El menú móvil se cierra con el overlay, no aquí para evitar conflictos
   }
 
   toggleUserMenu(event?: Event): void {
@@ -1379,6 +1649,26 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       // Reiniciar la aplicación para limpiar completamente el estado
       window.location.href = '/login';
     });
+  }
+
+  toggleMobileMenu(): void {
+    this.isMobileMenuOpen = !this.isMobileMenuOpen;
+    // Prevenir scroll del body cuando el menú está abierto
+    if (this.isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }
+
+  closeMobileMenu(): void {
+    this.isMobileMenuOpen = false;
+    document.body.style.overflow = '';
+  }
+
+  onNavLinkClick(): void {
+    // Cerrar el menú móvil cuando se hace clic en un enlace
+    this.closeMobileMenu();
   }
 
 }

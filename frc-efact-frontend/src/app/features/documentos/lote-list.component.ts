@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,6 +7,10 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { Subject, takeUntil } from 'rxjs';
 import { DocumentoElectronicoApiService } from '../../core/api/documento-electronico-api.service';
 import { LoteDE, EstadoLote } from '../../models/documento-electronico.model';
 import { DataTableComponent, TableColumn, TableAction } from '../../shared/components/data-table/data-table.component';
@@ -24,6 +28,8 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
     MatSnackBarModule,
     MatDialogModule,
     MatChipsModule,
+    MatMenuModule,
+    MatTooltipModule,
     DataTableComponent,
     LoadingSpinnerComponent
   ],
@@ -79,14 +85,58 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
 
           <!-- Tabla de lotes -->
           <app-loading-spinner *ngIf="loading()" />
-          
-          <app-data-table
-            *ngIf="!loading()"
-            [columns]="columns"
-            [data]="lotes()"
-            [actions]="tableActions"
-            (actionClick)="onActionClick($event)"
-          />
+
+          <div class="list-desktop" *ngIf="!loading() && !isMobile()">
+            <app-data-table
+              [columns]="columns"
+              [data]="lotes()"
+              [actions]="tableActions"
+              (actionClick)="onActionClick($event)"
+            />
+          </div>
+          <div class="list-mobile" *ngIf="!loading() && isMobile()">
+            <div class="mobile-cards" *ngIf="lotes().length > 0">
+              <mat-card class="list-card" *ngFor="let item of lotes()">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">#{{ item.id }}</span>
+                    <span class="list-card-date">{{ formatDateForCard(item.fechaProcesado) }}</span>
+                  </mat-card-title>
+                  <button class="list-card-menu-trigger" mat-icon-button color="primary"
+                    [matMenuTriggerFor]="cardActionMenu" (click)="setMenuContext(item)"
+                    matTooltip="Acciones" aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content">
+                  <div class="list-card-field">
+                    <span class="list-card-label">Empresa ID</span>
+                    <span class="list-card-value">{{ item.empresaId }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Estado</span>
+                    <span class="list-card-value">{{ getEstadoLabel(item.estado) }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Protocolo</span>
+                    <span class="list-card-value">{{ item.protocolo || '—' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Intentos</span>
+                    <span class="list-card-value">{{ item.intentos }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="lotes().length === 0">No hay lotes para mostrar.</div>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item *ngFor="let a of menuActions" type="button" class="list-card-menu-item"
+                (click)="menuRow && onActionClick({ action: (a.label || a.tooltip || a.icon) || '', row: menuRow })">
+                <mat-icon>{{ a.icon }}</mat-icon>
+                <span>{{ a.label || a.tooltip || a.icon }}</span>
+              </button>
+            </mat-menu>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -138,6 +188,27 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
     .stat-card.error {
       border-left-color: #f44336;
     }
+
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+    .mobile-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .list-card { margin: 0; }
+    .list-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 0; }
+    .list-card-title { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 1rem; }
+    .list-card-num { font-weight: 600; color: #2c3e50; }
+    .list-card-date { font-size: 0.875rem; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .list-card-num { color: #e0e0e0; }
+    :host-context(body.dark-theme) .list-card-date { color: rgba(255,255,255,0.6); }
+    .list-card-menu-trigger { flex-shrink: 0; }
+    .list-card-menu-trigger .mat-icon { font-size: 1.5rem; width: 24px; height: 24px; }
+    .list-card-content { display: flex; flex-direction: column; gap: 8px; padding-top: 0; }
+    .list-card-field { display: flex; flex-direction: column; gap: 2px; }
+    .list-card-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(0,0,0,0.6); }
+    .list-card-value { font-size: 0.9375rem; color: #2c3e50; word-break: break-word; }
+    :host-context(body.dark-theme) .list-card-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .list-card-value { color: #e0e0e0; }
+    .mobile-empty { padding: 24px 16px; text-align: center; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
 
     .stat-value {
       font-size: 32px;
@@ -192,7 +263,12 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
 export class LoteListComponent implements OnInit {
   loading = signal(false);
   lotes = signal<LoteDE[]>([]);
-  
+  private destroy$ = new Subject<void>();
+  private breakpointObserver = inject(BreakpointObserver);
+  isMobile = signal(false);
+  menuRow: LoteDE | null = null;
+  menuActions: TableAction[] = [];
+
   // Expose enum to template
   EstadoLote = EstadoLote;
 
@@ -270,7 +346,27 @@ export class LoteListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.breakpointObserver.observe(['(max-width: 768px)']).pipe(takeUntil(this.destroy$)).subscribe(s => this.isMobile.set(s.matches));
     this.cargarLotes();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  formatDateForCard(fecha: string | null | undefined): string {
+    if (!fecha) return '—';
+    return new Date(fecha).toLocaleDateString('es-PY');
+  }
+
+  getVisibleActions(row: LoteDE | null): TableAction[] {
+    return row && this.tableActions?.length ? this.tableActions.filter(a => !a.visible || a.visible(row)) : [];
+  }
+
+  setMenuContext(item: LoteDE): void {
+    this.menuRow = item;
+    this.menuActions = this.getVisibleActions(item);
   }
 
   cargarLotes(): void {

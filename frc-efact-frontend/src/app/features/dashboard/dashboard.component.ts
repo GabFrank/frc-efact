@@ -680,6 +680,27 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
         padding: 10px;
       }
 
+      .no-empresa-message {
+        min-height: 50vh;
+      }
+
+      .message-content {
+        padding: 1.5rem 1.25rem;
+      }
+
+      .message-content i {
+        font-size: 3rem;
+      }
+
+      .message-content h2 {
+        font-size: 1.5rem;
+      }
+
+      .message-content p {
+        font-size: 1rem;
+        line-height: 1.5;
+      }
+
       .header-content {
         flex-direction: column;
         align-items: stretch;

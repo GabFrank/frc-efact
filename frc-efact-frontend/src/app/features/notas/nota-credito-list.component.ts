@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, OnDestroy } from '@angular/core';
+import { Component, OnInit, signal, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -11,7 +11,10 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
-import { PageEvent } from '@angular/material/paginator';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { Subject, takeUntil } from 'rxjs';
 import { NotaCreditoApiService } from '../../core/api/nota-credito-api.service';
 import { NotaCredito } from '../../models/nota.model';
@@ -36,6 +39,9 @@ import { NotaCreditoEstadoDialogComponent } from '../../shared/components/nota-c
     MatDialogModule,
     MatDatepickerModule,
     MatNativeDateModule,
+    MatPaginatorModule,
+    MatMenuModule,
+    MatTooltipModule,
     DataTableComponent,
     LoadingSpinnerComponent
   ],
@@ -57,32 +63,93 @@ import { NotaCreditoEstadoDialogComponent } from '../../shared/components/nota-c
 
           <app-loading-spinner *ngIf="loading()" />
 
-          <app-data-table
-            *ngIf="!loading()"
-            [columns]="columns"
-            [data]="notasPaginas()"
-            [actions]="tableActions"
-            [pageSize]="pageSize"
-            [pageIndex]="pageIndex"
-            [totalItems]="totalItems()"
-            (actionClick)="onActionClick($event)"
-            (pageChange)="onPageChange($event)"
-          />
+          <div class="list-desktop" *ngIf="!loading() && !isMobile()">
+            <app-data-table
+              [columns]="columns"
+              [data]="notasPaginas()"
+              [actions]="tableActions"
+              [pageSize]="pageSize"
+              [pageIndex]="pageIndex"
+              [totalItems]="totalItems()"
+              (actionClick)="onActionClick($event)"
+              (pageChange)="onPageChange($event)"
+            />
+          </div>
+          <div class="list-mobile" *ngIf="!loading() && isMobile()">
+            <div class="mobile-cards" *ngIf="notasPaginas().length > 0">
+              <mat-card class="list-card" *ngFor="let item of notasPaginas()">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">{{ item.numeroFormateado }}</span>
+                    <span class="list-card-date">{{ formatDateForCard(item.fecha) }}</span>
+                  </mat-card-title>
+                  <button class="list-card-menu-trigger" mat-icon-button color="primary"
+                    [matMenuTriggerFor]="cardActionMenu" (click)="setMenuContext(item)"
+                    matTooltip="Acciones" aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content">
+                  <div class="list-card-field">
+                    <span class="list-card-label">Cliente</span>
+                    <span class="list-card-value">{{ item.nombre || '—' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Total</span>
+                    <span class="list-card-value">{{ formatTotal(item.totalFinal) }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="notasPaginas().length === 0">No hay notas de crédito para mostrar.</div>
+            <mat-paginator *ngIf="notasPaginas().length > 0" [length]="totalItems()" [pageSize]="pageSize"
+              [pageIndex]="pageIndex" [pageSizeOptions]="[5, 10, 25, 50]" (page)="onPageChange($event)"
+              showFirstLastButtons></mat-paginator>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item *ngFor="let a of menuActions" type="button" class="list-card-menu-item"
+                (click)="menuRow && onActionClick({ action: (a.label || a.tooltip || a.icon) || '', row: menuRow })">
+                <mat-icon>{{ a.icon }}</mat-icon>
+                <span>{{ a.label || a.tooltip || a.icon }}</span>
+              </button>
+            </mat-menu>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
   `,
   styles: [`
-    .notas-container {
-      padding: 24px;
-    }
-    .header-actions {
-      margin-bottom: 16px;
-    }
+    .notas-container { padding: 24px; }
+    .header-actions { margin-bottom: 16px; }
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+    .mobile-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .list-card { margin: 0; }
+    .list-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 0; }
+    .list-card-title { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 1rem; }
+    .list-card-num { font-weight: 600; color: #2c3e50; }
+    .list-card-date { font-size: 0.875rem; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .list-card-num { color: #e0e0e0; }
+    :host-context(body.dark-theme) .list-card-date { color: rgba(255,255,255,0.6); }
+    .list-card-menu-trigger { flex-shrink: 0; }
+    .list-card-menu-trigger .mat-icon { font-size: 1.5rem; width: 24px; height: 24px; }
+    .list-card-content { display: flex; flex-direction: column; gap: 8px; padding-top: 0; }
+    .list-card-field { display: flex; flex-direction: column; gap: 2px; }
+    .list-card-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(0,0,0,0.6); }
+    .list-card-value { font-size: 0.9375rem; color: #2c3e50; word-break: break-word; }
+    :host-context(body.dark-theme) .list-card-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .list-card-value { color: #e0e0e0; }
+    .mobile-empty { padding: 24px 16px; text-align: center; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
+    .list-mobile mat-paginator { border-top: 1px solid rgba(0,0,0,0.12); }
+    :host-context(body.dark-theme) .list-mobile mat-paginator { border-top-color: rgba(255,255,255,0.12); }
   `]
 })
 export class NotaCreditoListComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+  private breakpointObserver = inject(BreakpointObserver);
+  isMobile = signal(false);
+  menuRow: NotaCredito | null = null;
+  menuActions: TableAction[] = [];
 
   notas = signal<NotaCredito[]>([]);
   notasPaginas = signal<NotaCredito[]>([]);
@@ -123,12 +190,31 @@ export class NotaCreditoListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.breakpointObserver.observe(['(max-width: 768px)']).pipe(takeUntil(this.destroy$)).subscribe(s => this.isMobile.set(s.matches));
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       const empresaId = params['empresaId'];
       if (empresaId) {
         this.cargarNotas(+empresaId);
       }
     });
+  }
+
+  formatDateForCard(fecha: string): string {
+    if (!fecha) return '—';
+    return new Date(fecha).toLocaleDateString('es-PY');
+  }
+
+  formatTotal(v: number): string {
+    return v != null ? `₲ ${Number(v).toLocaleString('es-PY')}` : '—';
+  }
+
+  getVisibleActions(row: NotaCredito | null): TableAction[] {
+    return row && this.tableActions?.length ? this.tableActions.filter(a => !a.visible || a.visible(row)) : [];
+  }
+
+  setMenuContext(item: NotaCredito): void {
+    this.menuRow = item;
+    this.menuActions = this.getVisibleActions(item);
   }
 
   ngOnDestroy(): void {

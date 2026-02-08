@@ -1,14 +1,23 @@
-import { Component, OnInit, signal, OnDestroy } from '@angular/core';
+import { Component, OnInit, signal, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { PageEvent } from '@angular/material/paginator';
-import { Subject, takeUntil } from 'rxjs';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { Subject, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { NotaRemisionApiService } from '../../core/api/nota-remision-api.service';
 import { ClienteApiService } from '../../core/api/cliente-api.service';
@@ -28,11 +37,21 @@ import { EmailEnviarDialogComponent } from '../../shared/components/email-enviar
   imports: [
     CommonModule,
     FormsModule,
+    ReactiveFormsModule,
     MatButtonModule,
     MatIconModule,
     MatCardModule,
     MatSnackBarModule,
     MatDialogModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    MatExpansionModule,
+    MatPaginatorModule,
+    MatTooltipModule,
+    MatMenuModule,
     DataTableComponent,
     LoadingSpinnerComponent,
     EmailEnviarDialogComponent
@@ -50,18 +69,154 @@ import { EmailEnviarDialogComponent } from '../../shared/components/email-enviar
               Nueva Nota de Remisión
             </button>
           </div>
+
+          <mat-expansion-panel class="filter-panel" [expanded]="true">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                <mat-icon>filter_list</mat-icon> Filtros de Búsqueda
+              </mat-panel-title>
+            </mat-expansion-panel-header>
+
+            <form [formGroup]="filterForm" class="filter-form">
+              <div class="filter-row">
+                <mat-form-field appearance="outline">
+                  <mat-label>Número de Nota</mat-label>
+                  <input matInput formControlName="numero" placeholder="Ej: 001-001-0000001">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Fecha Desde</mat-label>
+                  <input matInput [matDatepicker]="pickerDesde" formControlName="fechaDesde">
+                  <mat-datepicker-toggle matSuffix [for]="pickerDesde"></mat-datepicker-toggle>
+                  <mat-datepicker #pickerDesde></mat-datepicker>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Fecha Hasta</mat-label>
+                  <input matInput [matDatepicker]="pickerHasta" formControlName="fechaHasta">
+                  <mat-datepicker-toggle matSuffix [for]="pickerHasta"></mat-datepicker-toggle>
+                  <mat-datepicker #pickerHasta></mat-datepicker>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Estado DE</mat-label>
+                  <mat-select formControlName="estadoDE">
+                    <mat-option value="">Todos</mat-option>
+                    <mat-option value="PENDIENTE">⏳ Pendiente</mat-option>
+                    <mat-option value="APROBADO">✅ Aprobado</mat-option>
+                    <mat-option value="RECHAZADO">❌ Rechazado</mat-option>
+                    <mat-option value="CANCELADO">🚫 Cancelado</mat-option>
+                    <mat-option value="SIN_DE">📄 Sin DE</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <div class="filter-row">
+                <mat-form-field appearance="outline">
+                  <mat-label>Destinatario</mat-label>
+                  <input matInput formControlName="destinatario" placeholder="Nombre o RUC">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Motivo</mat-label>
+                  <input matInput formControlName="motivo">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Vehículo</mat-label>
+                  <input matInput formControlName="vehiculo" placeholder="Matrícula o Marca">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline">
+                  <mat-label>Chofer</mat-label>
+                  <input matInput formControlName="chofer" placeholder="Nombre o Doc">
+                </mat-form-field>
+              </div>
+
+              <div class="filter-actions">
+                <button mat-button color="warn" (click)="limpiarFiltros()">Limpiar Filtros</button>
+              </div>
+            </form>
+          </mat-expansion-panel>
+
           <app-loading-spinner [loading]="loading()" />
-          <app-data-table
-            *ngIf="!loading()"
-            [columns]="columns"
-            [data]="notasPaginas()"
-            [actions]="tableActions"
-            [pageSize]="pageSize"
-            [pageIndex]="pageIndex"
-            [totalItems]="totalItems()"
-            (actionClick)="onActionClick($event)"
-            (pageChange)="onPageChange($event)"
-          />
+
+          <!-- Desktop: tabla -->
+          <div class="list-desktop" *ngIf="!loading() && !isMobile()">
+            <app-data-table
+              [columns]="columns"
+              [data]="notasPaginas()"
+              [actions]="tableActions"
+              [pageSize]="pageSize"
+              [pageIndex]="pageIndex"
+              [totalItems]="totalItems()"
+              (actionClick)="onActionClick($event)"
+              (pageChange)="onPageChange($event)"
+            />
+          </div>
+
+          <!-- Mobile: cards -->
+          <div class="list-mobile" *ngIf="!loading() && isMobile()">
+            <div class="mobile-cards" *ngIf="notasPaginas().length > 0">
+              <mat-card class="nota-card" *ngFor="let nota of notasPaginas()">
+                <mat-card-header class="nota-card-header">
+                  <mat-card-title class="nota-card-title">
+                    <span class="nota-numero">{{ nota.numeroFormateado }}</span>
+                    <span class="nota-fecha">{{ formatDateForCard(nota.fecha) }}</span>
+                  </mat-card-title>
+                  <button
+                    class="nota-card-menu-trigger"
+                    mat-icon-button
+                    color="primary"
+                    [matMenuTriggerFor]="cardActionMenu"
+                    (click)="setMenuContext(nota)"
+                    matTooltip="Acciones"
+                    aria-label="Acciones"
+                  >
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="nota-card-content">
+                  <div class="nota-field">
+                    <span class="nota-label">Destinatario</span>
+                    <span class="nota-value">{{ nota.nombreDestinatario || '—' }}</span>
+                  </div>
+                  <div class="nota-field">
+                    <span class="nota-label">Motivo</span>
+                    <span class="nota-value">{{ formatMotivoEmision(nota.motivoEmision) || '—' }}</span>
+                  </div>
+                  <div class="nota-field">
+                    <span class="nota-label">Estado DE</span>
+                    <span class="nota-value">{{ getEstadoDELabel(nota.estadoDocumentoElectronico) }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="notasPaginas().length === 0">
+              No hay notas de remisión para mostrar.
+            </div>
+            <mat-paginator
+              *ngIf="notasPaginas().length > 0"
+              [length]="totalItems()"
+              [pageSize]="pageSize"
+              [pageIndex]="pageIndex"
+              [pageSizeOptions]="[5, 10, 25, 50]"
+              (page)="onPageChange($event)"
+              showFirstLastButtons
+            ></mat-paginator>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button
+                mat-menu-item
+                *ngFor="let a of menuActions"
+                type="button"
+                class="nota-remision-card-menu-item"
+                (click)="menuRow && onActionClick({ action: (a.label || a.tooltip || a.icon) || '', row: menuRow })"
+              >
+                <mat-icon>{{ a.icon }}</mat-icon>
+                <span>{{ a.label || a.tooltip || a.icon }}</span>
+              </button>
+            </mat-menu>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -69,10 +224,119 @@ import { EmailEnviarDialogComponent } from '../../shared/components/email-enviar
   styles: [`
     .notas-container { padding: 24px; }
     .header-actions { margin-bottom: 16px; }
+    .filter-panel { margin-bottom: 24px; }
+    .filter-form { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 16px; }
+    .filter-row mat-form-field { flex: 1; min-width: 200px; }
+    .filter-actions { display: flex; justify-content: flex-end; }
+
+    mat-card-header {
+      display: flex;
+      margin-bottom: 16px;
+    }
+    mat-card-title,
+    mat-card-title h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    :host-context(body.dark-theme) mat-card-title,
+    :host-context(body.dark-theme) mat-card-title h2 {
+      color: #e0e0e0;
+    }
+
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+
+    .mobile-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .nota-card { margin: 0; }
+    .nota-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      margin-bottom: 0;
+    }
+    .nota-card-menu-trigger {
+      flex-shrink: 0;
+    }
+    .nota-card-menu-trigger .mat-icon {
+      font-size: 1.5rem;
+      width: 24px;
+      height: 24px;
+    }
+    .nota-card-title {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      margin: 0;
+      font-size: 1rem;
+    }
+    .nota-numero { font-weight: 600; color: #2c3e50; }
+    .nota-fecha { font-size: 0.875rem; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .nota-numero { color: #e0e0e0; }
+    :host-context(body.dark-theme) .nota-fecha { color: rgba(255,255,255,0.6); }
+    .nota-card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 0;
+    }
+    .nota-field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nota-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(0,0,0,0.6);
+    }
+    .nota-value {
+      font-size: 0.9375rem;
+      color: #2c3e50;
+      word-break: break-word;
+    }
+    :host-context(body.dark-theme) .nota-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .nota-value { color: #e0e0e0; }
+    .mobile-empty {
+      padding: 24px 16px;
+      text-align: center;
+      color: rgba(0,0,0,0.6);
+    }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
+    .list-mobile mat-paginator {
+      border-top: 1px solid rgba(0,0,0,0.12);
+    }
+    :host-context(body.dark-theme) .list-mobile mat-paginator {
+      border-top-color: rgba(255,255,255,0.12);
+    }
   `]
 })
 export class NotaRemisionListComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+  private fb = inject(FormBuilder);
+
+  filterForm = this.fb.group({
+    numero: [''],
+    fechaDesde: [null as Date | null],
+    fechaHasta: [null as Date | null],
+    motivo: [''],
+    destinatario: [''],
+    vehiculo: [''],
+    chofer: [''],
+    estadoDE: ['']
+  });
+
   notas = signal<NotaRemision[]>([]);
   notasPaginas = signal<NotaRemision[]>([]);
   loading = signal(false);
@@ -80,11 +344,34 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
   pageIndex = 0;
   totalItems = signal(0);
 
+  motivosEmision = [
+    { id: '1', descripcion: 'Traslado por ventas' },
+    { id: '2', descripcion: 'Traslado por compras' },
+    { id: '3', descripcion: 'Traslado por devolución' },
+    { id: '4', descripcion: 'Traslado por exportación' },
+    { id: '5', descripcion: 'Traslado por importación' },
+    { id: '6', descripcion: 'Traslado por consignación' },
+    { id: '7', descripcion: 'Traslado entre locales de la misma empresa' },
+    { id: '8', descripcion: 'Traslado por ferias' },
+    { id: '9', descripcion: 'Traslado por reparación' },
+    { id: '10', descripcion: 'Traslado por entrega de productos en carácter de préstamo' },
+    { id: '11', descripcion: 'Traslado por exhibición' },
+    { id: '12', descripcion: 'Traslado por publicidad' },
+    { id: '13', descripcion: 'Traslado por transformación' },
+    { id: '14', descripcion: 'Traslado por recolección de productos' },
+    { id: '99', descripcion: 'Otros' }
+  ];
+
   columns: TableColumn[] = [
     { key: 'numeroFormateado', label: 'Número', sortable: true },
     { key: 'fecha', label: 'Fecha', sortable: true, format: (v: string) => new Date(v).toLocaleDateString('es-PY') },
     { key: 'nombreDestinatario', label: 'Destinatario', sortable: true },
-    { key: 'motivoEmision', label: 'Motivo', sortable: true },
+    { 
+      key: 'motivoEmision', 
+      label: 'Motivo', 
+      sortable: true,
+      format: (v: string) => this.formatMotivoEmision(v)
+    },
     {
       key: 'estadoDocumentoElectronico',
       label: 'Estado DE',
@@ -176,6 +463,11 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
     }
   ];
 
+  isMobile = signal(false);
+  menuRow: NotaRemision | null = null;
+  menuActions: TableAction[] = [];
+  private breakpointObserver = inject(BreakpointObserver);
+
   constructor(
     private notaRemisionApi: NotaRemisionApiService,
     private clienteApi: ClienteApiService,
@@ -187,8 +479,27 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.breakpointObserver
+      .observe([ '(max-width: 768px)' ])
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(state => this.isMobile.set(state.matches));
+
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
-      if (params['empresaId']) this.cargarNotas(+params['empresaId']);
+      const empresaId = params['empresaId'];
+      if (empresaId) {
+        this.cargarNotas(+empresaId);
+      }
+    });
+
+    // Escuchar cambios en los filtros con debounce para no saturar el backend
+    this.filterForm.valueChanges.pipe(
+      takeUntil(this.destroy$),
+      debounceTime(500),
+      distinctUntilChanged()
+    ).subscribe(() => {
+      this.pageIndex = 0; // Reiniciar a la primera página al filtrar
+      const empresaId = this.route.snapshot.queryParams['empresaId'];
+      if (empresaId) this.cargarNotas(+empresaId);
     });
   }
 
@@ -199,13 +510,22 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
 
   cargarNotas(empresaId: number): void {
     this.loading.set(true);
-    this.notaRemisionApi.getAll(empresaId, this.pageIndex, this.pageSize)
+
+    // Preparar filtros para el backend (formatear fechas si es necesario)
+    const formValue = this.filterForm.value;
+    const filters = {
+      ...formValue,
+      fechaDesde: formValue.fechaDesde ? this.formatDate(formValue.fechaDesde) : null,
+      fechaHasta: formValue.fechaHasta ? this.formatDate(formValue.fechaHasta) : null
+    };
+
+    this.notaRemisionApi.getAll(empresaId, this.pageIndex, this.pageSize, filters)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (r) => {
           this.notas.set(r.content);
+          this.notasPaginas.set(r.content); // En paginación de servidor, la página es la data completa recibida
           this.totalItems.set(r.totalElements);
-          this.actualizarPaginacion();
           this.loading.set(false);
         },
         error: () => {
@@ -215,10 +535,29 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
       });
   }
 
-  actualizarPaginacion(): void {
-    const todas = this.notas();
-    const start = this.pageIndex * this.pageSize;
-    this.notasPaginas.set(todas.slice(start, start + this.pageSize));
+  formatDate(date: Date): string {
+    const d = new Date(date);
+    let month = '' + (d.getMonth() + 1);
+    let day = '' + d.getDate();
+    const year = d.getFullYear();
+
+    if (month.length < 2) month = '0' + month;
+    if (day.length < 2) day = '0' + day;
+
+    return [year, month, day].join('-');
+  }
+
+  limpiarFiltros(): void {
+    this.filterForm.reset({
+      numero: '',
+      fechaDesde: null,
+      fechaHasta: null,
+      motivo: '',
+      destinatario: '',
+      vehiculo: '',
+      chofer: '',
+      estadoDE: ''
+    });
   }
 
   onPageChange(e: PageEvent): void {
@@ -354,7 +693,7 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
           if (index !== -1) {
             notas[index] = notaActualizada;
             this.notas.set([...notas]);
-            this.actualizarPaginacion();
+            this.notasPaginas.set([...notas]);
           }
           // Abrir diálogo de estado con datos actualizados
           this.verEstado(notaActualizada);
@@ -398,6 +737,40 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
         });
       }
     });
+  }
+
+  formatMotivoEmision(motivoId: string): string {
+    if (!motivoId) return '';
+    const motivo = this.motivosEmision.find(m => m.id === motivoId);
+    return motivo ? motivo.descripcion : motivoId;
+  }
+
+  formatDateForCard(fecha: string): string {
+    if (!fecha) return '—';
+    return new Date(fecha).toLocaleDateString('es-PY');
+  }
+
+  getEstadoDELabel(estado: string | null | undefined): string {
+    const map: { [key: string]: string } = {
+      'PENDIENTE': '⏳ Pendiente',
+      'EN_PROCESO': '🔄 En Proceso',
+      'APROBADO': '✅ Aprobado',
+      'RECHAZADO': '❌ Rechazado',
+      'CANCELADO': '🚫 Cancelado',
+      'ERROR': '⚠️ Error',
+      'SIN_DE': '📄 Sin DE'
+    };
+    return map[estado || ''] || (estado || '—');
+  }
+
+  getVisibleActions(row: NotaRemision | null): TableAction[] {
+    if (!row || !this.tableActions?.length) return [];
+    return this.tableActions.filter(a => !a.visible || a.visible(row));
+  }
+
+  setMenuContext(nota: NotaRemision): void {
+    this.menuRow = nota;
+    this.menuActions = this.getVisibleActions(nota);
   }
 
   formatEstadoDE(estado: string, row: any): string {
