@@ -12,13 +12,23 @@ export class NotaRemisionApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/notas-remision`;
 
-  getAll(empresaId: number, page = 0, size = 20): Observable<{ content: NotaRemision[]; totalElements: number }> {
+  getAll(empresaId: number, page = 0, size = 20, filters: any = {}): Observable<{ content: NotaRemision[]; totalElements: number }> {
     let params = new HttpParams()
       .set('empresaId', empresaId.toString())
       .set('page', page.toString())
       .set('size', size.toString())
       .set('sortBy', 'fecha')
       .set('sortDirection', 'DESC');
+
+    // Agregar filtros si existen
+    if (filters.numero) params = params.set('numero', filters.numero);
+    if (filters.fechaDesde) params = params.set('fechaDesde', filters.fechaDesde);
+    if (filters.fechaHasta) params = params.set('fechaHasta', filters.fechaHasta);
+    if (filters.motivo) params = params.set('motivo', filters.motivo);
+    if (filters.destinatario) params = params.set('destinatario', filters.destinatario);
+    if (filters.vehiculo) params = params.set('vehiculo', filters.vehiculo);
+    if (filters.chofer) params = params.set('chofer', filters.chofer);
+    if (filters.estadoDE) params = params.set('estadoDE', filters.estadoDE);
 
     return this.http.get<{ content: NotaRemision[]; totalElements: number }>(this.baseUrl, { params });
   }

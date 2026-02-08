@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -18,6 +18,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { VehiculoApiService } from '../../core/api/vehiculo-api.service';
 import { EmpresaApiService } from '../../core/api/empresa-api.service';
 import { Vehiculo } from '../../models/vehiculo.model';
@@ -131,7 +132,8 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
           <!-- Tabla de vehículos -->
           <app-loading-spinner *ngIf="loading()" />
 
-          <div *ngIf="!loading()" class="table-wrapper">
+          <div class="list-desktop" *ngIf="!loading() && !isMobile()">
+          <div class="table-wrapper">
             <table mat-table [dataSource]="dataSource" class="vehiculos-table">
               <!-- Matrícula Column -->
               <ng-container matColumnDef="matricula">
@@ -201,6 +203,52 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
               (page)="onPageChange($event)"
               showFirstLastButtons>
             </mat-paginator>
+          </div>
+          </div>
+
+          <div class="list-mobile" *ngIf="!loading() && isMobile()">
+            <div class="mobile-cards" *ngIf="dataSource.data.length">
+              <mat-card class="list-card" *ngFor="let item of dataSource.data">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">{{ item.matricula }}</span>
+                    <span class="list-card-date">{{ item.marca }}</span>
+                  </mat-card-title>
+                  <button class="list-card-menu-trigger" mat-icon-button color="primary"
+                    [matMenuTriggerFor]="cardActionMenu" (click)="setMenuContext(item)"
+                    matTooltip="Acciones" aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content">
+                  <div class="list-card-field">
+                    <span class="list-card-label">Estado</span>
+                    <span class="list-card-value">{{ item.activo ? 'Activo' : 'Inactivo' }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="!dataSource.data.length">No hay vehículos para mostrar.</div>
+            <mat-paginator
+              *ngIf="dataSource.data.length"
+              [length]="totalElements"
+              [pageSize]="pageSize"
+              [pageSizeOptions]="[10, 20, 50, 100]"
+              [pageIndex]="currentPage"
+              (page)="onPageChange($event)"
+              showFirstLastButtons>
+            </mat-paginator>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && editarVehiculo(menuRow)">
+                <mat-icon>edit</mat-icon>
+                <span>Editar</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button mat-menu-item type="button" class="list-card-menu-item delete-option" (click)="menuRow && eliminarVehiculo(menuRow)">
+                <mat-icon>delete</mat-icon>
+                <span>Eliminar</span>
+              </button>
+            </mat-menu>
           </div>
         </mat-card-content>
       </mat-card>
@@ -280,6 +328,29 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
       min-width: 300px;
     }
 
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+    .mobile-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .list-card { margin: 0; }
+    .list-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 0; }
+    .list-card-title { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 1rem; }
+    .list-card-num { font-weight: 600; color: #2c3e50; }
+    .list-card-date { font-size: 0.875rem; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .list-card-num { color: #e0e0e0; }
+    :host-context(body.dark-theme) .list-card-date { color: rgba(255,255,255,0.6); }
+    .list-card-menu-trigger { flex-shrink: 0; }
+    .list-card-menu-trigger .mat-icon { font-size: 1.5rem; width: 24px; height: 24px; }
+    .list-card-content { display: flex; flex-direction: column; gap: 8px; padding-top: 0; }
+    .list-card-field { display: flex; flex-direction: column; gap: 2px; }
+    .list-card-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(0,0,0,0.6); }
+    .list-card-value { font-size: 0.9375rem; color: #2c3e50; word-break: break-word; }
+    :host-context(body.dark-theme) .list-card-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .list-card-value { color: #e0e0e0; }
+    .mobile-empty { padding: 24px 16px; text-align: center; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
+    .list-mobile mat-paginator { border-top: 1px solid rgba(0,0,0,0.12); }
+    :host-context(body.dark-theme) .list-mobile mat-paginator { border-top-color: rgba(255,255,255,0.12); }
+
     .table-wrapper {
       overflow-x: auto;
     }
@@ -337,6 +408,9 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
 export class VehiculosListComponent implements OnInit, OnDestroy {
   loading = signal(false);
   saving = signal(false);
+  isMobile = signal(false);
+  menuRow: Vehiculo | null = null;
+  private breakpointObserver = inject(BreakpointObserver);
   vehiculos = signal<Vehiculo[]>([]);
   dataSource = new MatTableDataSource<Vehiculo>([]);
   editingVehiculo = signal<Vehiculo | null>(null);
@@ -371,6 +445,7 @@ export class VehiculosListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.breakpointObserver.observe(['(max-width: 768px)']).pipe(takeUntil(this.destroy$)).subscribe(s => this.isMobile.set(s.matches));
     this.route.params
       .pipe(takeUntil(this.destroy$))
       .subscribe(params => {
@@ -438,6 +513,10 @@ export class VehiculosListComponent implements OnInit, OnDestroy {
         this.loading.set(false);
       }
     });
+  }
+
+  setMenuContext(item: Vehiculo): void {
+    this.menuRow = item;
   }
 
   goBack(): void {

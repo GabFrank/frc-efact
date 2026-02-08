@@ -149,6 +149,13 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
       max-height: 70vh;
       overflow-y: auto;
     }
+
+    @media (max-width: 768px) {
+      .producto-form {
+        min-width: 0;
+        width: 100%;
+      }
+    }
   `]
 })
 export class ProductoFormComponent implements OnInit {

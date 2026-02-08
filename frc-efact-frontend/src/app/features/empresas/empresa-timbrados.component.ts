@@ -73,6 +73,16 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
         </mat-card-header>
 
         <mat-card-content>
+          <!-- Actions Bar (above filters on mobile) -->
+          <div class="actions-bar">
+            <button
+              mat-raised-button
+              color="primary"
+              (click)="onCreateTimbrado()">
+              <mat-icon>add</mat-icon>
+              Nuevo Timbrado
+            </button>
+          </div>
           <!-- Filters Section -->
           <div class="filters-section">
             <form [formGroup]="filterForm" class="filters-form">
@@ -116,17 +126,6 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
             </form>
           </div>
 
-          <!-- Actions Bar -->
-          <div class="actions-bar">
-            <button
-              mat-raised-button
-              color="primary"
-              (click)="onCreateTimbrado()">
-              <mat-icon>add</mat-icon>
-              Nuevo Timbrado
-            </button>
-          </div>
-
           <!-- Loading State -->
           <app-loading-spinner *ngIf="loading$ | async"></app-loading-spinner>
 
@@ -137,7 +136,8 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
           </app-error-message>
 
           <!-- Timbrados Table -->
-          <div class="table-container" *ngIf="!(loading$ | async) && !(error$ | async)">
+          <div class="list-desktop" *ngIf="!(loading$ | async) && !(error$ | async)">
+          <div class="table-container">
             <table mat-table [dataSource]="paginatedTimbrados" class="timbrados-table">
 
               <!-- Numero Column -->
@@ -233,10 +233,81 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
             <mat-paginator
               [length]="filteredTimbrados.length"
               [pageSize]="pageSize"
+              [pageIndex]="currentPage"
               [pageSizeOptions]="[5, 10, 25, 50]"
               (page)="onPageChange($event)"
               showFirstLastButtons>
             </mat-paginator>
+          </div>
+          </div>
+
+          <!-- Mobile cards -->
+          <div class="list-mobile" *ngIf="!(loading$ | async) && !(error$ | async)">
+            <div class="mobile-cards" *ngIf="filteredTimbrados.length">
+              <mat-card class="list-card" *ngFor="let item of paginatedTimbrados">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">Timbrado {{ item.numero }}</span>
+                    <span class="list-card-date">{{ item.fechaInicio | date:'dd/MM/yyyy' }} – {{ item.fechaFin | date:'dd/MM/yyyy' }}</span>
+                  </mat-card-title>
+                  <button class="list-card-menu-trigger" mat-icon-button color="primary"
+                    [matMenuTriggerFor]="cardActionMenu" (click)="setMenuContext(item)"
+                    matTooltip="Acciones" aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content">
+                  <div class="list-card-field">
+                    <span class="list-card-label">Tipo</span>
+                    <span class="list-card-value">{{ item.isElectronico ? 'Electrónico' : 'Manual' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Estado</span>
+                    <span class="list-card-value">{{ item.activo ? 'Activo' : 'Inactivo' }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="!filteredTimbrados.length">
+              <mat-icon>receipt</mat-icon>
+              <p>No se encontraron timbrados</p>
+              <button mat-raised-button color="primary" (click)="onCreateTimbrado()">
+                <mat-icon>add</mat-icon>
+                Crear primer timbrado
+              </button>
+            </div>
+            <mat-paginator
+              *ngIf="filteredTimbrados.length > 0"
+              [length]="filteredTimbrados.length"
+              [pageSize]="pageSize"
+              [pageIndex]="currentPage"
+              [pageSizeOptions]="[5, 10, 25, 50]"
+              (page)="onPageChange($event)"
+              showFirstLastButtons>
+            </mat-paginator>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onViewTimbrado(menuRow)">
+                <mat-icon>visibility</mat-icon>
+                <span>Ver detalles</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onEditTimbrado(menuRow)">
+                <mat-icon>edit</mat-icon>
+                <span>Editar</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageDetalles(menuRow)">
+                <mat-icon>store</mat-icon>
+                <span>Puntos de expedición</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onToggleActive(menuRow)">
+                <mat-icon>{{ menuRow?.activo ? 'block' : 'check_circle' }}</mat-icon>
+                <span>{{ menuRow?.activo ? 'Desactivar' : 'Activar' }}</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item delete-option" (click)="menuRow && onDeleteTimbrado(menuRow)">
+                <mat-icon>delete</mat-icon>
+                <span>Eliminar</span>
+              </button>
+            </mat-menu>
           </div>
         </mat-card-content>
       </mat-card>
@@ -288,6 +359,15 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
       display: flex;
       justify-content: flex-end;
       margin-bottom: 20px;
+    }
+
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+    @media (max-width: 768px) {
+      .list-desktop { display: none !important; }
+    }
+    @media (min-width: 769px) {
+      .list-mobile { display: none !important; }
     }
 
     .table-container {
@@ -382,18 +462,46 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
       color: #f44336;
     }
 
+    .mobile-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .list-card { margin: 0; }
+    .list-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 0; }
+    .list-card-title { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 1rem; }
+    .list-card-num { font-weight: 600; color: #2c3e50; }
+    .list-card-date { font-size: 0.875rem; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .list-card-num { color: #e0e0e0; }
+    :host-context(body.dark-theme) .list-card-date { color: rgba(255,255,255,0.6); }
+    .list-card-menu-trigger { flex-shrink: 0; }
+    .list-card-menu-trigger .mat-icon { font-size: 1.5rem; width: 24px; height: 24px; }
+    .list-card-content { display: flex; flex-direction: column; gap: 8px; padding-top: 0; }
+    .list-card-field { display: flex; flex-direction: column; gap: 2px; }
+    .list-card-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(0,0,0,0.6); }
+    .list-card-value { font-size: 0.9375rem; color: #2c3e50; word-break: break-word; }
+    :host-context(body.dark-theme) .list-card-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .list-card-value { color: #e0e0e0; }
+    .mobile-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 32px 16px;
+      text-align: center;
+      color: rgba(0,0,0,0.6);
+    }
+    .mobile-empty > mat-icon { font-size: 48px; width: 48px; height: 48px; color: #ccc; }
+    .mobile-empty > p { margin: 0; font-size: 1rem; }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .mobile-empty > mat-icon { color: rgba(255,255,255,0.3); }
+    .list-mobile mat-paginator { border-top: 1px solid rgba(0,0,0,0.12); }
+    :host-context(body.dark-theme) .list-mobile mat-paginator { border-top-color: rgba(255,255,255,0.12); }
+
     @media (max-width: 768px) {
-      .timbrados-container {
-        padding: 10px;
-      }
-
-      .filters-form {
-        grid-template-columns: 1fr;
-      }
-
-      .actions-bar {
-        justify-content: center;
-      }
+      .timbrados-container { padding: 12px 16px; }
+      mat-card-header { margin-bottom: 16px; }
+      h2 { font-size: 1.25rem; }
+      .header-content { flex-direction: column; align-items: stretch; gap: 12px; }
+      .filters-form { grid-template-columns: 1fr; }
+      .actions-bar { justify-content: stretch; margin-bottom: 16px; }
+      .actions-bar button { width: 100%; }
     }
   `]
 })
@@ -417,7 +525,12 @@ export class EmpresaTimbradosComponent implements OnInit, OnDestroy {
   loading$ = this.store.select(selectTimbradosLoading);
   error$ = this.store.select(selectTimbradosError);
 
+  menuRow: Timbrado | null = null;
   private destroy$ = new Subject<void>();
+
+  setMenuContext(item: Timbrado): void {
+    this.menuRow = item;
+  }
 
   constructor(
     private store: Store,

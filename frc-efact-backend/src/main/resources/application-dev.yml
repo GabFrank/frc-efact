@@ -47,6 +47,7 @@ spring:
 # Development Server Configuration
 server:
   port: 8080
+  address: 0.0.0.0  # Escuchar en todas las interfaces para acceso desde red local
 
 # Development Logging
 logging:

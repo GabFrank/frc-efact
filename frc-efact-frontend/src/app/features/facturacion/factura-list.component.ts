@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, OnDestroy } from '@angular/core';
+import { Component, OnInit, signal, computed, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -17,7 +17,10 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatExpansionModule } from '@angular/material/expansion';
-import { PageEvent } from '@angular/material/paginator';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { FacturaApiService, ResumenFacturas } from '../../core/api/factura-api.service';
 import { SifenApiService } from '../../core/api/sifen-api.service';
 import { FacturaLegal } from '../../models/factura.model';
@@ -60,6 +63,9 @@ import {
     MatDatepickerModule,
     MatNativeDateModule,
     MatExpansionModule,
+    MatPaginatorModule,
+    MatMenuModule,
+    MatTooltipModule,
     DataTableComponent,
     LoadingSpinnerComponent
   ],
@@ -199,31 +205,85 @@ import {
               </mat-select>
             </mat-form-field>
 
-            <button mat-raised-button color="primary" (click)="aplicarFiltros()">
-              <mat-icon>search</mat-icon>
-              Filtrar
-            </button>
-
-            <button mat-stroked-button (click)="limpiarFiltros()">
-              <mat-icon>clear</mat-icon>
-              Limpiar
-            </button>
+            <div class="filter-buttons">
+              <button mat-raised-button color="primary" (click)="aplicarFiltros()">
+                <mat-icon>search</mat-icon>
+                Filtrar
+              </button>
+              <button mat-stroked-button (click)="limpiarFiltros()">
+                <mat-icon>clear</mat-icon>
+                Limpiar
+              </button>
+            </div>
           </div>
 
           <!-- Tabla de facturas -->
           <app-loading-spinner *ngIf="loading$ | async" />
 
-          <app-data-table
-            *ngIf="!(loading$ | async)"
-            [columns]="columns"
-            [data]="facturasPaginas()"
-            [actions]="tableActions"
-            [pageSize]="pageSize"
-            [pageIndex]="pageIndex"
-            [totalItems]="facturasFiltradas().length"
-            (actionClick)="onActionClick($event)"
-            (pageChange)="onPageChange($event)"
-          />
+          <div class="list-desktop" *ngIf="!(loading$ | async) && !isMobile()">
+            <app-data-table
+              [columns]="columns"
+              [data]="facturasPaginas()"
+              [actions]="tableActions"
+              [pageSize]="pageSize"
+              [pageIndex]="pageIndex"
+              [totalItems]="facturasFiltradas().length"
+              (actionClick)="onActionClick($event)"
+              (pageChange)="onPageChange($event)"
+            />
+          </div>
+          <div class="list-mobile" *ngIf="!(loading$ | async) && isMobile()">
+            <div class="mobile-cards" *ngIf="facturasPaginas().length > 0">
+              <mat-card class="list-card" *ngFor="let item of facturasPaginas()">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">{{ formatNumeroFactura(item.numeroFactura) }}</span>
+                    <span class="list-card-date">{{ formatDateForCard(item.fecha) }}</span>
+                  </mat-card-title>
+                  <button class="list-card-menu-trigger" mat-icon-button color="primary"
+                    [matMenuTriggerFor]="cardActionMenu" (click)="setMenuContext(item)"
+                    matTooltip="Acciones" aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content factura-card-content">
+                  <div class="list-card-field list-card-field-full list-card-field-cliente">
+                    <span class="list-card-label">Cliente</span>
+                    <span class="list-card-value">{{ item.nombre || '—' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">RUC</span>
+                    <span class="list-card-value">{{ item.ruc || '—' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Total</span>
+                    <span class="list-card-value">{{ formatTotalForCard(item) }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Tipo</span>
+                    <span class="list-card-value">{{ item.credito ? 'Crédito' : 'Contado' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Estado DE</span>
+                    <span class="list-card-value">
+                      <span class="estado-badge" [ngClass]="getEstadoDEClass(item.estadoDocumentoElectronico)">{{ getEstadoDELabel(item.estadoDocumentoElectronico) }}</span>
+                    </span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="facturasPaginas().length === 0">No hay facturas para mostrar.</div>
+            <mat-paginator *ngIf="facturasPaginas().length > 0" [length]="facturasFiltradas().length"
+              [pageSize]="pageSize" [pageIndex]="pageIndex" [pageSizeOptions]="[5, 10, 25, 50]"
+              (page)="onPageChange($event)" showFirstLastButtons></mat-paginator>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item *ngFor="let a of menuActions" type="button" class="list-card-menu-item"
+                (click)="menuRow && onActionClick({ action: (a.label || a.tooltip || a.icon) || '', row: menuRow })">
+                <mat-icon>{{ a.icon }}</mat-icon>
+                <span>{{ a.label || a.tooltip || a.icon }}</span>
+              </button>
+            </mat-menu>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -488,6 +548,13 @@ import {
       align-items: center;
     }
 
+    .filter-buttons {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      align-items: center;
+    }
+
     mat-form-field {
       min-width: 180px;
     }
@@ -534,6 +601,57 @@ import {
       color: #6c757d;
     }
 
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+    .mobile-cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+    .list-card { margin: 0; }
+    .list-card-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 10px 14px 4px; margin-bottom: 0; gap: 8px; }
+    .list-card-title { display: flex; flex-direction: column; gap: 1px; margin: 0; font-size: 1rem; min-width: 0; flex: 1; }
+    .list-card-num { font-weight: 600; color: #2c3e50; font-size: 1rem; }
+    .list-card-date { font-size: 0.75rem; color: rgba(0,0,0,0.55); }
+    :host-context(body.dark-theme) .list-card-num { color: #e0e0e0; }
+    :host-context(body.dark-theme) .list-card-date { color: rgba(255,255,255,0.55); }
+    .list-card-menu-trigger { flex-shrink: 0; margin: -4px -4px 0 0; }
+    .list-card-menu-trigger .mat-icon { font-size: 1.5rem; width: 24px; height: 24px; }
+    .list-card-content { padding: 0 !important; }
+    .list-card-content.factura-card-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 14px;
+      padding: 4px 14px 12px !important;
+    }
+    .list-card-content.factura-card-content .list-card-field { display: flex; flex-direction: column; gap: 1px; }
+    .list-card-content.factura-card-content .list-card-field-full { grid-column: 1 / -1; }
+    .list-card-content.factura-card-content .list-card-field-cliente .list-card-value {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      word-break: break-word;
+    }
+    .list-card-content.factura-card-content .list-card-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: rgba(0,0,0,0.55); }
+    .list-card-content.factura-card-content .list-card-value { font-size: 0.875rem; color: #2c3e50; word-break: break-word; line-height: 1.3; }
+    :host-context(body.dark-theme) .list-card-content.factura-card-content .list-card-label { color: rgba(255,255,255,0.55); }
+    :host-context(body.dark-theme) .list-card-content.factura-card-content .list-card-value { color: #e0e0e0; }
+    .list-card-content.factura-card-content .estado-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .list-card-field { display: flex; flex-direction: column; gap: 2px; }
+    .list-card-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(0,0,0,0.6); }
+    .list-card-value { font-size: 0.9375rem; color: #2c3e50; word-break: break-word; }
+    :host-context(body.dark-theme) .list-card-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .list-card-value { color: #e0e0e0; }
+    .mobile-empty { padding: 24px 16px; text-align: center; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
+    .list-mobile mat-paginator { border-top: 1px solid rgba(0,0,0,0.12); }
+    :host-context(body.dark-theme) .list-mobile mat-paginator { border-top-color: rgba(255,255,255,0.12); }
+
     @media (max-width: 768px) {
       .facturacion-dashboard {
         padding: 16px;
@@ -563,6 +681,10 @@ import {
 })
 export class FacturaListComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+  private breakpointObserver = inject(BreakpointObserver);
+  isMobile = signal(false);
+  menuRow: FacturaLegal | null = null;
+  menuActions: TableAction[] = [];
 
   facturas$: Observable<FacturaLegal[]>;
   loading$: Observable<boolean>;
@@ -791,6 +913,7 @@ export class FacturaListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.breakpointObserver.observe(['(max-width: 768px)']).pipe(takeUntil(this.destroy$)).subscribe(s => this.isMobile.set(s.matches));
     // Obtener empresaId de query params
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       const empresaId = params['empresaId'];
@@ -863,6 +986,63 @@ export class FacturaListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  formatNumeroFactura(n: number | null | undefined): string {
+    return n != null ? n.toString().padStart(7, '0') : '—';
+  }
+
+  formatDateForCard(fecha: string | null | undefined): string {
+    if (!fecha) return '—';
+    return new Date(fecha).toLocaleDateString('es-PY');
+  }
+
+  formatTotalForCard(row: FacturaLegal): string {
+    const value = row.totalFinal;
+    if (value == null) return '—';
+    if (row.monedaExtranjera && row.monedaExtranjera !== 'PYG' && row.cambio && row.cambio > 0) {
+      const valorEnMonedaExtranjera = value / row.cambio;
+      const m = this.MONEDAS.find(x => x.codigo === row.monedaExtranjera);
+      const simbolo = m?.simbolo ?? '₲';
+      return `${simbolo} ${valorEnMonedaExtranjera.toLocaleString('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}`;
+    }
+    return `₲ ${value.toLocaleString('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: 3 })}`;
+  }
+
+  getEstadoDELabel(estado: string | null | undefined): string {
+    const map: { [key: string]: string } = {
+      'PENDIENTE': '⏳ Pendiente',
+      'EN_PROCESO': '🔄 En Proceso',
+      'APROBADO': '✅ Aprobado',
+      'RECHAZADO': '❌ Rechazado',
+      'CANCELADO': '🚫 Cancelado',
+      'ERROR': '⚠️ Error',
+      'SIN_DE': '📄 Sin DE'
+    };
+    return map[estado || ''] || (estado || '—');
+  }
+
+  getEstadoDEClass(estado: string | null | undefined): string {
+    const k = (estado || 'SIN_DE').toUpperCase();
+    const map: { [key: string]: string } = {
+      'PENDIENTE': 'estado-pendiente',
+      'EN_PROCESO': 'estado-proceso',
+      'APROBADO': 'estado-aprobado',
+      'RECHAZADO': 'estado-rechazado',
+      'CANCELADO': 'estado-cancelado',
+      'ERROR': 'estado-error',
+      'SIN_DE': 'estado-sin-de'
+    };
+    return map[k] || 'estado-sin-de';
+  }
+
+  getVisibleActions(row: FacturaLegal | null): TableAction[] {
+    return row && this.tableActions?.length ? this.tableActions.filter(a => !a.visible || a.visible(row)) : [];
+  }
+
+  setMenuContext(item: FacturaLegal): void {
+    this.menuRow = item;
+    this.menuActions = this.getVisibleActions(item);
   }
 
   /**

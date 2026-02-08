@@ -175,6 +175,12 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:4200",
                 "https://localhost:4200",
+                "http://192.168.*.*:4200",  // IP local HTTP
+                "https://192.168.*.*:4200",  // IP local HTTPS
+                "http://10.*.*.*:4200",     // IP local HTTP (rango 10.x.x.x)
+                "https://10.*.*.*:4200",    // IP local HTTPS (rango 10.x.x.x)
+                "http://172.*.*.*:4200",   // IP local HTTP (rango 172.x.x.x)
+                "https://172.*.*.*:4200",  // IP local HTTPS (rango 172.x.x.x)
                 "https://*.onrender.com"
         ));
         

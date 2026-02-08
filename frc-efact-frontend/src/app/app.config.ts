@@ -45,6 +45,14 @@ export const appConfig: ApplicationConfig = {
         redirect_uri: window.location.origin,
         audience: environment.auth0.authorizationParams.audience
       },
+      httpInterceptor: {
+        allowedList: [
+          {
+            uri: `${environment.apiUrl}/*`,
+            allowAnonymous: true
+          }
+        ]
+      },
       errorPath: '/login'
     }),
     provideHttpClient(

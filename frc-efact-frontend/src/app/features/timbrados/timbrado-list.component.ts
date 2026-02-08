@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
-import { Observable, combineLatest, map } from 'rxjs';
+import { Observable, combineLatest, map, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -12,6 +13,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { FormsModule } from '@angular/forms';
 
 import { Timbrado } from '../../models/timbrado.model';
@@ -44,6 +47,8 @@ interface TimbradoWithStatus extends Timbrado {
     MatChipsModule,
     MatSelectModule,
     MatDialogModule,
+    MatMenuModule,
+    MatDividerModule,
     LoadingSpinnerComponent,
     ErrorMessageComponent
   ],
@@ -82,6 +87,7 @@ interface TimbradoWithStatus extends Timbrado {
             <button
               mat-raised-button
               color="primary"
+              class="actions-bar-btn"
               (click)="onCreateTimbrado()">
               <mat-icon>add</mat-icon>
               Nuevo Timbrado
@@ -124,7 +130,8 @@ interface TimbradoWithStatus extends Timbrado {
           </app-error-message>
 
           <!-- Timbrados Table -->
-          <div class="table-container" *ngIf="!loading && !error">
+          <div class="list-desktop" *ngIf="!loading && !error">
+          <div class="table-container">
             <table mat-table [dataSource]="filteredTimbrados" class="timbrados-table">
 
               <!-- Número Column -->
@@ -235,6 +242,70 @@ interface TimbradoWithStatus extends Timbrado {
               </tr>
             </table>
           </div>
+          </div>
+
+          <div class="list-mobile" *ngIf="!loading && !error">
+            <div class="mobile-cards" *ngIf="filteredTimbrados.length">
+              <mat-card class="list-card" *ngFor="let item of filteredTimbrados">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">Timbrado {{ item.numero }}</span>
+                    <span class="list-card-date">{{ item.razonSocial || 'Sin empresa' }}</span>
+                  </mat-card-title>
+                  <button class="list-card-menu-trigger" mat-icon-button color="primary"
+                    [matMenuTriggerFor]="cardActionMenu" (click)="setMenuContext(item)"
+                    matTooltip="Acciones" aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content">
+                  <div class="list-card-field">
+                    <span class="list-card-label">RUC</span>
+                    <span class="list-card-value">{{ item.ruc || '—' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Tipo</span>
+                    <span class="list-card-value">{{ item.isElectronico ? 'Electrónico' : 'Físico' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Vigencia</span>
+                    <span class="list-card-value">{{ item.vigente ? (item.alertaVencimiento ? 'Por vencer' : 'Vigente') : 'Vencido' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Estado</span>
+                    <span class="list-card-value">{{ item.activo ? 'Activo' : 'Inactivo' }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="!filteredTimbrados.length">
+              <mat-icon>receipt</mat-icon>
+              <p>No se encontraron timbrados</p>
+              <button mat-raised-button color="primary" (click)="onCreateTimbrado()">
+                <mat-icon>add</mat-icon>
+                Crear primer timbrado
+              </button>
+            </div>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onViewTimbrado(menuRow)">
+                <mat-icon>visibility</mat-icon>
+                <span>Ver detalles</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onEditTimbrado(menuRow)">
+                <mat-icon>edit</mat-icon>
+                <span>Editar</span>
+              </button>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onManageDetalles(menuRow)">
+                <mat-icon>store</mat-icon>
+                <span>Puntos de expedición</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button mat-menu-item type="button" class="list-card-menu-item" (click)="menuRow && onToggleActive(menuRow)">
+                <mat-icon>{{ menuRow?.activo ? 'block' : 'check_circle' }}</mat-icon>
+                <span>{{ menuRow?.activo ? 'Desactivar' : 'Activar' }}</span>
+              </button>
+            </mat-menu>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -322,6 +393,44 @@ interface TimbradoWithStatus extends Timbrado {
       color: #ff9800;
       font-weight: 500;
     }
+
+    .list-desktop { width: 100%; }
+    .list-mobile { width: 100%; }
+    @media (max-width: 768px) {
+      .list-desktop { display: none !important; }
+    }
+    @media (min-width: 769px) {
+      .list-mobile { display: none !important; }
+    }
+    .mobile-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .list-card { margin: 0; }
+    .list-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 0; }
+    .list-card-title { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 1rem; }
+    .list-card-num { font-weight: 600; color: #2c3e50; }
+    .list-card-date { font-size: 0.875rem; color: rgba(0,0,0,0.6); }
+    :host-context(body.dark-theme) .list-card-num { color: #e0e0e0; }
+    :host-context(body.dark-theme) .list-card-date { color: rgba(255,255,255,0.6); }
+    .list-card-menu-trigger { flex-shrink: 0; }
+    .list-card-menu-trigger .mat-icon { font-size: 1.5rem; width: 24px; height: 24px; }
+    .list-card-content { display: flex; flex-direction: column; gap: 8px; padding-top: 0; }
+    .list-card-field { display: flex; flex-direction: column; gap: 2px; }
+    .list-card-label { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(0,0,0,0.6); }
+    .list-card-value { font-size: 0.9375rem; color: #2c3e50; word-break: break-word; }
+    :host-context(body.dark-theme) .list-card-label { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .list-card-value { color: #e0e0e0; }
+    .mobile-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 32px 16px;
+      text-align: center;
+      color: rgba(0,0,0,0.6);
+    }
+    .mobile-empty > mat-icon { font-size: 48px; width: 48px; height: 48px; color: #ccc; }
+    .mobile-empty > p { margin: 0; font-size: 1rem; }
+    :host-context(body.dark-theme) .mobile-empty { color: rgba(255,255,255,0.6); }
+    :host-context(body.dark-theme) .mobile-empty > mat-icon { color: rgba(255,255,255,0.3); }
 
     .table-container {
       overflow-x: auto;
@@ -432,20 +541,29 @@ interface TimbradoWithStatus extends Timbrado {
     }
 
     @media (max-width: 768px) {
+      .timbrados-container { padding: 12px 16px; }
+      mat-card-header { margin-bottom: 16px; }
+      h2 { font-size: 1.25rem; }
       .actions-bar {
         flex-direction: column;
         align-items: stretch;
+        gap: 12px;
+        margin-bottom: 16px;
       }
-
+      .actions-bar .actions-bar-btn { order: -1; }
       .filter-field,
-      .search-field {
-        width: 100%;
-        max-width: 100%;
+      .search-field { width: 100%; max-width: 100%; }
+      .alerts-section { margin-bottom: 16px; }
+      .alert-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
       }
+      .alert-item .alert-text { word-break: break-word; }
     }
   `]
 })
-export class TimbradoListComponent implements OnInit {
+export class TimbradoListComponent implements OnInit, OnDestroy {
   timbrados: TimbradoWithStatus[] = [];
   empresas: Empresa[] = [];
   filteredTimbrados: TimbradoWithStatus[] = [];
@@ -453,6 +571,8 @@ export class TimbradoListComponent implements OnInit {
 
   loading = false;
   error: string | null = null;
+  menuRow: TimbradoWithStatus | null = null;
+  private destroy$ = new Subject<void>();
 
   displayedColumns: string[] = ['numero', 'razonSocial', 'ruc', 'tipo', 'vigencia', 'activo', 'actions'];
   searchTerm: string = '';
@@ -467,13 +587,21 @@ export class TimbradoListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Leer empresaId de query params si existe
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       if (params['empresaId']) {
         this.selectedEmpresaId = +params['empresaId'];
       }
       this.loadData();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  setMenuContext(item: TimbradoWithStatus): void {
+    this.menuRow = item;
   }
 
   private loadData(): void {
