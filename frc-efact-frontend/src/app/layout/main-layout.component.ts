@@ -12,11 +12,13 @@ import { Empresa } from '../models/empresa.model';
 import { AuthService } from '../services/auth.service';
 import { ConnectionStatusBannerComponent } from '../components/connection-status-banner/connection-status-banner.component';
 import { PermissionsService } from '../core/services/permissions.service';
+import { MatIconModule } from '@angular/material/icon';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterModule, ConnectionStatusBannerComponent],
+  imports: [CommonModule, RouterOutlet, RouterModule, ConnectionStatusBannerComponent, MatIconModule],
   template: `
     <div class="main-layout">
       <!-- Top Navigation Bar -->
@@ -73,7 +75,7 @@ import { PermissionsService } from '../core/services/permissions.service';
             <button class="avatar-btn" (click)="toggleUserMenu($event)" [title]="currentUser.username">
               <div class="avatar-circle">
                 <img *ngIf="currentUser.imagenPerfil" [src]="currentUser.imagenPerfil" [alt]="currentUser.username" class="avatar-img" />
-                <i *ngIf="!currentUser.imagenPerfil" class="fas fa-user"></i>
+                <mat-icon *ngIf="!currentUser.imagenPerfil" class="avatar-placeholder-icon">person</mat-icon>
               </div>
               <span class="user-name-desktop">{{ currentUser.username }}</span>
               <i class="fas fa-chevron-down"></i>
@@ -84,7 +86,7 @@ import { PermissionsService } from '../core/services/permissions.service';
               <div class="user-menu-header">
                 <div class="avatar-circle-large">
                   <img *ngIf="currentUser.imagenPerfil" [src]="currentUser.imagenPerfil" [alt]="currentUser.username" class="avatar-img" />
-                  <i *ngIf="!currentUser.imagenPerfil" class="fas fa-user"></i>
+                  <mat-icon *ngIf="!currentUser.imagenPerfil" class="avatar-placeholder-icon avatar-placeholder-icon-large">person</mat-icon>
                 </div>
                 <div class="user-menu-info">
                   <span class="user-menu-name">{{ currentUser.username }}</span>
@@ -124,7 +126,9 @@ import { PermissionsService } from '../core/services/permissions.service';
         <aside class="sidebar" [class.open]="isMobileMenuOpen">
           <!-- Logo en la parte superior de la sidebar -->
           <div class="sidebar-logo">
-            <img src="assets/logo.svg" alt="FRC eFact" class="sidebar-logo-img" />
+            <div class="sidebar-logo-circle">
+              <img src="assets/256.png" alt="FRC eFact" class="sidebar-logo-img" />
+            </div>
             <!-- Botón cerrar para mobile -->
             <button class="sidebar-close-mobile" (click)="closeMobileMenu()" aria-label="Cerrar menú">
               <i class="fas fa-times"></i>
@@ -450,6 +454,9 @@ import { PermissionsService } from '../core/services/permissions.service';
               </li>
             </ul>
           </nav>
+          <div class="sidebar-footer">
+            <span class="sidebar-version">Versión: {{ appVersion }}</span>
+          </div>
         </aside>
 
         <!-- Main Content Area -->
@@ -737,6 +744,19 @@ import { PermissionsService } from '../core/services/permissions.service';
       overflow: hidden;
     }
 
+    .avatar-placeholder-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    .avatar-placeholder-icon-large {
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
+    }
+
     .avatar-circle-large {
       width: 48px;
       height: 48px;
@@ -897,6 +917,18 @@ import { PermissionsService } from '../core/services/permissions.service';
       position: relative;
     }
 
+    .sidebar-logo-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
     .sidebar-close-mobile {
       display: none;
       position: absolute;
@@ -918,15 +950,30 @@ import { PermissionsService } from '../core/services/permissions.service';
     }
 
     .sidebar-logo-img {
-      height: 80px;
+      height: 72px;
       width: auto;
-      max-width: 200px;
+      max-width: 72px;
       object-fit: contain;
     }
 
     .sidebar-nav {
       padding: 1rem 0;
       flex: 1;
+    }
+
+    .sidebar-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      margin-top: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .sidebar-version {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.7);
+      text-align: center;
     }
 
     .nav-menu {
@@ -1162,9 +1209,15 @@ import { PermissionsService } from '../core/services/permissions.service';
         width: 200px;
       }
 
+      .sidebar-logo-circle {
+        width: 72px;
+        height: 72px;
+        padding: 3px;
+      }
+
       .sidebar-logo-img {
-        height: 60px;
-        max-width: 160px;
+        height: 64px;
+        max-width: 66px;
       }
 
       .main-content {
@@ -1274,9 +1327,15 @@ import { PermissionsService } from '../core/services/permissions.service';
         left: 0;
       }
 
+      .sidebar-logo-circle {
+        width: 64px;
+        height: 64px;
+        padding: 3px;
+      }
+
       .sidebar-logo-img {
         height: 56px;
-        max-width: 160px;
+        max-width: 58px;
       }
 
       .sidebar-close-mobile {
@@ -1401,6 +1460,8 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   selectedEmpresa: Empresa | null = null;
   empresasLoading = false;
   
+  appVersion = environment.version;
+
   // Estado de secciones expandidas
   expandedSections: { [key: string]: boolean } = {
     gestionEmpresa: false,

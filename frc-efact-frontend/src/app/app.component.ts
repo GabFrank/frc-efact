@@ -24,6 +24,9 @@ export class AppComponent implements OnInit {
   private readonly http = inject(HttpClient);
 
   ngOnInit(): void {
+    // Ocultar splash screen cuando la app esté lista
+    this.hideSplash();
+
     // Inicializar auth desde localStorage al cargar la aplicación
     this.store.dispatch(AuthActions.initializeAuth());
 
@@ -47,6 +50,17 @@ export class AppComponent implements OnInit {
         }
       });
     }
+  }
+
+  private hideSplash(): void {
+    const splash = document.getElementById('app-splash');
+    if (!splash) return;
+    const hide = () => {
+      splash.classList.add('splash-hidden');
+      setTimeout(() => splash.remove(), 450);
+    };
+    // Dar tiempo a que la primera vista se renderice antes de ocultar
+    setTimeout(hide, 600);
   }
 
   private handleAuth0Callback(): void {

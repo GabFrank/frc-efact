@@ -30,14 +30,24 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
 
       <!-- Dashboard cuando hay empresa seleccionada -->
       <div *ngIf="selectedEmpresa$ | async as empresa">
-        <!-- Header -->
+        <!-- Logo centralizado arriba (fuera del card) -->
+        <div class="dashboard-logo-top">
+          <div class="header-logo-circle">
+            <img src="assets/256.png" alt="FRC eFact" class="header-logo-img" />
+          </div>
+        </div>
+
+        <!-- Card: Empresa y RUC -->
         <div class="dashboard-header">
-          <div class="header-content">
-            <h1>Dashboard - {{ empresa.razonSocial }}</h1>
-            <app-date-filter
-              (dateRangeChange)="onDateRangeChange($event)"
-              [selectedOption]="selectedDateFilter">
-            </app-date-filter>
+          <div class="header-info">
+            <div class="header-info-item">
+              <span class="header-info-label">Empresa</span>
+              <span class="header-info-value">{{ empresa.razonSocial }}</span>
+            </div>
+            <div class="header-info-item" *ngIf="empresa.ruc">
+              <span class="header-info-label">RUC</span>
+              <span class="header-info-value">{{ empresa.ruc }}</span>
+            </div>
           </div>
         </div>
 
@@ -67,6 +77,17 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
                 <span>Gestionar Timbrados</span>
               </button>
             </div>
+          </div>
+
+          <!-- Filtros por fecha e información -->
+          <div class="dashboard-filters-section">
+            <app-date-filter
+              (dateRangeChange)="onDateRangeChange($event)"
+              [selectedOption]="selectedDateFilter">
+            </app-date-filter>
+            <p class="filters-info" *ngIf="dashboardData">
+              Datos del período seleccionado. Facturas aprobadas: {{ dashboardData.facturasAprobadas.cantidad }} · Canceladas: {{ dashboardData.facturasCanceladas.cantidad }}
+            </p>
           </div>
 
           <!-- Estadísticas -->
@@ -272,27 +293,83 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
       color: #7f8c8d;
     }
 
+    .dashboard-logo-top {
+      display: flex;
+      justify-content: center;
+      padding: 24px 0 16px 0;
+      margin-bottom: 0;
+    }
+
+    .header-logo-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+      flex-shrink: 0;
+    }
+
+    .header-logo-img {
+      height: 72px;
+      width: auto;
+      max-width: 72px;
+      object-fit: contain;
+    }
+
     .dashboard-header {
       background: white;
-      padding: 20px;
+      padding: 20px 24px;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       margin-bottom: 20px;
     }
 
-    .header-content {
+    .header-info {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
       flex-wrap: wrap;
+      gap: 24px 32px;
+      align-items: baseline;
+    }
+
+    .header-info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .header-info-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #7f8c8d;
+    }
+
+    .header-info-value {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .dashboard-filters-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       gap: 20px;
     }
 
-    .dashboard-header h1 {
+    .filters-info {
       margin: 0;
-      color: #2c3e50;
-      font-size: 1.75rem;
-      font-weight: 600;
+      font-size: 0.9rem;
+      color: #7f8c8d;
     }
 
     .dashboard-content {
@@ -701,7 +778,30 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
         line-height: 1.5;
       }
 
-      .header-content {
+      .dashboard-logo-top {
+        padding: 16px 0 12px 0;
+      }
+
+      .header-logo-circle {
+        width: 64px;
+        height: 64px;
+        padding: 3px;
+      }
+
+      .header-logo-img {
+        height: 58px;
+        max-width: 58px;
+      }
+
+      .header-info {
+        gap: 16px 24px;
+      }
+
+      .header-info-value {
+        font-size: 1rem;
+      }
+
+      .dashboard-filters-section {
         flex-direction: column;
         align-items: stretch;
       }
