@@ -150,6 +150,24 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
             String username, String email);
 
     /**
+     * Buscar usuarios por término en username o email con relaciones cargadas (JOIN FETCH).
+     * Inicializa las colecciones usuarioRoles y usuarioEmpresas para evitar LazyInitializationException.
+     *
+     * @param username término a buscar en username
+     * @param email término a buscar en email
+     * @return lista de usuarios que coinciden con relaciones inicializadas
+     */
+    @Query("SELECT DISTINCT u FROM Usuario u " +
+           "LEFT JOIN FETCH u.usuarioRoles ur " +
+           "LEFT JOIN FETCH ur.rol " +
+           "LEFT JOIN FETCH u.usuarioEmpresas ue " +
+           "LEFT JOIN FETCH ue.empresa " +
+           "WHERE LOWER(u.username) LIKE LOWER(CONCAT('%', :username, '%')) " +
+           "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :email, '%'))")
+    List<Usuario> findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCaseWithRoles(
+            @Param("username") String username, @Param("email") String email);
+
+    /**
      * Buscar usuarios por estado activo con paginación.
      *
      * @param isActive estado activo a filtrar
@@ -198,4 +216,17 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
            "    WHERE ur.rol.nombre = 'ADMIN'" +
            ")")
     List<Usuario> findUsuariosAsignables();
+
+    /**
+     * Buscar todos los usuarios con relaciones cargadas (JOIN FETCH).
+     * Inicializa las colecciones usuarioRoles y usuarioEmpresas para evitar LazyInitializationException.
+     *
+     * @return lista de todos los usuarios con relaciones inicializadas
+     */
+    @Query("SELECT DISTINCT u FROM Usuario u " +
+           "LEFT JOIN FETCH u.usuarioRoles ur " +
+           "LEFT JOIN FETCH ur.rol " +
+           "LEFT JOIN FETCH u.usuarioEmpresas ue " +
+           "LEFT JOIN FETCH ue.empresa")
+    List<Usuario> findAllWithRoles();
 }

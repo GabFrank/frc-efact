@@ -48,14 +48,14 @@ export interface UsuarioDialogData {
         <form [formGroup]="usuarioForm">
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Nombre de Usuario</mat-label>
-            <input matInput formControlName="username" placeholder="Ingrese el nombre de usuario">
+            <input matInput formControlName="username" placeholder="Ingrese el nombre de usuario" autocomplete="off">
             <mat-icon matSuffix>person</mat-icon>
             <app-error-message [control]="usuarioForm.get('username')" />
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Correo Electrónico</mat-label>
-            <input matInput formControlName="email" type="email" placeholder="ejemplo@correo.com">
+            <input matInput formControlName="email" type="email" placeholder="ejemplo@correo.com" autocomplete="off">
             <mat-icon matSuffix>email</mat-icon>
             <app-error-message [control]="usuarioForm.get('email')" />
           </mat-form-field>
@@ -66,7 +66,8 @@ export interface UsuarioDialogData {
               matInput 
               [type]="hidePassword ? 'password' : 'text'"
               formControlName="password" 
-              placeholder="Mínimo 8 caracteres">
+              placeholder="Mínimo 8 caracteres"
+              autocomplete="new-password">
             <button
               mat-icon-button
               matSuffix
@@ -140,6 +141,45 @@ export interface UsuarioDialogData {
       padding: 16px 24px;
       border-top: 1px solid rgba(0, 0, 0, 0.12);
       margin: 0;
+    }
+
+    /* Responsive adjustments for mobile */
+    @media (max-width: 600px) {
+      .usuario-dialog {
+        min-width: auto;
+        max-width: 100vw;
+        width: 100%;
+      }
+
+      h2[mat-dialog-title] {
+        padding: 12px 16px;
+        font-size: 18px;
+      }
+
+      mat-dialog-content {
+        padding: 16px;
+        max-height: calc(90vh - 140px);
+      }
+
+      .full-width {
+        margin-bottom: 12px;
+      }
+
+      mat-dialog-actions {
+        padding: 12px 16px;
+        flex-direction: column-reverse;
+        gap: 8px;
+      }
+
+      mat-dialog-actions button {
+        width: 100%;
+        margin: 0;
+      }
+
+      .checkbox-field {
+        margin-top: 4px;
+        margin-bottom: 12px;
+      }
     }
   `]
 })

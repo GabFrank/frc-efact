@@ -453,17 +453,18 @@ public class UsuarioController {
 
     /**
      * Buscar usuarios por término simple.
+     * Disponible para ADMIN y EMPRESA_ADMIN para permitir búsqueda de usuarios al vincularlos a empresas.
      *
      * @param term término de búsqueda
      * @return lista de usuarios que coinciden
      */
     @GetMapping("/search")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Búsqueda simple de usuarios", description = "Busca usuarios por término en username o email")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN')")
+    @Operation(summary = "Búsqueda simple de usuarios", description = "Busca usuarios por término en username o email. Disponible para ADMIN y EMPRESA_ADMIN.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Búsqueda completada"),
             @ApiResponse(responseCode = "401", description = "No autenticado"),
-            @ApiResponse(responseCode = "403", description = "Sin permisos de administrador")
+            @ApiResponse(responseCode = "403", description = "Sin permisos para buscar usuarios")
     })
     public ResponseEntity<List<UsuarioDto>> buscarUsuariosPorTermino(
             @Parameter(description = "Término a buscar") @RequestParam String term) {

@@ -423,16 +423,19 @@ public class UsuarioService {
 
     /**
      * Buscar usuarios por término de búsqueda.
+     * Inicializa las relaciones lazy (usuarioRoles) para evitar LazyInitializationException.
      *
      * @param searchTerm término a buscar en username o email
-     * @return lista de usuarios que coinciden
+     * @return lista de usuarios que coinciden con roles inicializados
      */
     @Transactional(readOnly = true)
     public List<Usuario> buscarUsuariosPorTermino(String searchTerm) {
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
-            return usuarioRepository.findAll();
+            // Usar el método con JOIN FETCH para cargar roles
+            return usuarioRepository.findAllWithRoles();
         }
-        return usuarioRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+        // Usar el método con JOIN FETCH para cargar roles
+        return usuarioRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCaseWithRoles(
             searchTerm.trim(), searchTerm.trim()
         );
     }

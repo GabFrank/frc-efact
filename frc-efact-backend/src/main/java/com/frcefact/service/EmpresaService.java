@@ -318,6 +318,7 @@ public class EmpresaService {
         Optional<UsuarioEmpresa> relacionExistente = usuarioEmpresaRepository
                 .findByUsuarioAndEmpresa(usuarioId, empresaId);
 
+        UsuarioEmpresa resultado;
         if (relacionExistente.isPresent()) {
             // Actualizar rol si ya existe
             UsuarioEmpresa usuarioEmpresa = relacionExistente.get();
@@ -325,20 +326,25 @@ public class EmpresaService {
             usuarioEmpresa.setActivo(true);
 
             logger.info("Relación usuario-empresa actualizada");
-            return usuarioEmpresaRepository.save(usuarioEmpresa);
+            resultado = usuarioEmpresaRepository.save(usuarioEmpresa);
+        } else {
+            // Crear nueva relación
+            UsuarioEmpresa usuarioEmpresa = new UsuarioEmpresa();
+            usuarioEmpresa.setUsuario(usuario);
+            usuarioEmpresa.setEmpresa(empresa);
+            usuarioEmpresa.setRolEmpresa(rolEmpresa);
+            usuarioEmpresa.setActivo(true);
+
+            resultado = usuarioEmpresaRepository.save(usuarioEmpresa);
+            logger.info("Usuario asignado exitosamente a empresa");
         }
 
-        // Crear nueva relación
-        UsuarioEmpresa usuarioEmpresa = new UsuarioEmpresa();
-        usuarioEmpresa.setUsuario(usuario);
-        usuarioEmpresa.setEmpresa(empresa);
-        usuarioEmpresa.setRolEmpresa(rolEmpresa);
-        usuarioEmpresa.setActivo(true);
+        // Inicializar colecciones lazy del usuario para evitar LazyInitializationException en el mapper
+        if (resultado.getUsuario() != null) {
+            resultado.getUsuario().getUsuarioRoles().size();
+        }
 
-        UsuarioEmpresa relacionGuardada = usuarioEmpresaRepository.save(usuarioEmpresa);
-        logger.info("Usuario asignado exitosamente a empresa");
-
-        return relacionGuardada;
+        return resultado;
     }
 
     /**

@@ -1,9 +1,10 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, Subject, combineLatest, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil, map, switchMap, catchError } from 'rxjs/operators';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -40,6 +41,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 import { ResetPasswordDialogComponent, ResetPasswordDialogData, ResetPasswordDialogResult } from './reset-password-dialog.component';
 import { UsuarioDialogComponent, UsuarioDialogData } from '../../shared/components/usuario-dialog/usuario-dialog.component';
 import { PermissionsService } from '../../core/services/permissions.service';
+import { VincularUsuarioDialogComponent, VincularUsuarioDialogData } from './vincular-usuario-dialog.component';
 
 @Component({
   selector: 'app-usuarios-list',
@@ -86,14 +88,24 @@ import { PermissionsService } from '../../core/services/permissions.service';
               <mat-icon matSuffix>search</mat-icon>
             </mat-form-field>
 
-            <button
-              mat-raised-button
-              color="primary"
-              (click)="onCreateUser()"
-              *ngIf="canManageUsers">
-              <mat-icon>add</mat-icon>
-              Nuevo Usuario
-            </button>
+            <div class="action-buttons">
+              <button
+                mat-raised-button
+                color="primary"
+                (click)="onCreateUser()"
+                *ngIf="canManageUsers">
+                <mat-icon>add</mat-icon>
+                Nuevo Usuario
+              </button>
+              <button
+                mat-raised-button
+                color="accent"
+                (click)="onVincularUsuario()"
+                *ngIf="canVincularUsuario">
+                <mat-icon>link</mat-icon>
+                Vincular Usuario
+              </button>
+            </div>
           </div>
 
           <!-- Loading State -->
@@ -107,9 +119,10 @@ import { PermissionsService } from '../../core/services/permissions.service';
             (retry)="onRetryLoad()">
           </app-error-message>
 
-          <!-- Users Table -->
-          <div class="table-container" *ngIf="!(loading$ | async) && !(error$ | async)">
-            <table mat-table [dataSource]="displayedUsers" matSort (matSortChange)="onSortChange($event)" class="usuarios-table">
+          <!-- Users Table Desktop -->
+          <div class="list-desktop" *ngIf="!(loading$ | async) && !(error$ | async) && !isMobile()">
+            <div class="table-container">
+              <table mat-table [dataSource]="displayedUsers" matSort (matSortChange)="onSortChange($event)" class="usuarios-table">
 
               <!-- Username Column -->
               <ng-container matColumnDef="username">
@@ -213,6 +226,15 @@ import { PermissionsService } from '../../core/services/permissions.service';
                       <mat-icon>lock_reset</mat-icon>
                       <span>Restablecer contraseña</span>
                     </button>
+                    <mat-divider *ngIf="empresaId && canDesvincular()"></mat-divider>
+                    <button
+                      *ngIf="empresaId && canDesvincular()"
+                      mat-menu-item
+                      (click)="onDesvincularUsuario(user)"
+                      class="desvincular-option">
+                      <mat-icon>link_off</mat-icon>
+                      <span>Desvincular usuario</span>
+                    </button>
                     <mat-divider></mat-divider>
 
                     <!-- Unlock option for locked users -->
@@ -281,7 +303,64 @@ import { PermissionsService } from '../../core/services/permissions.service';
               </tr>
             </table>
 
-            <!-- Pagination -->
+              <!-- Pagination -->
+              <mat-paginator
+                *ngIf="displayedUsers.length > 0"
+                [length]="totalUsers"
+                [pageSize]="pageSize"
+                [pageSizeOptions]="[10, 25, 50, 100]"
+                [pageIndex]="currentPage"
+                (page)="onPageChange($event)"
+                showFirstLastButtons>
+              </mat-paginator>
+            </div>
+          </div>
+
+          <!-- Users Cards Mobile -->
+          <div class="list-mobile" *ngIf="!(loading$ | async) && !(error$ | async) && isMobile()">
+            <div class="mobile-cards" *ngIf="displayedUsers.length > 0">
+              <mat-card class="list-card" *ngFor="let user of displayedUsers">
+                <mat-card-header class="list-card-header">
+                  <mat-card-title class="list-card-title">
+                    <span class="list-card-num">{{ user.username }}</span>
+                    <span class="list-card-date">{{ formatDateTime(user.ultimoLogin) }}</span>
+                  </mat-card-title>
+                  <button
+                    class="list-card-menu-trigger"
+                    mat-icon-button
+                    color="primary"
+                    [matMenuTriggerFor]="cardActionMenu"
+                    (click)="setMenuContext(user)"
+                    matTooltip="Acciones"
+                    aria-label="Acciones">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                </mat-card-header>
+                <mat-card-content class="list-card-content">
+                  <div class="list-card-field">
+                    <span class="list-card-label">Email</span>
+                    <span class="list-card-value">{{ user.email }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Roles</span>
+                    <span class="list-card-value">{{ getRolesTooltip(user) || 'Sin roles' }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Estado</span>
+                    <span class="list-card-value">{{ getUserStatusText(user) }}</span>
+                  </div>
+                  <div class="list-card-field">
+                    <span class="list-card-label">Creado</span>
+                    <span class="list-card-value">{{ formatDate(user.creadoEn) }}</span>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+            <div class="mobile-empty" *ngIf="displayedUsers.length === 0">
+              <mat-icon>people</mat-icon>
+              <p *ngIf="!searchTerm">No hay usuarios registrados</p>
+              <p *ngIf="searchTerm">No se encontraron usuarios que coincidan con "{{ searchTerm }}"</p>
+            </div>
             <mat-paginator
               *ngIf="displayedUsers.length > 0"
               [length]="totalUsers"
@@ -291,6 +370,52 @@ import { PermissionsService } from '../../core/services/permissions.service';
               (page)="onPageChange($event)"
               showFirstLastButtons>
             </mat-paginator>
+            <mat-menu #cardActionMenu="matMenu" class="card-action-menu">
+              <button mat-menu-item (click)="menuRow && onViewUser(menuRow)">
+                <mat-icon>visibility</mat-icon>
+                <span>Ver detalles</span>
+              </button>
+              <button
+                mat-menu-item
+                (click)="menuRow && onEditUser(menuRow)"
+                [disabled]="menuRow && !canModifyUser(menuRow)">
+                <mat-icon>edit</mat-icon>
+                <span>Editar</span>
+              </button>
+              <button
+                mat-menu-item
+                (click)="menuRow && onResetPassword(menuRow)"
+                [disabled]="menuRow && !canResetPassword(menuRow)">
+                <mat-icon>lock_reset</mat-icon>
+                <span>Restablecer contraseña</span>
+              </button>
+              <mat-divider *ngIf="empresaId && canDesvincular()"></mat-divider>
+              <button
+                *ngIf="empresaId && canDesvincular()"
+                mat-menu-item
+                (click)="menuRow && onDesvincularUsuario(menuRow)"
+                class="desvincular-option">
+                <mat-icon>link_off</mat-icon>
+                <span>Desvincular usuario</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button
+                mat-menu-item
+                (click)="menuRow && onToggleUserStatus(menuRow)"
+                [disabled]="menuRow && !canToggleStatus(menuRow)">
+                <mat-icon>{{ menuRow?.isActive ? 'block' : 'check_circle' }}</mat-icon>
+                <span>{{ menuRow?.isActive ? 'Desactivar' : 'Activar' }}</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button
+                mat-menu-item
+                (click)="menuRow && onDeleteUser(menuRow)"
+                [disabled]="menuRow && !canDeleteUser(menuRow)"
+                class="delete-option">
+                <mat-icon>delete</mat-icon>
+                <span>Eliminar</span>
+              </button>
+            </mat-menu>
           </div>
         </mat-card-content>
       </mat-card>
@@ -330,6 +455,11 @@ import { PermissionsService } from '../../core/services/permissions.service';
       align-items: center;
       margin-bottom: 20px;
       gap: 16px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
     }
 
     .search-field {
@@ -506,6 +636,10 @@ import { PermissionsService } from '../../core/services/permissions.service';
       color: #f44336;
     }
 
+    .desvincular-option {
+      color: #ff9800;
+    }
+
     .mat-mdc-menu-item:disabled {
       color: rgba(0, 0, 0, 0.38) !important;
       cursor: not-allowed;
@@ -515,10 +649,147 @@ import { PermissionsService } from '../../core/services/permissions.service';
       color: rgba(0, 0, 0, 0.38) !important;
     }
 
+    /* Mobile Cards Styles */
+    .list-desktop {
+      width: 100%;
+    }
+
+    .list-mobile {
+      width: 100%;
+    }
+
+    .mobile-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .list-card {
+      margin: 0;
+    }
+
+    .list-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      margin-bottom: 0;
+    }
+
+    .list-card-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .list-card-num {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .list-card-date {
+      font-size: 0.875rem;
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    :host-context(body.dark-theme) .list-card-num {
+      color: #e0e0e0;
+    }
+
+    :host-context(body.dark-theme) .list-card-date {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .list-card-menu-trigger {
+      flex-shrink: 0;
+    }
+
+    .list-card-menu-trigger .mat-icon {
+      font-size: 1.5rem;
+      width: 24px;
+      height: 24px;
+    }
+
+    .list-card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 0;
+    }
+
+    .list-card-field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .list-card-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    .list-card-value {
+      font-size: 0.9375rem;
+      color: #2c3e50;
+      word-break: break-word;
+    }
+
+    :host-context(body.dark-theme) .list-card-label {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    :host-context(body.dark-theme) .list-card-value {
+      color: #e0e0e0;
+    }
+
+    .mobile-empty {
+      padding: 24px 16px;
+      text-align: center;
+      color: rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mobile-empty mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: #ccc;
+    }
+
+    :host-context(body.dark-theme) .mobile-empty {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .list-mobile mat-paginator {
+      border-top: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    :host-context(body.dark-theme) .list-mobile mat-paginator {
+      border-top-color: rgba(255, 255, 255, 0.12);
+    }
+
     @media (max-width: 768px) {
       .actions-bar {
         flex-direction: column;
         align-items: stretch;
+      }
+
+      .action-buttons {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .action-buttons button {
+        width: 100%;
       }
 
       .search-field {
@@ -559,9 +830,12 @@ export class UsuariosListComponent implements OnInit, OnDestroy {
 
   private searchSubject = new Subject<string>();
   private destroy$ = new Subject<void>();
+  private breakpointObserver = inject(BreakpointObserver);
 
   empresaId?: number;
   loadingEmpresaUsers: boolean = false;
+  isMobile = signal(false);
+  menuRow: User | null = null;
 
   constructor(
     private store: Store,
@@ -582,6 +856,11 @@ export class UsuariosListComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Setup mobile detection
+    this.breakpointObserver.observe(['(max-width: 768px)']).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(state => this.isMobile.set(state.matches));
+
     // Check if empresaId is provided in query params
     this.route.queryParams.pipe(
       takeUntil(this.destroy$),
@@ -985,5 +1264,143 @@ export class UsuariosListComponent implements OnInit, OnDestroy {
 
   get canViewUsers(): boolean {
     return this.permissionsService.hasAnyRoleSync(['ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR']);
+  }
+
+  get canVincularUsuario(): boolean {
+    return this.empresaId !== undefined && this.permissionsService.hasAnyRoleSync(['EMPRESA_ADMIN']);
+  }
+
+  canDesvincular(): boolean {
+    return this.permissionsService.hasAnyRoleSync(['EMPRESA_ADMIN']);
+  }
+
+  setMenuContext(user: User): void {
+    this.menuRow = user;
+  }
+
+  onVincularUsuario(): void {
+    if (!this.empresaId) {
+      this.notificationService.showError('No se ha seleccionado una empresa');
+      return;
+    }
+
+    const dialogRef = this.dialog.open(VincularUsuarioDialogComponent, {
+      width: '600px',
+      maxWidth: '90vw',
+      disableClose: false,
+      data: {
+        empresaId: this.empresaId
+      } as VincularUsuarioDialogData
+    });
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result?: boolean) => {
+      if (result && this.empresaId) {
+        // Recargar usuarios de la empresa
+        this.loadingEmpresaUsers = true;
+        this.empresaApiService.getUsuariosEmpresa(this.empresaId).pipe(
+          map((usuariosEmpresa: UsuarioEmpresa[]) => {
+            const users: User[] = usuariosEmpresa.map(ue => {
+              const user: User = {
+                id: ue.usuarioId,
+                username: ue.usuarioUsername || `Usuario ${ue.usuarioId}`,
+                email: ue.usuarioEmail || '',
+                isActive: ue.activo ?? true,
+                roles: ue.usuarioRoles || [],
+                creadoEn: ue.creadoEn,
+                actualizadoEn: ue.actualizadoEn,
+                ultimoLogin: undefined,
+              };
+              (user as any).empresaRol = ue.rolEmpresa;
+              (user as any).empresaId = ue.empresaId;
+              (user as any).empresaRazonSocial = ue.empresaRazonSocial;
+              return user;
+            });
+            this.loadingEmpresaUsers = false;
+            this.store.dispatch(UsuariosActions.loadUsersSuccess({ users }));
+            return users;
+          }),
+          catchError(error => {
+            this.loadingEmpresaUsers = false;
+            const errorMessage = error.error?.message || 'Error al cargar usuarios de la empresa';
+            this.store.dispatch(UsuariosActions.loadUsersFailure({ error: errorMessage }));
+            this.snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
+            return [];
+          })
+        ).subscribe();
+      }
+    });
+  }
+
+  onDesvincularUsuario(user: User): void {
+    if (!this.empresaId) {
+      this.notificationService.showError('No se ha seleccionado una empresa');
+      return;
+    }
+
+    if (!this.canDesvincular()) {
+      this.notificationService.showError('No tiene permisos para desvincular usuarios');
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Desvincular Usuario',
+        message: `¿Está seguro que desea desvincular al usuario "${user.username}" de esta empresa?`,
+        confirmText: 'Desvincular',
+        cancelText: 'Cancelar',
+        isDestructive: true
+      }
+    });
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe(result => {
+      if (result && this.empresaId) {
+        this.empresaApiService.removeUsuarioEmpresa(this.empresaId, user.id).subscribe({
+          next: () => {
+            this.snackBar.open(
+              `Usuario ${user.username} desvinculado exitosamente`,
+              'Cerrar',
+              { duration: 4000 }
+            );
+            // Recargar usuarios de la empresa
+            this.loadingEmpresaUsers = true;
+            this.empresaApiService.getUsuariosEmpresa(this.empresaId!).pipe(
+              map((usuariosEmpresa: UsuarioEmpresa[]) => {
+                const users: User[] = usuariosEmpresa.map(ue => {
+                  const user: User = {
+                    id: ue.usuarioId,
+                    username: ue.usuarioUsername || `Usuario ${ue.usuarioId}`,
+                    email: ue.usuarioEmail || '',
+                    isActive: ue.activo ?? true,
+                    roles: ue.usuarioRoles || [],
+                    creadoEn: ue.creadoEn,
+                    actualizadoEn: ue.actualizadoEn,
+                    ultimoLogin: undefined,
+                  };
+                  (user as any).empresaRol = ue.rolEmpresa;
+                  (user as any).empresaId = ue.empresaId;
+                  (user as any).empresaRazonSocial = ue.empresaRazonSocial;
+                  return user;
+                });
+                this.loadingEmpresaUsers = false;
+                this.store.dispatch(UsuariosActions.loadUsersSuccess({ users }));
+                return users;
+              }),
+              catchError(error => {
+                this.loadingEmpresaUsers = false;
+                const errorMessage = error.error?.message || 'Error al cargar usuarios de la empresa';
+                this.store.dispatch(UsuariosActions.loadUsersFailure({ error: errorMessage }));
+                this.snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
+                return [];
+              })
+            ).subscribe();
+          },
+          error: (error) => {
+            console.error('Error al desvincular usuario:', error);
+            const errorMessage = error.error?.message || 'Error al desvincular usuario';
+            this.snackBar.open(errorMessage, 'Cerrar', { duration: 5000 });
+          }
+        });
+      }
+    });
   }
 }
