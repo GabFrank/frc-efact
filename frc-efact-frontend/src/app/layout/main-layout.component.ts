@@ -357,62 +357,14 @@ import { environment } from '../../environments/environment';
                 </ul>
               </li>
 
-              <!-- Sección: Reportes -->
+              <!-- Sección: Reportes (Deshabilitado) -->
               <li class="nav-item nav-section" 
-                  [class.expanded]="expandedSections['reportes']"
-                  [class.disabled]="!selectedEmpresa"
                   *ngIf="canAccessReportes">
-                <button 
-                  class="nav-section-header" 
-                  (click)="toggleSection('reportes')"
-                  [disabled]="!selectedEmpresa"
-                  [title]="!selectedEmpresa ? 'Selecciona una empresa primero' : ''">
+                <div class="nav-section-header disabled">
                   <i class="fas fa-chart-bar"></i>
                   <span>Reportes</span>
-                  <i class="fas fa-chevron-right nav-chevron" [class.rotated]="expandedSections['reportes']"></i>
-                </button>
-                <ul class="nav-section-content" *ngIf="expandedSections['reportes']">
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/reportes/facturas' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
-                       (click)="onNavLinkClick()">
-                      <i class="fas fa-file-invoice"></i>
-                      <span>Reporte de Facturas</span>
-                    </a>
-                  </li>
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/reportes/clientes' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
-                       (click)="onNavLinkClick()">
-                      <i class="fas fa-users"></i>
-                      <span>Reporte de Clientes</span>
-                    </a>
-                  </li>
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/reportes/productos' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
-                       (click)="onNavLinkClick()">
-                      <i class="fas fa-box"></i>
-                      <span>Reporte de Productos</span>
-                    </a>
-                  </li>
-                  <li class="nav-sub-item">
-                    <a [routerLink]="selectedEmpresa ? '/reportes/usuarios' : null" 
-                       routerLinkActive="active" 
-                       class="nav-link"
-                       [queryParams]="selectedEmpresa ? { empresaId: selectedEmpresa.id } : null"
-                       (click)="onNavLinkClick()">
-                      <i class="fas fa-user-cog"></i>
-                      <span>Reporte de Usuarios</span>
-                    </a>
-                  </li>
-                </ul>
+                  <span class="badge-coming-soon">Próximamente</span>
+                </div>
               </li>
 
               <!-- Item Simple: Auditoría (Deshabilitado) -->
@@ -1051,9 +1003,17 @@ import { environment } from '../../environments/environment';
       border-left-color: #3498db;
     }
 
-    .nav-section-header:disabled {
-      opacity: 0.5;
+    .nav-section-header:disabled,
+    .nav-section-header.disabled {
+      opacity: 0.6;
       cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .nav-section-header.disabled:hover {
+      background: transparent;
+      color: #bdc3c7;
+      border-left-color: transparent;
     }
 
     .nav-section-header i {

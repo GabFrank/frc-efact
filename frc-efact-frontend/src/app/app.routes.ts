@@ -37,6 +37,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/clientes/clientes-list.component').then(m => m.ClientesListComponent)
       },
       {
+        path: 'productos',
+        canActivate: [empresaSelectedGuard],
+        loadComponent: () => import('./features/productos/productos-list.component').then(m => m.ProductosListComponent)
+      },
+      {
         path: 'facturacion',
         canActivate: [empresaSelectedGuard],
         loadChildren: () => import('./features/facturacion/facturacion.routes').then(m => m.FACTURACION_ROUTES)

@@ -56,7 +56,7 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
           <div class="quick-actions-section">
             <h2>Acciones Rápidas</h2>
             <div class="actions-grid">
-              <button class="action-card" (click)="navigateToFacturacion('')">
+              <button class="action-card" (click)="navigateToFacturasList()">
                 <i class="fas fa-file-invoice"></i>
                 <span>Factura Electrónica</span>
               </button>
@@ -64,11 +64,11 @@ import { DateFilterComponent, DateRange } from './date-filter.component';
                 <i class="fas fa-file-alt"></i>
                 <span>Nota de Remisión</span>
               </button>
-              <button class="action-card" (click)="navigateTo('/clientes/new')">
+              <button class="action-card" (click)="navigateToClientes()">
                 <i class="fas fa-user-plus"></i>
                 <span>Nuevo Cliente</span>
               </button>
-              <button class="action-card" (click)="navigateTo('/productos/new')">
+              <button class="action-card" (click)="navigateToProductos()">
                 <i class="fas fa-box"></i>
                 <span>Nuevo Producto</span>
               </button>
@@ -992,6 +992,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (empresa) {
         const queryParams: any = { empresaId: empresa.id };
         this.router.navigate(['/facturacion'], { queryParams });
+      }
+    });
+  }
+
+  navigateToClientes(): void {
+    this.selectedEmpresa$.pipe(takeUntil(this.destroy$)).subscribe(empresa => {
+      if (empresa) {
+        const queryParams: any = { empresaId: empresa.id };
+        this.router.navigate(['/clientes'], { queryParams });
+      }
+    });
+  }
+
+  navigateToProductos(): void {
+    this.selectedEmpresa$.pipe(takeUntil(this.destroy$)).subscribe(empresa => {
+      if (empresa) {
+        const queryParams: any = { empresaId: empresa.id };
+        this.router.navigate(['/productos'], { queryParams });
       }
     });
   }
