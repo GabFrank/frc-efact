@@ -497,10 +497,11 @@ public class FacturaLegalController {
             // Generar el PDF
             byte[] pdfBytes = kudePdfService.generarPdfKude(factura);
             
-            // Preparar headers para descarga
+            // Nombre del archivo: KuDE-{numero-factura}-cdc.pdf (ej: KuDE-001-001-0000016-cdc.pdf)
+            String fileName = "KuDE-" + factura.getNumeroFacturaFormateado() + "-cdc.pdf";
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"KuDE-FE-" + factura.getNumeroFacturaFormateado() + ".pdf\"");
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"");
             headers.setContentLength(pdfBytes.length);
             
             logger.info("PDF KUDE generado exitosamente para factura ID: {}", id);

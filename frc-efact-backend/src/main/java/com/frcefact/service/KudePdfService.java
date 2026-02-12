@@ -181,10 +181,11 @@ public class KudePdfService {
             parameters.put("emailCliente", "");
         }
 
-        // Condición de pago
-        parameters.put("contado", !factura.getCredito());
-        parameters.put("credito", factura.getCredito());
-        parameters.put("cuotas", ""); // TODO: Si se implementa cuotas
+        // Condición de pago (alineado con SIFEN: contado vs crédito por plazo 30 días)
+        boolean esCredito = Boolean.TRUE.equals(factura.getCredito());
+        parameters.put("contado", !esCredito);
+        parameters.put("credito", esCredito);
+        parameters.put("cuotas", ""); // Solo aplica si iCondCred=2 (Cuota); nosotros usamos Plazo
         parameters.put("moneda", factura.getMonedaExtranjera() != null ? 
                 factura.getMonedaExtranjera() : "PYG");
         
@@ -194,7 +195,7 @@ public class KudePdfService {
             tipoCambioFormateado = factura.getCambio().setScale(0, java.math.RoundingMode.HALF_UP).toString();
         }
         parameters.put("tipoCambio", tipoCambioFormateado);
-        parameters.put("plazo", ""); // TODO: Si se implementa plazo
+        parameters.put("plazo", esCredito ? "30 días" : ""); // Crédito por plazo: mismo valor que en el DE
 
         // Determinar si hay moneda extranjera y necesitamos convertir
         boolean tieneMonedaExtranjera = factura.getMonedaExtranjera() != null 

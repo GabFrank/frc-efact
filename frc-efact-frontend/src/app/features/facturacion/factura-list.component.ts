@@ -21,6 +21,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { BreakpointObserver } from '@angular/cdk/layout';
+import { environment } from '../../../environments/environment';
 import { FacturaApiService, ResumenFacturas } from '../../core/api/factura-api.service';
 import { SifenApiService } from '../../core/api/sifen-api.service';
 import { FacturaLegal } from '../../models/factura.model';
@@ -1431,30 +1432,18 @@ export class FacturaListComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.snackBar.open('Generando PDF...', 'Cerrar', { duration: 2000 });
+    const token = localStorage.getItem('auth_token');
+    const url = `${environment.apiUrl}/facturas/${factura.id}/kude-pdf?token=${token}`;
 
-    this.facturaApi.descargarPdfKude(factura.id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (blob: Blob) => {
-        // Crear URL del blob y abrir en nueva pestaña del navegador
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-
-        // Limpiar la URL después de un tiempo para liberar memoria
-        setTimeout(() => {
-          window.URL.revokeObjectURL(url);
-        }, 100);
-
-        this.snackBar.open('PDF abierto en nueva pestaña', 'Cerrar', { duration: 3000 });
-      },
-      error: (error) => {
-        console.error('Error al generar PDF:', error);
-        this.snackBar.open(
-          error.error?.message || 'Error al generar el PDF del KUDE',
-          'Cerrar',
-          { duration: 5000 }
-        );
-      }
-    });
+    // Abrir en nueva pestaña directamente desde la URL del servidor (igual que nota de remisión).
+    // El navegador usa Content-Disposition para el nombre del archivo (KuDE-{numero}-cdc.pdf).
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.focus();
+      this.snackBar.open('Abriendo PDF...', 'Cerrar', { duration: 2000 });
+    } else {
+      this.snackBar.open('Por favor, permite las ventanas emergentes para ver el PDF', 'Cerrar', { duration: 5000 });
+    }
   }
 
   eliminarFactura(factura: FacturaLegal): void {

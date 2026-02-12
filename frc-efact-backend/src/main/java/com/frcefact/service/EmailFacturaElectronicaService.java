@@ -166,7 +166,7 @@ public class EmailFacturaElectronicaService {
             try {
                 byte[] pdfBytes = kudePdfService.generarPdfKude(factura);
                 if (pdfBytes != null && pdfBytes.length > 0) {
-                    String nombrePdf = String.format("factura-%s.pdf", factura.getNumeroFacturaFormateado());
+                    String nombrePdf = "KuDE-" + factura.getNumeroFacturaFormateado() + "-cdc.pdf";
                     attachments.put(nombrePdf, pdfBytes);
                     log.debug("   📎 PDF agregado: {}", nombrePdf);
                 } else {
