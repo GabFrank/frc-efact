@@ -1530,6 +1530,10 @@ public class SifenService {
         boolean esCredito = factura.getCredito() != null && factura.getCredito();
         gCamCond.setiCondOpe(esCredito ? TiCondOpe.CREDITO : TiCondOpe.CONTADO);
 
+        // Moneda y tipo de cambio (necesarios para gPaConEIni en contado y para items más abajo)
+        String monedaExtranjera = factura.getMonedaExtranjera();
+        BigDecimal cambio = factura.getCambio();
+
         if (esCredito) {
             // Crédito puro (sin entrega inicial):
             // Según regla E605b (código 1552) de SIFEN v150, si iCondOpe=2 (Crédito) y NO existe
@@ -1547,10 +1551,6 @@ public class SifenService {
             List<TgPaConEIni> gPaConEIniList = new ArrayList<>();
             TgPaConEIni gPaConEIni = new TgPaConEIni();
             gPaConEIni.setiTiPago(TiTiPago.EFECTIVO);
-            
-            // Configurar moneda de pago según la moneda de operación
-            String monedaExtranjera = factura.getMonedaExtranjera();
-            BigDecimal cambio = factura.getCambio();
             
             // Configurar moneda de pago (PYG o extranjera)
             if (monedaExtranjera != null && !monedaExtranjera.trim().isEmpty() && !monedaExtranjera.equals("PYG")) {
