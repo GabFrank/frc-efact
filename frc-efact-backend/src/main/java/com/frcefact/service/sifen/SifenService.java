@@ -1540,9 +1540,9 @@ public class SifenService {
             // monto de entrega inicial (E645/dMonEnt), NO se debe informar el grupo gPaConEIni (E605).
             // Solo se incluye gPagCred con las condiciones del crédito.
             TgPagCred gPagCred = new TgPagCred();
-            gPagCred.setiCondCred(TiCondCred.PLAZO);
+            gPagCred.setiCondCred(TiCondCred.PLAZO);  // E641=1: Plazo (no informar dCuotas/E644; solo dPlazoCre)
             gPagCred.setdPlazoCre("30 días");
-            gPagCred.setdCuotas((short) 1);
+            // dCuotas (E644) solo se informa cuando iCondCred=2 (Cuota); con Plazo no debe enviarse (E644a/1706)
             // No se setea dMonEnt (monto entrega inicial) porque es crédito puro sin entrega inicial
             // No se setea gPaConEIniList porque no hay entrega inicial
             gCamCond.setgPagCred(gPagCred);
