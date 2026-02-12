@@ -1530,65 +1530,73 @@ public class SifenService {
         boolean esCredito = factura.getCredito() != null && factura.getCredito();
         gCamCond.setiCondOpe(esCredito ? TiCondOpe.CREDITO : TiCondOpe.CONTADO);
 
-        List<TgPaConEIni> gPaConEIniList = new ArrayList<>();
-        TgPaConEIni gPaConEIni = new TgPaConEIni();
-        gPaConEIni.setiTiPago(TiTiPago.EFECTIVO);
-        
-        // Configurar moneda de pago según la moneda de operación
-        String monedaExtranjera = factura.getMonedaExtranjera();
-        BigDecimal cambio = factura.getCambio();
-        
-        // Configurar moneda de pago (PYG o extranjera)
-        if (monedaExtranjera != null && !monedaExtranjera.trim().isEmpty() && !monedaExtranjera.equals("PYG")) {
-            // Moneda extranjera: el monto de pago debe estar en la moneda extranjera
-            try {
-                CMondT moneda = CMondT.valueOf(monedaExtranjera.toUpperCase());
-                gPaConEIni.setcMoneTiPag(moneda);
-                
-                // Configurar tipo de cambio del pago
-                // IMPORTANTE: Cuando hay moneda extranjera, también debemos configurar dTiCamTiPag
-                // Si no se configura, la librería intenta leer "null" como BigDecimal y falla
-                if (cambio != null && cambio.compareTo(BigDecimal.ZERO) > 0) {
-                    // SIFEN permite de 4 a 8 decimales. Usamos 6 para mayor precisión en conversiones
-                    gPaConEIni.setdTiCamTiPag(cambio.setScale(6, RoundingMode.HALF_UP));
-                }
-            } catch (IllegalArgumentException e) {
-                // Si hay error, usar PYG por defecto
-                log.warn("Código de moneda no válido: {}, usando PYG por defecto", monedaExtranjera);
-                gPaConEIni.setcMoneTiPag(CMondT.PYG);
-            }
-        } else {
-            // Moneda local (PYG)
-            gPaConEIni.setcMoneTiPag(CMondT.PYG);
-        }
-        
-        // dMonTiPag: SIFEN permite MÁXIMO 4 decimales para montos de pago (campo específico)
-        // IMPORTANTE: Si la factura tiene moneda extranjera, el totalFinal está en guaraníes
-        // pero el monto del pago debe estar en la moneda extranjera
-        // Calculamos con 6 decimales internamente para precisión, pero redondeamos a 4 para el campo
-        BigDecimal montoPago;
-        if (monedaExtranjera != null && !monedaExtranjera.trim().isEmpty() && !monedaExtranjera.equals("PYG") 
-            && cambio != null && cambio.compareTo(BigDecimal.ZERO) > 0) {
-            // Convertir monto de guaraníes a moneda extranjera con 6 decimales internamente para precisión
-            BigDecimal montoGs = factura.getTotalFinal();
-            BigDecimal montoPagoCalculado = montoGs.divide(cambio, 6, RoundingMode.HALF_UP);
-            // Redondear a 4 decimales para cumplir con la restricción del campo dMonTiPag
-            montoPago = montoPagoCalculado.setScale(4, RoundingMode.HALF_UP);
-            log.debug("Monto de pago convertido: {} Gs → {} {} (tipo cambio: {}, calculado con 6 dec, redondeado a 4 dec)", 
-                montoGs, montoPago, monedaExtranjera, cambio);
-        } else {
-            montoPago = normalizarMontoPago(factura.getTotalFinal());
-        }
-        gPaConEIni.setdMonTiPag(montoPago);
-        
-        gPaConEIniList.add(gPaConEIni);
-        gCamCond.setgPaConEIniList(gPaConEIniList);
-        
         if (esCredito) {
+            // Crédito puro (sin entrega inicial):
+            // Según regla E605b (código 1552) de SIFEN v150, si iCondOpe=2 (Crédito) y NO existe
+            // monto de entrega inicial (E645/dMonEnt), NO se debe informar el grupo gPaConEIni (E605).
+            // Solo se incluye gPagCred con las condiciones del crédito.
             TgPagCred gPagCred = new TgPagCred();
             gPagCred.setiCondCred(TiCondCred.PLAZO);
             gPagCred.setdPlazoCre("30 días");
+            gPagCred.setdCuotas((short) 1);
+            // No se setea dMonEnt (monto entrega inicial) porque es crédito puro sin entrega inicial
+            // No se setea gPaConEIniList porque no hay entrega inicial
             gCamCond.setgPagCred(gPagCred);
+        } else {
+            // Contado: se informa el grupo gPaConEIni con el pago completo
+            List<TgPaConEIni> gPaConEIniList = new ArrayList<>();
+            TgPaConEIni gPaConEIni = new TgPaConEIni();
+            gPaConEIni.setiTiPago(TiTiPago.EFECTIVO);
+            
+            // Configurar moneda de pago según la moneda de operación
+            String monedaExtranjera = factura.getMonedaExtranjera();
+            BigDecimal cambio = factura.getCambio();
+            
+            // Configurar moneda de pago (PYG o extranjera)
+            if (monedaExtranjera != null && !monedaExtranjera.trim().isEmpty() && !monedaExtranjera.equals("PYG")) {
+                // Moneda extranjera: el monto de pago debe estar en la moneda extranjera
+                try {
+                    CMondT moneda = CMondT.valueOf(monedaExtranjera.toUpperCase());
+                    gPaConEIni.setcMoneTiPag(moneda);
+                    
+                    // Configurar tipo de cambio del pago
+                    // IMPORTANTE: Cuando hay moneda extranjera, también debemos configurar dTiCamTiPag
+                    // Si no se configura, la librería intenta leer "null" como BigDecimal y falla
+                    if (cambio != null && cambio.compareTo(BigDecimal.ZERO) > 0) {
+                        // SIFEN permite de 4 a 8 decimales. Usamos 6 para mayor precisión en conversiones
+                        gPaConEIni.setdTiCamTiPag(cambio.setScale(6, RoundingMode.HALF_UP));
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Si hay error, usar PYG por defecto
+                    log.warn("Código de moneda no válido: {}, usando PYG por defecto", monedaExtranjera);
+                    gPaConEIni.setcMoneTiPag(CMondT.PYG);
+                }
+            } else {
+                // Moneda local (PYG)
+                gPaConEIni.setcMoneTiPag(CMondT.PYG);
+            }
+            
+            // dMonTiPag: SIFEN permite MÁXIMO 4 decimales para montos de pago (campo específico)
+            // IMPORTANTE: Si la factura tiene moneda extranjera, el totalFinal está en guaraníes
+            // pero el monto del pago debe estar en la moneda extranjera
+            // Calculamos con 6 decimales internamente para precisión, pero redondeamos a 4 para el campo
+            BigDecimal montoPago;
+            if (monedaExtranjera != null && !monedaExtranjera.trim().isEmpty() && !monedaExtranjera.equals("PYG") 
+                && cambio != null && cambio.compareTo(BigDecimal.ZERO) > 0) {
+                // Convertir monto de guaraníes a moneda extranjera con 6 decimales internamente para precisión
+                BigDecimal montoGs = factura.getTotalFinal();
+                BigDecimal montoPagoCalculado = montoGs.divide(cambio, 6, RoundingMode.HALF_UP);
+                // Redondear a 4 decimales para cumplir con la restricción del campo dMonTiPag
+                montoPago = montoPagoCalculado.setScale(4, RoundingMode.HALF_UP);
+                log.debug("Monto de pago convertido: {} Gs → {} {} (tipo cambio: {}, calculado con 6 dec, redondeado a 4 dec)", 
+                    montoGs, montoPago, monedaExtranjera, cambio);
+            } else {
+                montoPago = normalizarMontoPago(factura.getTotalFinal());
+            }
+            gPaConEIni.setdMonTiPag(montoPago);
+            
+            gPaConEIniList.add(gPaConEIni);
+            gCamCond.setgPaConEIniList(gPaConEIniList);
         }
         
         gDtipDE.setgCamCond(gCamCond);
