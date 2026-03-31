@@ -684,7 +684,7 @@ export class TimbradoListComponent implements OnInit, OnDestroy {
   }
 
   onCreateTimbrado(): void {
-    this.router.navigate(['/timbrados/new']);
+    this.router.navigate(['/timbrados/nuevo']);
   }
 
   onViewTimbrado(timbrado: Timbrado): void {
@@ -692,7 +692,7 @@ export class TimbradoListComponent implements OnInit, OnDestroy {
   }
 
   onEditTimbrado(timbrado: Timbrado): void {
-    this.router.navigate(['/timbrados', timbrado.id, 'edit']);
+    this.router.navigate(['/timbrados', timbrado.id, 'editar']);
   }
 
   onManageDetalles(timbrado: Timbrado): void {
