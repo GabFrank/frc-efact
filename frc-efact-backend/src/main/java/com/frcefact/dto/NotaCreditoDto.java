@@ -42,8 +42,6 @@ public class NotaCreditoDto {
     private String descripcionMotivo;
 
     // Items
-    @NotNull(message = "Items son requeridos")
-    @NotEmpty(message = "La nota de crédito debe tener al menos un item")
     @Valid
     private List<NotaCreditoItemDto> items = new ArrayList<>();
 
