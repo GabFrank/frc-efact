@@ -50,6 +50,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -1219,7 +1220,7 @@ public class SifenService {
             // Grupo A - Identificación del DE
             com.roshka.sifen.core.beans.DocumentoElectronico DE = 
                 new com.roshka.sifen.core.beans.DocumentoElectronico();
-            DE.setdFecFirma(factura.getFecha() != null ? factura.getFecha() : LocalDateTime.now());
+            DE.setdFecFirma(obtenerFechaFirmaSegura(factura.getFecha()));
             DE.setdSisFact((short) 1);
 
             // Grupo B - Operación del DE
@@ -1700,7 +1701,7 @@ public class SifenService {
             // Grupo A - Identificación del DE
             com.roshka.sifen.core.beans.DocumentoElectronico DE = 
                 new com.roshka.sifen.core.beans.DocumentoElectronico();
-            DE.setdFecFirma(notaCredito.getFecha() != null ? notaCredito.getFecha() : LocalDateTime.now());
+            DE.setdFecFirma(obtenerFechaFirmaSegura(notaCredito.getFecha()));
             DE.setdSisFact((short) 1);
 
             // Grupo B - Operación del DE
@@ -2133,7 +2134,7 @@ public class SifenService {
             // Grupo A - Identificación del DE
             com.roshka.sifen.core.beans.DocumentoElectronico DE = 
                 new com.roshka.sifen.core.beans.DocumentoElectronico();
-            DE.setdFecFirma(notaRemision.getFecha() != null ? notaRemision.getFecha() : LocalDateTime.now());
+            DE.setdFecFirma(obtenerFechaFirmaSegura(notaRemision.getFecha()));
             DE.setdSisFact((short) 1);
 
             // Grupo B - Operación del DE
@@ -3287,6 +3288,18 @@ public class SifenService {
                         nombreDepartamento, nombreNormalizado);
                 return TDepartamento.CAPITAL;
         }
+    }
+
+    /**
+     * Evita enviar una fecha de firma futura respecto al reloj de SIFEN.
+     * Se usa la hora de Paraguay para evitar desfasajes del timezone del servidor.
+     */
+    private LocalDateTime obtenerFechaFirmaSegura(LocalDateTime fechaDocumento) {
+        LocalDateTime ahoraPy = LocalDateTime.now(ZoneId.of("America/Asuncion")).minusSeconds(10);
+        if (fechaDocumento == null) {
+            return ahoraPy;
+        }
+        return fechaDocumento.isAfter(ahoraPy) ? ahoraPy : fechaDocumento;
     }
 
     /**

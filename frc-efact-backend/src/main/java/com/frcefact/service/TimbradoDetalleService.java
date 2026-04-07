@@ -9,6 +9,7 @@ import com.frcefact.model.Ciudad;
 import com.frcefact.model.Timbrado;
 import com.frcefact.model.TimbradoDetalle;
 import com.frcefact.repository.FacturaLegalRepository;
+import com.frcefact.repository.NotaCreditoRepository;
 import com.frcefact.repository.NotaRemisionRepository;
 import com.frcefact.repository.TimbradoDetalleRepository;
 import com.frcefact.repository.TimbradoRepository;
@@ -31,6 +32,7 @@ public class TimbradoDetalleService {
     private final TimbradoDetalleMapper timbradoDetalleMapper;
     private final EmpresaSecurityService empresaSecurityService;
     private final FacturaLegalRepository facturaLegalRepository;
+    private final NotaCreditoRepository notaCreditoRepository;
     private final NotaRemisionRepository notaRemisionRepository;
 
     public TimbradoDetalleService(
@@ -39,12 +41,14 @@ public class TimbradoDetalleService {
             TimbradoDetalleMapper timbradoDetalleMapper,
             EmpresaSecurityService empresaSecurityService,
             FacturaLegalRepository facturaLegalRepository,
+            NotaCreditoRepository notaCreditoRepository,
             NotaRemisionRepository notaRemisionRepository) {
         this.timbradoDetalleRepository = timbradoDetalleRepository;
         this.timbradoRepository = timbradoRepository;
         this.timbradoDetalleMapper = timbradoDetalleMapper;
         this.empresaSecurityService = empresaSecurityService;
         this.facturaLegalRepository = facturaLegalRepository;
+        this.notaCreditoRepository = notaCreditoRepository;
         this.notaRemisionRepository = notaRemisionRepository;
     }
 
@@ -345,6 +349,31 @@ public class TimbradoDetalleService {
         // Guardar los cambios
         timbradoDetalleRepository.save(detalle);
         
+        return numeroAsignado;
+    }
+
+    /**
+     * Obtiene y incrementa el número de nota de crédito para un detalle de timbrado.
+     * Para timbrados electrónicos, busca el máximo número de nota de crédito existente.
+     */
+    @Transactional
+    public synchronized Long incrementarNumeroNotaCredito(Long detalleId) {
+        TimbradoDetalle detalle = timbradoDetalleRepository.findById(detalleId)
+                .orElseThrow(() -> new EntityNotFoundException("Detalle de timbrado no encontrado con ID: " + detalleId));
+
+        empresaSecurityService.verificarAccesoEscritura(detalle.getTimbrado().getEmpresa().getId());
+
+        if (Boolean.TRUE.equals(detalle.getTimbrado().getIsElectronico())) {
+            Integer maxNotaCredito = notaCreditoRepository.findMaxNumeroNotaCreditoByTimbradoDetalleId(detalleId);
+            return maxNotaCredito == null ? 1L : maxNotaCredito.longValue() + 1L;
+        }
+
+        if (!detalle.tieneNumerosDisponibles()) {
+            throw new IllegalStateException("No hay números disponibles en el rango del punto de expedición");
+        }
+
+        Long numeroAsignado = detalle.obtenerYIncrementarNumeroActual();
+        timbradoDetalleRepository.save(detalle);
         return numeroAsignado;
     }
 

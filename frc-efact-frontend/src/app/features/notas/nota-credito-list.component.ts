@@ -96,7 +96,7 @@ import { NotaCreditoEstadoDialogComponent } from '../../shared/components/nota-c
                   </div>
                   <div class="list-card-field">
                     <span class="list-card-label">Total</span>
-                    <span class="list-card-value">{{ formatTotal(item.totalFinal) }}</span>
+                    <span class="list-card-value">{{ formatTotalByMoneda(item.totalFinal, item) }}</span>
                   </div>
                 </mat-card-content>
               </mat-card>
@@ -171,7 +171,7 @@ export class NotaCreditoListComponent implements OnInit, OnDestroy {
       key: 'totalFinal', 
       label: 'Total', 
       sortable: true,
-      format: (value: number) => `₲ ${value.toLocaleString('es-PY')}`
+      format: (value: number, row?: NotaCredito) => this.formatTotalByMoneda(value, row)
     }
   ];
 
@@ -206,6 +206,18 @@ export class NotaCreditoListComponent implements OnInit, OnDestroy {
 
   formatTotal(v: number): string {
     return v != null ? `₲ ${Number(v).toLocaleString('es-PY')}` : '—';
+  }
+
+  formatTotalByMoneda(v: number, row?: NotaCredito): string {
+    if (v == null) return '—';
+    const moneda = (row?.monedaExtranjera || 'PYG').toUpperCase();
+    const cambio = row?.cambio || 0;
+    if (moneda !== 'PYG' && cambio > 0) {
+      const valorMoneda = Number(v) / Number(cambio);
+      const simbolo = moneda === 'USD' ? '$' : moneda;
+      return `${simbolo} ${valorMoneda.toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `₲ ${Number(v).toLocaleString('es-PY')}`;
   }
 
   getVisibleActions(row: NotaCredito | null): TableAction[] {

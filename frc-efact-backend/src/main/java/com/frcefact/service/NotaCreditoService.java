@@ -158,7 +158,7 @@ public class NotaCreditoService {
         notaCredito.setTotalFinal(factura.getTotalFinal() != null ? factura.getTotalFinal() : BigDecimal.ZERO);
 
         // Asignar número
-        Long numeroAsignado = timbradoDetalleService.incrementarNumeroActual(timbradoDetalle.getId());
+        Long numeroAsignado = timbradoDetalleService.incrementarNumeroNotaCredito(timbradoDetalle.getId());
         notaCredito.setNumeroNotaCredito(numeroAsignado.intValue());
 
         if (notaCredito.getFecha() == null) {

@@ -50,5 +50,8 @@ public interface NotaCreditoRepository extends JpaRepository<NotaCredito, Long>,
            "LEFT JOIN FETCH nc.facturaLegal " +
            "WHERE nc.id = :id")
     java.util.Optional<NotaCredito> findByIdWithEmpresa(@Param("id") Long id);
+
+    @Query("SELECT MAX(nc.numeroNotaCredito) FROM NotaCredito nc WHERE nc.timbradoDetalle.id = :timbradoDetalleId")
+    Integer findMaxNumeroNotaCreditoByTimbradoDetalleId(@Param("timbradoDetalleId") Long timbradoDetalleId);
 }
 
