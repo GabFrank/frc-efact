@@ -110,6 +110,7 @@ public class UsuarioController {
             @ApiResponse(responseCode = "401", description = "No autenticado"),
             @ApiResponse(responseCode = "403", description = "Sin permisos para acceder")
     })
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<List<UsuarioDto>> obtenerUsuariosAsignables() {
         logger.debug("GET /usuarios/asignables - Obteniendo usuarios asignables a empresas");
 
@@ -132,6 +133,7 @@ public class UsuarioController {
             @ApiResponse(responseCode = "401", description = "No autenticado"),
             @ApiResponse(responseCode = "403", description = "Sin permisos para acceder")
     })
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<List<UsuarioDto>> obtenerTodosLosUsuarios(
             org.springframework.security.core.Authentication authentication) {
         logger.debug("GET /usuarios - Listing all users");
@@ -162,6 +164,7 @@ public class UsuarioController {
             @ApiResponse(responseCode = "401", description = "No autenticado"),
             @ApiResponse(responseCode = "403", description = "Sin permisos para acceder")
     })
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<Page<UsuarioDto>> buscarUsuarios(
             @Parameter(description = "Término a buscar en username o email") @RequestParam(required = false) String searchTerm,
             @Parameter(description = "Filtrar por estado activo") @RequestParam(required = false) Boolean isActive,
@@ -202,6 +205,7 @@ public class UsuarioController {
             @ApiResponse(responseCode = "403", description = "Sin permisos para acceder"),
             @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<UsuarioDto> obtenerUsuarioPorId(
             @Parameter(description = "ID del usuario") @PathVariable Long id) {
         logger.debug("GET /usuarios/{} - Obteniendo usuario", id);
@@ -466,6 +470,7 @@ public class UsuarioController {
             @ApiResponse(responseCode = "401", description = "No autenticado"),
             @ApiResponse(responseCode = "403", description = "Sin permisos para buscar usuarios")
     })
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<List<UsuarioDto>> buscarUsuariosPorTermino(
             @Parameter(description = "Término a buscar") @RequestParam String term) {
         logger.debug("GET /usuarios/search?term={}", term);
