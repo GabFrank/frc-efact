@@ -1976,18 +1976,9 @@ public class SifenService {
         // Grupo específico de Nota de Crédito
         TgCamNCDE gCamNCDE = new TgCamNCDE();
         
-        // Mapear motivo de emisión
+        // Mapear motivo de emisión (catálogo SIFEN)
         String motivoEmision = notaCredito.getMotivoEmision();
-        TiMotEmi tiMotEmi = TiMotEmi.DEVOLUCION_Y_AJUSTES_DE_PRECIOS; // Por defecto
-        
-        if (motivoEmision != null && !motivoEmision.isBlank()) {
-            try {
-                // Intentar mapear el motivo de emisión al enum
-                tiMotEmi = TiMotEmi.valueOf(motivoEmision.toUpperCase().replace(" ", "_"));
-            } catch (IllegalArgumentException e) {
-                log.warn("⚠️ Motivo de emisión '{}' no reconocido, usando DEVOLUCION_Y_AJUSTES_DE_PRECIOS por defecto", motivoEmision);
-            }
-        }
+        TiMotEmi tiMotEmi = mapearMotivoEmisionNC(motivoEmision);
         
         gCamNCDE.setiMotEmi(tiMotEmi);
         // La descripción se genera automáticamente desde el enum TiMotEmi
@@ -2752,6 +2743,22 @@ public class SifenService {
         } catch (IllegalArgumentException e) {
             log.warn("⚠️ Motivo de emisión '{}' no reconocido, usando TRASLADO_POR_VENTAS por defecto", motivoEmision);
             return TiMotivTras.TRASLADO_POR_VENTAS;
+        }
+    }
+
+    /**
+     * Mapea el motivo de emisión de Nota de Crédito al catálogo SIFEN.
+     */
+    private TiMotEmi mapearMotivoEmisionNC(String motivoEmision) {
+        if (motivoEmision == null || motivoEmision.isBlank()) {
+            throw new BusinessException("Motivo de emisión de Nota de Crédito es obligatorio");
+        }
+
+        String motivoUpper = motivoEmision.trim().toUpperCase().replace(" ", "_");
+        try {
+            return TiMotEmi.valueOf(motivoUpper);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("Motivo de emisión no válido para SIFEN: " + motivoEmision);
         }
     }
 

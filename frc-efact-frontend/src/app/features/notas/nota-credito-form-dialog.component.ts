@@ -147,7 +147,21 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
                         <mat-icon>attach_money</mat-icon>
                         <div>
                           <span class="info-label">Monto Total:</span>
-                          <span class="info-value">₲ {{ getFacturaAsociada()!.totalFinal | number:'1.2-2' }}</span>
+                          <span class="info-value">{{ getSimboloMonedaFactura() }} {{ convertirMontoFactura(getFacturaAsociada()!.totalFinal) | number:'1.2-2' }}</span>
+                        </div>
+                      </div>
+                      <div class="info-item">
+                        <mat-icon>payments</mat-icon>
+                        <div>
+                          <span class="info-label">Moneda:</span>
+                          <span class="info-value">{{ getMonedaFactura() }}</span>
+                        </div>
+                      </div>
+                      <div class="info-item">
+                        <mat-icon>trending_up</mat-icon>
+                        <div>
+                          <span class="info-label">Cotización:</span>
+                          <span class="info-value">{{ getCotizacionLabel() }}</span>
                         </div>
                       </div>
                       <div class="info-item">
@@ -176,8 +190,8 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
                             <td>{{ i + 1 }}</td>
                             <td>{{ item.descripcion }}</td>
                             <td>{{ item.cantidad | number:'1.2-2' }}</td>
-                            <td>₲ {{ item.precioUnitario | number:'1.2-2' }}</td>
-                            <td>₲ {{ item.total | number:'1.2-2' }}</td>
+                            <td>{{ getSimboloMonedaFactura() }} {{ convertirMontoFactura(item.precioUnitario) | number:'1.2-2' }}</td>
+                            <td>{{ getSimboloMonedaFactura() }} {{ convertirMontoFactura(item.total) | number:'1.2-2' }}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -247,15 +261,20 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
             <div class="form-grid">
               <mat-form-field appearance="outline" class="field-half">
                 <mat-label>Motivo de Emisión</mat-label>
-                <input matInput formControlName="motivoEmision" placeholder="Ej: Devolución, Anulación, etc.">
+                <mat-select formControlName="motivoEmision">
+                  <mat-option *ngFor="let motivo of motivosSifen" [value]="motivo.codigo">
+                    {{ motivo.descripcion }}
+                  </mat-option>
+                </mat-select>
                 <mat-icon matPrefix>label</mat-icon>
+                <mat-hint>Catálogo SIFEN (cMotEmi)</mat-hint>
                 <app-error-message [control]="form.get('motivoEmision')" />
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="field-full">
-                <mat-label>Descripción del Motivo</mat-label>
+                <mat-label>Descripción del Motivo (opcional)</mat-label>
                 <textarea matInput formControlName="descripcionMotivo" rows="3" 
-                          placeholder="Descripción detallada del motivo de emisión"></textarea>
+                          placeholder="Detalle complementario (dMotEmi)"></textarea>
                 <mat-icon matPrefix>description</mat-icon>
               </mat-form-field>
             </div>
@@ -290,16 +309,16 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
                         <strong>Cantidad:</strong> {{ getItemControl(i, 'cantidad').value | number:'1.2-2' }}
                       </span>
                       <span class="detail-item">
-                        <strong>Precio Unit.:</strong> ₲ {{ getItemControl(i, 'precioUnitario').value | number:'1.2-2' }}
+                        <strong>Precio Unit.:</strong> {{ getSimboloMonedaFactura() }} {{ getItemControl(i, 'precioUnitario').value | number:'1.2-2' }}
                       </span>
                       <span class="detail-item">
                         <strong>IVA:</strong> {{ getItemControl(i, 'iva').value }}%
                       </span>
                       <span class="detail-item" *ngIf="getItemControl(i, 'descuento').value > 0">
-                        <strong>Descuento:</strong> ₲ {{ getItemControl(i, 'descuento').value | number:'1.2-2' }}
+                        <strong>Descuento:</strong> {{ getSimboloMonedaFactura() }} {{ getItemControl(i, 'descuento').value | number:'1.2-2' }}
                       </span>
                       <span class="detail-item total">
-                        <strong>Total:</strong> ₲ {{ getItemTotal(i) | number:'1.2-2' }}
+                        <strong>Total:</strong> {{ getSimboloMonedaFactura() }} {{ getItemTotal(i) | number:'1.2-2' }}
                       </span>
                     </div>
                   </div>
@@ -330,7 +349,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
                   <mat-icon>attach_money</mat-icon>
                   Total Final:
                 </span>
-                <span class="total-value">₲ {{ totalFinal() | number:'1.2-2' }}</span>
+                <span class="total-value">{{ getSimboloMonedaFactura() }} {{ totalFinal() | number:'1.2-2' }}</span>
               </div>
             </div>
           </mat-card-content>
@@ -732,6 +751,17 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
 export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
+  readonly motivosSifen = [
+    { codigo: 'DEVOLUCION_Y_AJUSTES_DE_PRECIOS', descripcion: 'Devolución y Ajuste de precios' },
+    { codigo: 'DEVOLUCION', descripcion: 'Devolución de mercadería' },
+    { codigo: 'DESCUENTO', descripcion: 'Descuento concedido' },
+    { codigo: 'BONIFICACION', descripcion: 'Bonificación' },
+    { codigo: 'CREDITO_INCOBRABLE', descripcion: 'Crédito incobrable' },
+    { codigo: 'RECUPERO_DE_COSTO', descripcion: 'Recupero de costo' },
+    { codigo: 'RECUPERO_DE_GASTO', descripcion: 'Recupero de gasto' },
+    { codigo: 'AJUSTE_DE_PRECIO', descripcion: 'Ajuste de precio' }
+  ];
+
   form: FormGroup;
   timbradosDetalle = signal<TimbradoDetalle[]>([]);
   clientes = signal<Cliente[]>([]);
@@ -916,6 +946,47 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
   getTimbradoDisplay(td: TimbradoDetalle): string {
     const numero = td.timbradoNumero || 'N/A';
     return `${numero}-${td.codigoEstablecimientoFactura}-${td.puntoExpedicion}`;
+  }
+
+  getMonedaFactura(): string {
+    const factura = this.getFacturaAsociada();
+    return (factura?.monedaExtranjera || 'PYG').toUpperCase();
+  }
+
+  getTipoCambioFactura(): number {
+    const factura = this.getFacturaAsociada();
+    const moneda = this.getMonedaFactura();
+    if (moneda === 'PYG') {
+      return 1;
+    }
+    return factura?.cambio && factura.cambio > 0 ? factura.cambio : 1;
+  }
+
+  getSimboloMonedaFactura(): string {
+    const moneda = this.getMonedaFactura();
+    if (moneda === 'PYG') return '₲';
+    if (moneda === 'USD') return '$';
+    return moneda;
+  }
+
+  getCotizacionLabel(): string {
+    const moneda = this.getMonedaFactura();
+    if (moneda === 'PYG') {
+      return 'N/A';
+    }
+    return `1 ${moneda} = ${this.getTipoCambioFactura().toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 6 })} PYG`;
+  }
+
+  convertirMontoFactura(montoGs: number): number {
+    const moneda = this.getMonedaFactura();
+    if (moneda === 'PYG') {
+      return montoGs || 0;
+    }
+    const tipoCambio = this.getTipoCambioFactura();
+    if (!tipoCambio || tipoCambio <= 0) {
+      return montoGs || 0;
+    }
+    return (montoGs || 0) / tipoCambio;
   }
 
   formatFecha(fecha: string): string {

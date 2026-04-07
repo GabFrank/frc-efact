@@ -13,12 +13,23 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Service
 @Transactional
 public class NotaCreditoService {
 
     private static final Logger logger = LoggerFactory.getLogger(NotaCreditoService.class);
+    private static final Set<String> MOTIVOS_SIFEN_VALIDOS = Set.of(
+            "DEVOLUCION_Y_AJUSTES_DE_PRECIOS",
+            "DEVOLUCION",
+            "DESCUENTO",
+            "BONIFICACION",
+            "CREDITO_INCOBRABLE",
+            "RECUPERO_DE_COSTO",
+            "RECUPERO_DE_GASTO",
+            "AJUSTE_DE_PRECIO"
+    );
 
     private final NotaCreditoRepository notaCreditoRepository;
     private final NotaCreditoItemRepository notaCreditoItemRepository;
@@ -79,6 +90,17 @@ public class NotaCreditoService {
         FacturaLegal factura = facturaLegalRepository.findById(notaCredito.getFacturaLegal().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Factura asociada no encontrada"));
         notaCredito.setFacturaLegal(factura);
+
+        String motivoEmision = notaCredito.getMotivoEmision() != null
+                ? notaCredito.getMotivoEmision().trim().toUpperCase()
+                : null;
+        if (motivoEmision == null || motivoEmision.isBlank()) {
+            throw new IllegalArgumentException("Debe seleccionar un motivo de emisión válido de SIFEN");
+        }
+        if (!MOTIVOS_SIFEN_VALIDOS.contains(motivoEmision)) {
+            throw new IllegalArgumentException("Motivo de emisión no válido para SIFEN: " + motivoEmision);
+        }
+        notaCredito.setMotivoEmision(motivoEmision);
 
         // Regla SIFEN: la NC debe mantener la misma moneda y tipo de cambio del documento referenciado
         String monedaFactura = factura.getMonedaExtranjera();
