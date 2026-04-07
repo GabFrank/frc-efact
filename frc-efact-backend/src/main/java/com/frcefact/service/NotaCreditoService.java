@@ -120,10 +120,42 @@ public class NotaCreditoService {
              notaCredito.setCliente(factura.getCliente());
         }
 
-        // Validar items
-        if (notaCredito.getItems() == null || notaCredito.getItems().isEmpty()) {
-            throw new IllegalArgumentException("La nota de crédito debe tener al menos un item");
+        // Si hay factura asociada, los ítems/totales se copian 1:1 desde la factura para evitar inconsistencias.
+        if (notaCredito.getItems() == null) {
+            notaCredito.setItems(new java.util.ArrayList<>());
+        } else {
+            notaCredito.getItems().clear();
         }
+
+        if (factura.getItems() == null || factura.getItems().isEmpty()) {
+            throw new IllegalArgumentException("La factura asociada no tiene items");
+        }
+
+        for (FacturaLegalItem itemFactura : factura.getItems()) {
+            NotaCreditoItem itemNC = new NotaCreditoItem();
+            itemNC.setNotaCredito(notaCredito);
+            itemNC.setProducto(itemFactura.getProducto());
+            itemNC.setCantidad(itemFactura.getCantidad());
+            itemNC.setDescripcion(itemFactura.getDescripcion());
+            itemNC.setPrecioUnitario(itemFactura.getPrecioUnitario());
+            itemNC.setDescuento(BigDecimal.ZERO);
+            itemNC.setTotal(itemFactura.getTotal());
+            Integer ivaProducto = itemFactura.getProducto() != null && itemFactura.getProducto().getIva() != null
+                    ? itemFactura.getProducto().getIva()
+                    : 10;
+            itemNC.setIva(ivaProducto);
+            notaCredito.getItems().add(itemNC);
+        }
+
+        notaCredito.setIvaParcial0(factura.getIvaParcial0() != null ? factura.getIvaParcial0() : BigDecimal.ZERO);
+        notaCredito.setIvaParcial5(factura.getIvaParcial5() != null ? factura.getIvaParcial5() : BigDecimal.ZERO);
+        notaCredito.setIvaParcial10(factura.getIvaParcial10() != null ? factura.getIvaParcial10() : BigDecimal.ZERO);
+        notaCredito.setTotalParcial0(factura.getTotalParcial0() != null ? factura.getTotalParcial0() : BigDecimal.ZERO);
+        notaCredito.setTotalParcial5(factura.getTotalParcial5() != null ? factura.getTotalParcial5() : BigDecimal.ZERO);
+        notaCredito.setTotalParcial10(factura.getTotalParcial10() != null ? factura.getTotalParcial10() : BigDecimal.ZERO);
+        notaCredito.setTotalParcial(factura.getTotalParcial() != null ? factura.getTotalParcial() : BigDecimal.ZERO);
+        notaCredito.setDescuentoFinal(factura.getDescuentoFinal() != null ? factura.getDescuentoFinal() : BigDecimal.ZERO);
+        notaCredito.setTotalFinal(factura.getTotalFinal() != null ? factura.getTotalFinal() : BigDecimal.ZERO);
 
         // Asignar número
         Long numeroAsignado = timbradoDetalleService.incrementarNumeroActual(timbradoDetalle.getId());
@@ -144,7 +176,7 @@ public class NotaCreditoService {
             if (notaCredito.getDireccion() == null) notaCredito.setDireccion(cliente.getDireccion());
         }
 
-        // Procesar items
+        // Procesar items ya copiados de la factura asociada
         for (NotaCreditoItem item : notaCredito.getItems()) {
             item.setNotaCredito(notaCredito);
 
@@ -171,30 +203,10 @@ public class NotaCreditoService {
                 item.calcularTotal();
             }
 
-            // Si la factura es en moneda extranjera, persistir internamente en PYG
-            // para mantener consistencia con el flujo actual de generación DE.
-            if (esMonedaExtranjera) {
-                boolean pareceMonedaExtranjera = item.getTotal() == null
-                        || item.getTotal().compareTo(BigDecimal.valueOf(1000)) < 0
-                        || item.getPrecioUnitario().compareTo(BigDecimal.valueOf(1000)) < 0;
-
-                if (pareceMonedaExtranjera) {
-                    BigDecimal precioUnitarioGs = item.getPrecioUnitario().multiply(cambioFactura)
-                            .setScale(2, java.math.RoundingMode.HALF_UP);
-                    BigDecimal totalGs = item.getTotal().multiply(cambioFactura)
-                            .setScale(2, java.math.RoundingMode.HALF_UP);
-                    item.setPrecioUnitario(precioUnitarioGs);
-                    item.setTotal(totalGs);
-                    logger.info("NC item convertido a PYG para persistencia (moneda factura {}): precio={} total={}",
-                            notaCredito.getMonedaExtranjera(), precioUnitarioGs, totalGs);
-                }
-            }
+            // Ítems/totales ya vienen de factura en PYG internos: no aplicar heurística de conversión.
         }
 
-        // Calcular totales
-        if (notaCredito.getTotalFinal() == null || notaCredito.getTotalFinal().compareTo(BigDecimal.ZERO) == 0) {
-             notaCredito.recalcularTotales();
-        }
+        // Totales se copian desde factura; no recalcular para evitar diferencias por redondeo.
 
         return notaCreditoRepository.save(notaCredito);
     }

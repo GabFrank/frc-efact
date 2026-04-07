@@ -73,7 +73,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
             <div class="form-grid">
               <mat-form-field appearance="outline" class="field-half">
                 <mat-label>Timbrado Detalle</mat-label>
-                <mat-select formControlName="timbradoDetalleId" [disabled]="data.facturaLegalId != null">
+                <mat-select formControlName="timbradoDetalleId">
                   <mat-option *ngFor="let td of timbradosDetalle()" [value]="td.id">
                     {{ getTimbradoDisplay(td) }}
                   </mat-option>
@@ -218,7 +218,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
                 <mat-label>Cliente</mat-label>
                 <mat-select formControlName="clienteId" 
                             (selectionChange)="onClienteSeleccionado($event.value)"
-                            [disabled]="data.facturaLegalId != null">
+                            [disabled]="tieneFacturaAsociada()">
                   <mat-option [value]="null">Ninguno</mat-option>
                   <mat-option *ngFor="let c of clientes()" [value]="c.id">
                     {{ c.nombre }} - {{ c.ruc }}
@@ -250,7 +250,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
         </mat-card>
 
         <!-- Sección: Motivo -->
-        <mat-card class="section-card">
+        <mat-card class="section-card" *ngIf="!tieneFacturaAsociada()">
           <mat-card-header>
             <mat-card-title>
               <mat-icon>note</mat-icon>
@@ -341,7 +341,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
         </mat-card>
 
         <!-- Sección: Totales -->
-        <mat-card class="section-card totales-card">
+        <mat-card class="section-card totales-card" *ngIf="!tieneFacturaAsociada()">
           <mat-card-content>
             <div class="totales-container">
               <div class="total-row final">
@@ -750,6 +750,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
 })
 export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+  private readonly itemsValidators = [Validators.required, Validators.minLength(1)];
 
   readonly motivosSifen = [
     { codigo: 'DEVOLUCION_Y_AJUSTES_DE_PRECIOS', descripcion: 'Devolución y Ajuste de precios' },
@@ -787,14 +788,14 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
       empresaId: [data.empresaId, Validators.required],
       timbradoDetalleId: [null, Validators.required],
       clienteId: [null],
-      facturaLegalId: [null, Validators.required],
+      facturaLegalId: [null],
       fecha: [new Date(), Validators.required],
       motivoEmision: ['', Validators.required],
       descripcionMotivo: [''],
       nombre: [''],
       ruc: [''],
       direccion: [''],
-      items: this.fb.array([], [Validators.required, Validators.minLength(1)])
+      items: this.fb.array([], this.itemsValidators)
     });
   }
 
@@ -804,6 +805,7 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
         this.cargarDatos();
       }
       this.cargarNota();
+      this.actualizarEstadoItemsSegunFactura();
     } else {
       // Si se proporciona facturaLegalId, cargar datos y factura en paralelo
       if (this.data.facturaLegalId && this.data.empresaId) {
@@ -851,12 +853,15 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
                 });
               }
             }
+            this.actualizarEstadoItemsSegunFactura();
           });
       } else if (this.data.empresaId) {
         // Si no hay facturaLegalId pero hay empresaId, cargar datos normalmente
         this.cargarDatos();
       }
-      this.agregarItem();
+      if (!this.tieneFacturaAsociada()) {
+        this.agregarItem();
+      }
     }
   }
 
@@ -916,6 +921,10 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
   onFacturaSeleccionada(facturaId: number | null): void {
     if (!facturaId) {
       this.facturaAsociada.set(null);
+      this.actualizarEstadoItemsSegunFactura();
+      if (this.itemsArray.length === 0) {
+        this.agregarItem();
+      }
       return;
     }
     
@@ -931,6 +940,7 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
             direccion: factura.direccion || ''
           });
         }
+        this.actualizarEstadoItemsSegunFactura();
       },
       error: (err) => {
         console.error('Error al cargar factura:', err);
@@ -941,6 +951,10 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
 
   getFacturaAsociada(): FacturaLegal | null {
     return this.facturaAsociada();
+  }
+
+  tieneFacturaAsociada(): boolean {
+    return !!this.getFacturaAsociada();
   }
 
   getTimbradoDisplay(td: TimbradoDetalle): string {
@@ -1012,6 +1026,20 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
 
   get itemsArray(): FormArray {
     return this.form.get('items') as FormArray;
+  }
+
+  private actualizarEstadoItemsSegunFactura(): void {
+    const itemsControl = this.form.get('items');
+    if (!itemsControl) return;
+
+    if (this.tieneFacturaAsociada()) {
+      this.itemsArray.clear();
+      itemsControl.clearValidators();
+    } else {
+      itemsControl.setValidators(this.itemsValidators);
+    }
+
+    itemsControl.updateValueAndValidity();
   }
 
   agregarItem(): void {
