@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Implementación personalizada de UserDetailsService para Spring Security.
@@ -107,6 +108,32 @@ public class CustomUserDetailsService implements UserDetailsService {
                 if (usuarioRol.getRol() != null) {
                     // Agregar el rol con prefijo ROLE_ para Spring Security
                     authorities.add(new SimpleGrantedAuthority("ROLE_" + usuarioRol.getRol().getNombre()));
+                }
+            });
+        }
+
+        // Mapear roles de empresa activos a roles de sistema para autorización en controladores.
+        // Esto permite que un ADMINISTRADOR/FACTURADOR/LECTOR de empresa use endpoints protegidos
+        // con hasAnyRole('EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR').
+        if (usuario.getUsuarioEmpresas() != null && !usuario.getUsuarioEmpresas().isEmpty()) {
+            usuario.getUsuarioEmpresas().forEach(usuarioEmpresa -> {
+                if (usuarioEmpresa == null || !Boolean.TRUE.equals(usuarioEmpresa.getActivo())) {
+                    return;
+                }
+                String rolEmpresa = usuarioEmpresa.getRolEmpresa();
+                if (rolEmpresa == null || rolEmpresa.isBlank()) {
+                    return;
+                }
+
+                String rolSistema = switch (rolEmpresa.toUpperCase(Locale.ROOT)) {
+                    case "ADMINISTRADOR" -> "EMPRESA_ADMIN";
+                    case "FACTURADOR" -> "FACTURADOR";
+                    case "LECTOR" -> "LECTOR";
+                    default -> null;
+                };
+
+                if (rolSistema != null) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + rolSistema));
                 }
             });
         }
