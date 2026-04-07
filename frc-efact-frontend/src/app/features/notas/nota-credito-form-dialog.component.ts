@@ -250,7 +250,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
         </mat-card>
 
         <!-- Sección: Motivo -->
-        <mat-card class="section-card" *ngIf="!tieneFacturaAsociada()">
+        <mat-card class="section-card">
           <mat-card-header>
             <mat-card-title>
               <mat-icon>note</mat-icon>
@@ -282,7 +282,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
         </mat-card>
 
         <!-- Sección: Items -->
-        <mat-card class="section-card">
+        <mat-card class="section-card" *ngIf="!tieneFacturaAsociada()">
           <mat-card-header>
             <mat-card-title>
               <mat-icon>shopping_cart</mat-icon>
