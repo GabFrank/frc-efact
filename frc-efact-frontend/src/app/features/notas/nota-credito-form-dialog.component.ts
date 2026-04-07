@@ -963,8 +963,9 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
   }
 
   private abrirDialogoItem(item?: NotaItem, index?: number): void {
-    const monedaValue = this.form.get('monedaExtranjera')?.value || 'PYG';
-    const tipoCambioValue = this.form.get('cambio')?.value || 1;
+    const factura = this.facturaAsociada();
+    const monedaValue = (factura?.monedaExtranjera || 'PYG').toUpperCase();
+    const tipoCambioValue = factura?.cambio || 1;
     const simboloMoneda = monedaValue === 'PYG' ? '₲' : (monedaValue === 'USD' ? '$' : monedaValue);
 
     const dialogRef = this.dialog.open(FacturaItemDialogComponent, {
@@ -1143,6 +1144,9 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
     totalParcial = totalParcial0 + totalParcial5 + totalParcial10;
     const descuentoFinal = formValue.descuentoFinal || 0;
     const totalFinal = totalParcial - descuentoFinal;
+    const factura = this.facturaAsociada();
+    const monedaFactura = (factura?.monedaExtranjera || 'PYG').toUpperCase();
+    const cambioFactura = monedaFactura !== 'PYG' ? (factura?.cambio || 0) : undefined;
 
     const nota: NotaCredito = {
       ...formValue,
@@ -1162,7 +1166,9 @@ export class NotaCreditoFormDialogComponent implements OnInit, OnDestroy {
       totalParcial5: totalParcial5,
       totalParcial10: totalParcial10,
       totalParcial: totalParcial,
-      descuentoFinal: descuentoFinal
+      descuentoFinal: descuentoFinal,
+      monedaExtranjera: monedaFactura,
+      cambio: cambioFactura
     };
 
     if (this.data.nota?.id) {

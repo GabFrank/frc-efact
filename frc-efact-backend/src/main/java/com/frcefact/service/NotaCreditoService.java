@@ -79,6 +79,19 @@ public class NotaCreditoService {
         FacturaLegal factura = facturaLegalRepository.findById(notaCredito.getFacturaLegal().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Factura asociada no encontrada"));
         notaCredito.setFacturaLegal(factura);
+
+        // Regla SIFEN: la NC debe mantener la misma moneda y tipo de cambio del documento referenciado
+        String monedaFactura = factura.getMonedaExtranjera();
+        BigDecimal cambioFactura = factura.getCambio();
+        boolean esMonedaExtranjera = monedaFactura != null
+                && !monedaFactura.isBlank()
+                && !"PYG".equalsIgnoreCase(monedaFactura);
+        notaCredito.setMonedaExtranjera(monedaFactura != null ? monedaFactura.toUpperCase() : "PYG");
+        notaCredito.setCambio(esMonedaExtranjera ? cambioFactura : null);
+
+        if (esMonedaExtranjera && (cambioFactura == null || cambioFactura.compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new IllegalArgumentException("La factura asociada tiene moneda extranjera pero no tiene tipo de cambio válido");
+        }
         
         // Si no tiene cliente, usar el de la factura
         if (notaCredito.getCliente() == null && factura.getCliente() != null) {
@@ -134,6 +147,25 @@ public class NotaCreditoService {
             // Si total es nulo, calcularlo (pero idealmente viene del front)
             if (item.getTotal() == null) {
                 item.calcularTotal();
+            }
+
+            // Si la factura es en moneda extranjera, persistir internamente en PYG
+            // para mantener consistencia con el flujo actual de generación DE.
+            if (esMonedaExtranjera) {
+                boolean pareceMonedaExtranjera = item.getTotal() == null
+                        || item.getTotal().compareTo(BigDecimal.valueOf(1000)) < 0
+                        || item.getPrecioUnitario().compareTo(BigDecimal.valueOf(1000)) < 0;
+
+                if (pareceMonedaExtranjera) {
+                    BigDecimal precioUnitarioGs = item.getPrecioUnitario().multiply(cambioFactura)
+                            .setScale(2, java.math.RoundingMode.HALF_UP);
+                    BigDecimal totalGs = item.getTotal().multiply(cambioFactura)
+                            .setScale(2, java.math.RoundingMode.HALF_UP);
+                    item.setPrecioUnitario(precioUnitarioGs);
+                    item.setTotal(totalGs);
+                    logger.info("NC item convertido a PYG para persistencia (moneda factura {}): precio={} total={}",
+                            notaCredito.getMonedaExtranjera(), precioUnitarioGs, totalGs);
+                }
             }
         }
 
