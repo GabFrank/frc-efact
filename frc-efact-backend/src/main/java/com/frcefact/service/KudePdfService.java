@@ -35,6 +35,7 @@ public class KudePdfService {
     private static final Logger log = LoggerFactory.getLogger(KudePdfService.class);
     private static final String REPORT_PATH = "reports/factura-electronica-kude.jrxml";
     private static final String NR_REPORT_PATH = "reports/nota-remision-kude.jrxml";
+    private static final String NC_REPORT_PATH = "reports/nota-credito-kude.jrxml";
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -112,6 +113,44 @@ public class KudePdfService {
         JasperExportManager.exportReportToPdfStream(jasperPrint, outputStream);
 
         log.info("PDF KUDE generado exitosamente para nota de remisión ID: {}", notaRemision.getId());
+        return outputStream.toByteArray();
+    }
+
+    /**
+     * Genera el PDF del KUDE para una nota de crédito.
+     *
+     * @param notaCredito Nota de crédito con todos sus datos cargados
+     * @return Array de bytes del PDF generado
+     * @throws Exception Si hay error al generar el PDF
+     */
+    public byte[] generarPdfKude(NotaCredito notaCredito) throws Exception {
+        log.info("Generando PDF KUDE para nota de crédito ID: {}", notaCredito.getId());
+
+        ClassPathResource resource = new ClassPathResource(NC_REPORT_PATH);
+        InputStream reportStream = resource.getInputStream();
+        JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+
+        Map<String, Object> parameters = prepararParametrosNotaCredito(notaCredito);
+
+        boolean tieneMonedaExtranjera = notaCredito.getMonedaExtranjera() != null
+                && !"PYG".equalsIgnoreCase(notaCredito.getMonedaExtranjera())
+                && notaCredito.getCambio() != null
+                && notaCredito.getCambio().compareTo(BigDecimal.ZERO) > 0;
+        BigDecimal tipoCambio = tieneMonedaExtranjera ? notaCredito.getCambio() : BigDecimal.ONE;
+
+        List<Map<String, Object>> itemsData = prepararItemsNotaCreditoData(
+                notaCredito.getItems(),
+                notaCredito.getMonedaExtranjera(),
+                tipoCambio);
+        JRBeanCollectionDataSource itemsDataSource = new JRBeanCollectionDataSource(itemsData);
+
+        JasperPrint jasperPrint = JasperFillManager.fillReport(
+                jasperReport, parameters, itemsDataSource);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        JasperExportManager.exportReportToPdfStream(jasperPrint, outputStream);
+
+        log.info("PDF KUDE generado exitosamente para nota de crédito ID: {}", notaCredito.getId());
         return outputStream.toByteArray();
     }
 
@@ -342,6 +381,196 @@ public class KudePdfService {
         }
 
         return itemsData;
+    }
+
+    /**
+     * Prepara los parámetros del reporte a partir de la nota de crédito.
+     */
+    private Map<String, Object> prepararParametrosNotaCredito(NotaCredito notaCredito) throws Exception {
+        Map<String, Object> parameters = new HashMap<>();
+
+        Empresa empresa = notaCredito.getEmpresa();
+        TimbradoDetalle timbradoDetalle = notaCredito.getTimbradoDetalle();
+        Timbrado timbrado = timbradoDetalle.getTimbrado();
+        Cliente cliente = notaCredito.getCliente();
+        DocumentoElectronico documentoElectronico = notaCredito.getDocumentoElectronico();
+        FacturaLegal facturaAsociada = notaCredito.getFacturaLegal();
+
+        String logoPath = obtenerLogoPath(empresa);
+        parameters.put("logo", logoPath);
+        parameters.put("razonSocial", empresa.getRazonSocial() != null ? empresa.getRazonSocial() : "");
+        parameters.put("rucEmisor", empresa.getRuc() != null ? empresa.getRuc() : "");
+        parameters.put("numeroTimbrado", timbrado.getNumero() != null ? timbrado.getNumero() : "");
+        parameters.put("fechaInicioVigencia", timbrado.getFechaInicio() != null ?
+                timbrado.getFechaInicio().format(DATE_FORMATTER) : "");
+        parameters.put("direccionEmisor", empresa.getDireccion() != null ? empresa.getDireccion() : "");
+        parameters.put("telefonoEmisor", empresa.getTelefono() != null ? empresa.getTelefono() : "");
+        parameters.put("emailEmisor", empresa.getEmail() != null ? empresa.getEmail() : "");
+        parameters.put("actividadEconomica", empresa.getDescActividadEconomicaPrincipal() != null ?
+                empresa.getDescActividadEconomicaPrincipal() : "");
+
+        parameters.put("numeroNotaCredito", notaCredito.getNumeroFormateado());
+        parameters.put("fechaEmision", notaCredito.getFecha() != null ?
+                notaCredito.getFecha().format(DATE_TIME_FORMATTER) : "");
+
+        if (cliente != null) {
+            parameters.put("rucCliente", cliente.getRuc() != null ? cliente.getRuc() : "");
+            parameters.put("nombreCliente", cliente.getNombre() != null ? cliente.getNombre() : "");
+            parameters.put("direccionCliente", construirDireccionCliente(cliente));
+        } else {
+            parameters.put("rucCliente", notaCredito.getRuc() != null ? notaCredito.getRuc() : "");
+            parameters.put("nombreCliente", notaCredito.getNombre() != null ? notaCredito.getNombre() : "");
+            parameters.put("direccionCliente", notaCredito.getDireccion() != null ? notaCredito.getDireccion() : "");
+        }
+
+        parameters.put("motivoEmision", mapearMotivoEmisionNotaCredito(notaCredito.getMotivoEmision()));
+        parameters.put("descripcionMotivo", notaCredito.getDescripcionMotivo() != null ? notaCredito.getDescripcionMotivo() : "");
+        parameters.put("cdcFacturaRelacionada", facturaAsociada != null
+                && facturaAsociada.getDocumentoElectronico() != null
+                && facturaAsociada.getDocumentoElectronico().getCdc() != null
+                ? facturaAsociada.getDocumentoElectronico().getCdc()
+                : "");
+
+        String moneda = notaCredito.getMonedaExtranjera() != null ? notaCredito.getMonedaExtranjera() : "PYG";
+        boolean tieneMonedaExtranjera = !"PYG".equalsIgnoreCase(moneda)
+                && notaCredito.getCambio() != null
+                && notaCredito.getCambio().compareTo(BigDecimal.ZERO) > 0;
+        BigDecimal tipoCambio = tieneMonedaExtranjera ? notaCredito.getCambio() : BigDecimal.ONE;
+
+        parameters.put("moneda", moneda);
+        parameters.put("tipoCambio", tieneMonedaExtranjera
+                ? notaCredito.getCambio().setScale(0, java.math.RoundingMode.HALF_UP).toString()
+                : "");
+        parameters.put("tieneMonedaExtranjera", tieneMonedaExtranjera);
+
+        BigDecimal subtotalExentas = notaCredito.getTotalParcial0() != null ? notaCredito.getTotalParcial0() : BigDecimal.ZERO;
+        BigDecimal subtotal5 = notaCredito.getTotalParcial5() != null ? notaCredito.getTotalParcial5() : BigDecimal.ZERO;
+        BigDecimal subtotal10 = notaCredito.getTotalParcial10() != null ? notaCredito.getTotalParcial10() : BigDecimal.ZERO;
+        BigDecimal totalOperacion = notaCredito.getTotalParcial() != null ? notaCredito.getTotalParcial() : BigDecimal.ZERO;
+        BigDecimal totalIva5 = notaCredito.getIvaParcial5() != null ? notaCredito.getIvaParcial5() : BigDecimal.ZERO;
+        BigDecimal totalIva10 = notaCredito.getIvaParcial10() != null ? notaCredito.getIvaParcial10() : BigDecimal.ZERO;
+        BigDecimal totalFinal = notaCredito.getTotalFinal() != null ? notaCredito.getTotalFinal() : BigDecimal.ZERO;
+
+        if (tieneMonedaExtranjera) {
+            subtotalExentas = subtotalExentas.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP).setScale(2, java.math.RoundingMode.HALF_UP);
+            subtotal5 = subtotal5.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP).setScale(2, java.math.RoundingMode.HALF_UP);
+            subtotal10 = subtotal10.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP).setScale(2, java.math.RoundingMode.HALF_UP);
+            totalOperacion = totalOperacion.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP).setScale(2, java.math.RoundingMode.HALF_UP);
+            totalIva5 = totalIva5.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP).setScale(2, java.math.RoundingMode.HALF_UP);
+            totalIva10 = totalIva10.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP).setScale(2, java.math.RoundingMode.HALF_UP);
+            totalFinal = totalFinal.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP).setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+
+        BigDecimal totalIva = totalIva5.add(totalIva10);
+        parameters.put("subtotalExentas", subtotalExentas.doubleValue());
+        parameters.put("subtotal5", subtotal5.doubleValue());
+        parameters.put("subtotal10", subtotal10.doubleValue());
+        parameters.put("totalOperacion", totalOperacion.doubleValue());
+        parameters.put("totalIva5", totalIva5.doubleValue());
+        parameters.put("totalIva10", totalIva10.doubleValue());
+        parameters.put("totalIva", totalIva.doubleValue());
+        parameters.put("totalFinal", totalFinal.doubleValue());
+        parameters.put("totalEnGuarani", (notaCredito.getTotalFinal() != null ? notaCredito.getTotalFinal() : BigDecimal.ZERO).doubleValue());
+
+        if (documentoElectronico != null) {
+            parameters.put("cdc", documentoElectronico.getCdc() != null ? documentoElectronico.getCdc() : "");
+            parameters.put("urlValidacion", documentoElectronico.getUrlQr() != null ? documentoElectronico.getUrlQr() : "");
+            parameters.put("qrImagePath", generarQRCode(documentoElectronico.getUrlQr()));
+        } else {
+            parameters.put("cdc", "");
+            parameters.put("urlValidacion", "");
+            parameters.put("qrImagePath", "");
+        }
+
+        return parameters;
+    }
+
+    /**
+     * Prepara los datos de los ítems para el reporte de nota de crédito.
+     */
+    private List<Map<String, Object>> prepararItemsNotaCreditoData(
+            List<NotaCreditoItem> items,
+            String monedaExtranjera,
+            BigDecimal tipoCambio) {
+        List<Map<String, Object>> itemsData = new ArrayList<>();
+        if (items == null) {
+            return itemsData;
+        }
+
+        boolean tieneMonedaExtranjera = monedaExtranjera != null
+                && !"PYG".equalsIgnoreCase(monedaExtranjera)
+                && tipoCambio != null
+                && tipoCambio.compareTo(BigDecimal.ZERO) > 0;
+
+        for (NotaCreditoItem item : items) {
+            Map<String, Object> itemData = new HashMap<>();
+
+            Producto producto = item.getProducto();
+            String codigo = item.getCodigo();
+            if ((codigo == null || codigo.isBlank()) && producto != null) {
+                codigo = producto.getCodigo();
+            }
+            itemData.put("codigo", codigo != null ? codigo : "");
+            itemData.put("descripcion", item.getDescripcion() != null ? item.getDescripcion() : "");
+
+            BigDecimal cantidad = item.getCantidad() != null ? item.getCantidad() : BigDecimal.ZERO;
+            BigDecimal precioUnitario = item.getPrecioUnitario() != null ? item.getPrecioUnitario() : BigDecimal.ZERO;
+            BigDecimal total = item.getTotal() != null ? item.getTotal() : BigDecimal.ZERO;
+
+            if (tieneMonedaExtranjera) {
+                precioUnitario = precioUnitario.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP)
+                        .setScale(2, java.math.RoundingMode.HALF_UP);
+                total = total.divide(tipoCambio, 6, java.math.RoundingMode.HALF_UP)
+                        .setScale(2, java.math.RoundingMode.HALF_UP);
+            }
+
+            BigDecimal montoExento = BigDecimal.ZERO;
+            BigDecimal montoGravado5 = BigDecimal.ZERO;
+            BigDecimal montoGravado10 = BigDecimal.ZERO;
+
+            Integer iva = item.getIva() != null ? item.getIva() : 10;
+            if (iva == 0) {
+                montoExento = total;
+            } else if (iva == 5) {
+                montoGravado5 = total;
+            } else {
+                montoGravado10 = total;
+            }
+
+            itemData.put("cantidad", cantidad.doubleValue());
+            itemData.put("precioUnitario", precioUnitario.doubleValue());
+            itemData.put("montoExento", montoExento.doubleValue());
+            itemData.put("montoGravado5", montoGravado5.doubleValue());
+            itemData.put("montoGravado10", montoGravado10.doubleValue());
+
+            itemsData.add(itemData);
+        }
+
+        return itemsData;
+    }
+
+    private String mapearMotivoEmisionNotaCredito(String motivo) {
+        if (motivo == null) return "";
+        switch (motivo.trim().toUpperCase()) {
+            case "DEVOLUCION":
+                return "Devolución de mercadería";
+            case "DESCUENTO":
+                return "Descuento concedido";
+            case "BONIFICACION":
+                return "Bonificación";
+            case "AJUSTE_DE_PRECIO":
+                return "Ajuste de precio";
+            case "CREDITO_INCOBRABLE":
+                return "Crédito incobrable";
+            case "RECUPERO_DE_COSTO":
+                return "Recupero de costo";
+            case "RECUPERO_DE_GASTO":
+                return "Recupero de gasto";
+            case "DEVOLUCION_Y_AJUSTES_DE_PRECIOS":
+                return "Devolución y ajustes de precios";
+            default:
+                return motivo;
+        }
     }
 
     /**

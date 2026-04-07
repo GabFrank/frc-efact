@@ -39,5 +39,11 @@ export class NotaCreditoApiService {
   generarDE(notaCreditoId: number): Observable<GenerarDeResponse> {
     return this.http.post<GenerarDeResponse>(`${this.baseUrl}/${notaCreditoId}/generar-de`, {});
   }
+
+  descargarPdfKude(notaCreditoId: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${notaCreditoId}/kude-pdf`, {
+      responseType: 'blob'
+    });
+  }
 }
 

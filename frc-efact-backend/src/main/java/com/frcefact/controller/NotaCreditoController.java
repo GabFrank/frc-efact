@@ -5,6 +5,7 @@ import com.frcefact.dto.GenerarDeResponse;
 import com.frcefact.dto.mapper.NotaCreditoMapper;
 import com.frcefact.dto.mapper.DocumentoElectronicoMapper;
 import com.frcefact.model.NotaCredito;
+import com.frcefact.service.KudePdfService;
 import com.frcefact.service.NotaCreditoService;
 import com.frcefact.service.DocumentoElectronicoService;
 import com.frcefact.dto.LoteDeDto;
@@ -24,6 +25,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -40,16 +43,19 @@ public class NotaCreditoController {
     private final NotaCreditoMapper notaCreditoMapper;
     private final DocumentoElectronicoService documentoElectronicoService;
     private final DocumentoElectronicoMapper documentoElectronicoMapper;
+    private final KudePdfService kudePdfService;
 
     public NotaCreditoController(
             NotaCreditoService notaCreditoService, 
             NotaCreditoMapper notaCreditoMapper,
             DocumentoElectronicoService documentoElectronicoService,
-            DocumentoElectronicoMapper documentoElectronicoMapper) {
+            DocumentoElectronicoMapper documentoElectronicoMapper,
+            KudePdfService kudePdfService) {
         this.notaCreditoService = notaCreditoService;
         this.notaCreditoMapper = notaCreditoMapper;
         this.documentoElectronicoService = documentoElectronicoService;
         this.documentoElectronicoMapper = documentoElectronicoMapper;
+        this.kudePdfService = kudePdfService;
     }
 
     @Operation(summary = "Crear una nueva nota de crédito",
@@ -142,6 +148,46 @@ public class NotaCreditoController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(GenerarDeResponse.of(documentoDto, loteDto));
+    }
+
+    @Operation(summary = "Generar PDF del KUDE",
+               description = "Genera el PDF de la representación gráfica del documento electrónico (KUDE) de una nota de crédito")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "PDF generado exitosamente",
+                    content = @Content(mediaType = "application/pdf")),
+        @ApiResponse(responseCode = "400", description = "Error al generar el PDF"),
+        @ApiResponse(responseCode = "403", description = "Sin permisos para esta empresa"),
+        @ApiResponse(responseCode = "404", description = "Nota de crédito no encontrada")
+    })
+    @GetMapping("/{id}/kude-pdf")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')")
+    public ResponseEntity<byte[]> generarPdfKude(
+            @Parameter(description = "ID de la nota de crédito") @PathVariable Long id) {
+
+        logger.info("GET /notas-credito/{}/kude-pdf - Generar PDF KUDE", id);
+
+        try {
+            NotaCredito notaCredito = notaCreditoService.obtenerPorId(id);
+            if (notaCredito.getDocumentoElectronico() == null) {
+                logger.warn("La nota de crédito {} no tiene documento electrónico asociado", id);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("La nota de crédito no tiene documento electrónico asociado".getBytes());
+            }
+
+            byte[] pdfBytes = kudePdfService.generarPdfKude(notaCredito);
+            String fileName = "NCE-" + notaCredito.getNumeroFormateado() + "-cdc.pdf";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName + "\"");
+            headers.setContentLength(pdfBytes.length);
+
+            return ResponseEntity.ok().headers(headers).body(pdfBytes);
+        } catch (Exception e) {
+            logger.error("Error al generar PDF KUDE para nota de crédito ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(("Error al generar PDF: " + e.getMessage()).getBytes());
+        }
     }
 }
 

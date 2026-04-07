@@ -16,6 +16,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { Subject, takeUntil } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { NotaCreditoApiService } from '../../core/api/nota-credito-api.service';
 import { NotaCredito } from '../../models/nota.model';
 import { DataTableComponent, TableColumn, TableAction } from '../../shared/components/data-table/data-table.component';
@@ -177,6 +178,7 @@ export class NotaCreditoListComponent implements OnInit, OnDestroy {
 
   tableActions: TableAction[] = [
     { icon: 'info', label: 'Ver estado', tooltip: 'Ver estado completo de nota de crédito, DE y lote' },
+    { icon: 'picture_as_pdf', label: 'Abrir PDF', color: 'primary', tooltip: 'Abrir PDF del KUDE', visible: (row: any) => row.documentoElectronicoId != null },
     { icon: 'edit', label: 'Editar', tooltip: 'Editar nota de crédito' },
     { icon: 'delete', label: 'Eliminar', color: 'warn', tooltip: 'Eliminar nota de crédito' }
   ];
@@ -292,6 +294,9 @@ export class NotaCreditoListComponent implements OnInit, OnDestroy {
       case 'Editar':
         this.editarNota(nota);
         break;
+      case 'Abrir PDF':
+        this.abrirPdfKude(nota);
+        break;
       case 'Eliminar':
         this.eliminarNota(nota);
         break;
@@ -319,6 +324,25 @@ export class NotaCreditoListComponent implements OnInit, OnDestroy {
         this.cargarNotas(+empresaId);
       }
     });
+  }
+
+  abrirPdfKude(nota: NotaCredito): void {
+    if (!nota.id) return;
+
+    if (!nota.documentoElectronicoId) {
+      this.snackBar.open('Esta nota de crédito no tiene documento electrónico asociado', 'Cerrar', { duration: 3000 });
+      return;
+    }
+
+    const token = localStorage.getItem('auth_token');
+    const url = `${environment.apiUrl}/notas-credito/${nota.id}/kude-pdf?token=${token}`;
+    const win = window.open(url, '_blank');
+    if (win) {
+      win.focus();
+      this.snackBar.open('Abriendo PDF...', 'Cerrar', { duration: 2000 });
+    } else {
+      this.snackBar.open('Por favor, permite las ventanas emergentes para ver el PDF', 'Cerrar', { duration: 5000 });
+    }
   }
 
   eliminarNota(nota: NotaCredito): void {
