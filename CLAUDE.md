@@ -268,8 +268,10 @@ Esto funciona tanto para JWT local ([JwtAuthenticationFilter.java:50](frc-efact-
 
 ## Workflow / reglas de colaboración
 
-- **⚠️ Push = deploy a producción.** Render auto-despliega desde `main` cuando se hace push. **Cada vez que termines una tarea, preguntar al usuario si querés hacer `commit` + `push`** — nunca asumir que se quiere pushear sin confirmación explícita, porque cualquier push lanza el cambio a producción.
+- **⚠️ Push = deploy a producción.** Render auto-despliega desde `main` cuando se hace push (`autoDeploy=yes`, `autoDeployTrigger=commit`, branch `main`). **Cada vez que termines una tarea, preguntar al usuario si querés hacer `commit` + `push`** — nunca asumir que se quiere pushear sin confirmación explícita, porque cualquier push lanza el cambio a producción.
 - **Siempre compilar antes de commit/push.** Si tocaste backend Java: `cd frc-efact-backend && ./mvnw compile`. Si tocaste frontend: `cd frc-efact-frontend && npm run build:dev` o `npm run lint`. Si la compilación falla, **no commitear** — arreglar primero.
+- **Disparar deploys SIEMPRE vía `git push`** (auto-deploy). **No usar** `mcp__render__*` ni la API de Render ni el botón "Manual Deploy" del dashboard para lanzar deploys. Si hace falta forzar un redeploy del mismo commit, usar `git commit --allow-empty -m "chore: trigger redeploy"` y push. El mecanismo via API funciona técnicamente igual, pero rompe la trazabilidad commit↔deploy y la convención del proyecto.
+- Las tools de Render MCP (`mcp__render__list_deploys`, `get_deploy`, `get_service`, `list_logs`, etc.) **se pueden usar para inspeccionar/diagnosticar** estado, logs, env vars — no para mutar estado de deploys.
 - Antes de marcar un fix como "resuelto" en este documento, **esperar validación del usuario** ejecutando/probando el cambio.
 
 ---
