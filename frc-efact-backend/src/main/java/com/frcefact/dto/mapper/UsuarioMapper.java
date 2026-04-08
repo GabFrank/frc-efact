@@ -1,10 +1,14 @@
 package com.frcefact.dto.mapper;
 
+import com.frcefact.dto.RolDto;
 import com.frcefact.dto.UsuarioDto;
 import com.frcefact.model.Usuario;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -43,12 +47,46 @@ public class UsuarioMapper {
         dto.setAuth0Id(usuario.getAuth0Id());
         dto.setImagenPerfil(usuario.getImagenPerfil());
 
-        // Mapear roles
+        // Mapear roles globales (persona.usuario_rol)
+        Set<RolDto> roles = new HashSet<>();
         if (usuario.getUsuarioRoles() != null) {
-            dto.setRoles(usuario.getUsuarioRoles().stream()
+            usuario.getUsuarioRoles().stream()
                     .map(usuarioRol -> rolMapper.toDto(usuarioRol.getRol()))
-                    .collect(Collectors.toSet()));
+                    .forEach(roles::add);
         }
+
+        // Mapear roles de empresa activos a roles de sistema y agregarlos al mismo set.
+        // Esto refleja en el DTO la misma lógica que CustomUserDetailsService.getAuthorities()
+        // aplica a las authorities de Spring Security, para que el frontend
+        // (PermissionsService) tome los permisos correctos sin requerir un rol global aparte.
+        // Mapping: ADMINISTRADOR -> EMPRESA_ADMIN, FACTURADOR -> FACTURADOR, LECTOR -> LECTOR.
+        if (usuario.getUsuarioEmpresas() != null) {
+            Set<String> nombresExistentes = roles.stream()
+                    .map(RolDto::getNombre)
+                    .collect(Collectors.toSet());
+
+            usuario.getUsuarioEmpresas().forEach(usuarioEmpresa -> {
+                if (usuarioEmpresa == null || !Boolean.TRUE.equals(usuarioEmpresa.getActivo())) {
+                    return;
+                }
+                String rolEmpresa = usuarioEmpresa.getRolEmpresa();
+                if (rolEmpresa == null || rolEmpresa.isBlank()) {
+                    return;
+                }
+
+                String rolSistema = switch (rolEmpresa.toUpperCase(Locale.ROOT)) {
+                    case "ADMINISTRADOR" -> "EMPRESA_ADMIN";
+                    case "FACTURADOR" -> "FACTURADOR";
+                    case "LECTOR" -> "LECTOR";
+                    default -> null;
+                };
+
+                if (rolSistema != null && nombresExistentes.add(rolSistema)) {
+                    roles.add(new RolDto(null, rolSistema));
+                }
+            });
+        }
+        dto.setRoles(roles);
 
         // Mapear empresas
         if (usuario.getUsuarioEmpresas() != null) {
