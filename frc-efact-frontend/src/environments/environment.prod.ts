@@ -1,3 +1,5 @@
+import packageJson from '../../package.json';
+
 export const environment = {
   production: true,
   apiUrl: 'https://frc-efact-backend.onrender.com/api',
@@ -5,7 +7,7 @@ export const environment = {
   secureOnly: true,
   apiTimeout: 30000, // 30 seconds
   enableLogging: false,
-  version: '1.0.0',
+  version: packageJson.version,
   auth0: {
     domain: 'dev-gp1w0u2bgw35q6v5.us.auth0.com',
     clientId: 'ozA1x7MTVu8yVuOhYc3nUHWdLCPr6L6s',

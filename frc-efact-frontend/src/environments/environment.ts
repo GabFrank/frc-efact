@@ -17,6 +17,8 @@ function getApiUrl(): string {
   return 'http://localhost:8080/api';
 }
 
+import packageJson from '../../package.json';
+
 export const environment = {
   production: false,
   apiUrl: getApiUrl(),
@@ -24,7 +26,7 @@ export const environment = {
   secureOnly: false,
   apiTimeout: 30000, // 30 seconds
   enableLogging: true,
-  version: '1.0.0-dev',
+  version: packageJson.version,
   auth0: {
     domain: 'dev-gp1w0u2bgw35q6v5.us.auth0.com',
     clientId: 'ozA1x7MTVu8yVuOhYc3nUHWdLCPr6L6s',
