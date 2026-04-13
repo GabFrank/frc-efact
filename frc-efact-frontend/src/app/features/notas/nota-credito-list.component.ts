@@ -24,6 +24,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner/loading-spinner.component';
 import { NotaCreditoFormDialogComponent } from './nota-credito-form-dialog.component';
 import { NotaCreditoEstadoDialogComponent } from '../../shared/components/nota-credito-estado-dialog/nota-credito-estado-dialog.component';
+import { PdfShareService } from '../../core/services/pdf-share.service';
 
 @Component({
   selector: 'app-nota-credito-list',
@@ -188,7 +189,8 @@ export class NotaCreditoListComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private pdfShareService: PdfShareService
   ) {}
 
   ngOnInit(): void {
@@ -334,15 +336,8 @@ export class NotaCreditoListComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const token = localStorage.getItem('auth_token');
-    const url = `${environment.apiUrl}/notas-credito/${nota.id}/kude-pdf?token=${token}`;
-    const win = window.open(url, '_blank');
-    if (win) {
-      win.focus();
-      this.snackBar.open('Abriendo PDF...', 'Cerrar', { duration: 2000 });
-    } else {
-      this.snackBar.open('Por favor, permite las ventanas emergentes para ver el PDF', 'Cerrar', { duration: 5000 });
-    }
+    const filename = `KuDE-NC-${nota.numeroFormateado || nota.numeroNotaCredito || nota.id}.pdf`;
+    this.pdfShareService.openOrShare(`/notas-credito/${nota.id}/kude-pdf`, filename);
   }
 
   eliminarNota(nota: NotaCredito): void {

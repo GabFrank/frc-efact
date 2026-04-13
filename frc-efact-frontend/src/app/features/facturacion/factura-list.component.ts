@@ -36,6 +36,7 @@ import { NominarDeDialogComponent } from './nominar-de-dialog.component';
 import { InutilizarNumerosDialogComponent } from './inutilizar-numeros-dialog.component';
 import { ClienteFormComponent } from '../clientes/cliente-form.component';
 import { ClienteApiService } from '../../core/api/cliente-api.service';
+import { PdfShareService } from '../../core/services/pdf-share.service';
 import { Cliente } from '../../models/cliente.model';
 import { NotaCreditoFormDialogComponent } from '../notas/nota-credito-form-dialog.component';
 import { NotaDebitoFormDialogComponent } from '../notas/nota-debito-form-dialog.component';
@@ -906,7 +907,8 @@ export class FacturaListComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private pdfShareService: PdfShareService
   ) {
     this.facturas$ = this.store.select(selectAllFacturas);
     this.loading$ = this.store.select(selectFacturacionLoading);
@@ -1432,18 +1434,8 @@ export class FacturaListComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const token = localStorage.getItem('auth_token');
-    const url = `${environment.apiUrl}/facturas/${factura.id}/kude-pdf?token=${token}`;
-
-    // Abrir en nueva pestaña directamente desde la URL del servidor (igual que nota de remisión).
-    // El navegador usa Content-Disposition para el nombre del archivo (KuDE-{numero}-cdc.pdf).
-    const win = window.open(url, '_blank');
-    if (win) {
-      win.focus();
-      this.snackBar.open('Abriendo PDF...', 'Cerrar', { duration: 2000 });
-    } else {
-      this.snackBar.open('Por favor, permite las ventanas emergentes para ver el PDF', 'Cerrar', { duration: 5000 });
-    }
+    const filename = `KuDE-${factura.numeroFactura || factura.id}.pdf`;
+    this.pdfShareService.openOrShare(`/facturas/${factura.id}/kude-pdf`, filename);
   }
 
   eliminarFactura(factura: FacturaLegal): void {

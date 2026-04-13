@@ -30,6 +30,7 @@ import { CancelarDeDialogComponent } from '../documentos/cancelar-de-dialog.comp
 import { SifenApiService } from '../../core/api/sifen-api.service';
 import { NotaRemisionEstadoDialogComponent } from '../../shared/components/nota-remision-estado-dialog/nota-remision-estado-dialog.component';
 import { EmailEnviarDialogComponent } from '../../shared/components/email-enviar-dialog/email-enviar-dialog.component';
+import { PdfShareService } from '../../core/services/pdf-share.service';
 
 @Component({
   selector: 'app-nota-remision-list',
@@ -475,7 +476,8 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private pdfShareService: PdfShareService
   ) {}
 
   ngOnInit(): void {
@@ -888,19 +890,8 @@ export class NotaRemisionListComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const token = localStorage.getItem('auth_token');
-    const url = `${environment.apiUrl}/notas-remision/${nota.id}/kude-pdf?token=${token}`;
-
-    // Abrir en nueva pestaña directamente desde la URL del servidor
-    // Esto permite que el navegador maneje el nombre del archivo correctamente
-    // gracias al header Content-Disposition: inline; filename="..."
-    const win = window.open(url, '_blank');
-    if (win) {
-      win.focus();
-      this.snackBar.open('Abriendo PDF...', 'Cerrar', { duration: 2000 });
-    } else {
-      this.snackBar.open('Por favor, permite las ventanas emergentes para ver el PDF', 'Cerrar', { duration: 5000 });
-    }
+    const filename = `KuDE-NR-${nota.numeroFormateado || nota.numeroNotaRemision || nota.id}.pdf`;
+    this.pdfShareService.openOrShare(`/notas-remision/${nota.id}/kude-pdf`, filename);
   }
 
          enviarEmailViaEmail(nota: NotaRemision): void {
