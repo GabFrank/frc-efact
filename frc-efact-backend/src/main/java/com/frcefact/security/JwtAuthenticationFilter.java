@@ -57,6 +57,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
+                } else if (isTokenFromQueryParam(request)) {
+                    // Token Auth0 (no local) llegó por query param ?token=...
+                    // El BearerTokenAuthenticationFilter de OAuth2 solo lee el header Authorization,
+                    // así que inyectamos el token como header para que lo procese.
+                    filterChain.doFilter(new BearerTokenRequestWrapper(request, jwt), response);
+                    return;
                 }
             }
         } catch (UnsupportedJwtException ex) {
@@ -69,6 +75,59 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Verifica si el token se obtuvo del parámetro 'token' en la URL (no del header Authorization).
+     */
+    private boolean isTokenFromQueryParam(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        boolean hasAuthHeader = StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ");
+        String tokenParam = request.getParameter("token");
+        return !hasAuthHeader && StringUtils.hasText(tokenParam);
+    }
+
+    /**
+     * Wrapper que inyecta un header Authorization: Bearer para que el
+     * BearerTokenAuthenticationFilter de OAuth2 procese tokens Auth0
+     * que llegaron por query param (?token=...) en lugar de por header.
+     */
+    private static class BearerTokenRequestWrapper extends jakarta.servlet.http.HttpServletRequestWrapper {
+        private final String token;
+
+        BearerTokenRequestWrapper(HttpServletRequest request, String token) {
+            super(request);
+            this.token = token;
+        }
+
+        @Override
+        public String getHeader(String name) {
+            if ("Authorization".equalsIgnoreCase(name)) {
+                return "Bearer " + token;
+            }
+            return super.getHeader(name);
+        }
+
+        @Override
+        public java.util.Enumeration<String> getHeaders(String name) {
+            if ("Authorization".equalsIgnoreCase(name)) {
+                return java.util.Collections.enumeration(java.util.List.of("Bearer " + token));
+            }
+            return super.getHeaders(name);
+        }
+
+        @Override
+        public java.util.Enumeration<String> getHeaderNames() {
+            java.util.List<String> names = new java.util.ArrayList<>();
+            java.util.Enumeration<String> original = super.getHeaderNames();
+            while (original.hasMoreElements()) {
+                names.add(original.nextElement());
+            }
+            if (!names.stream().anyMatch(n -> "Authorization".equalsIgnoreCase(n))) {
+                names.add("Authorization");
+            }
+            return java.util.Collections.enumeration(names);
+        }
     }
 
     /**
