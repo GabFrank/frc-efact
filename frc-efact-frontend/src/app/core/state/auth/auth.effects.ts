@@ -125,13 +125,14 @@ export class AuthEffects {
       ofType(AuthActions.initializeAuth),
       map(() => {
         const token = localStorage.getItem('auth_token');
-        const refreshToken = localStorage.getItem('refresh_token');
+        const refreshToken = localStorage.getItem('refresh_token') || '';
         const userJson = localStorage.getItem('current_user');
 
-        if (token && refreshToken && userJson) {
+        // Solo requerir token + user. refreshToken es opcional porque
+        // los usuarios Auth0 no lo tienen (Auth0 maneja refresh internamente).
+        if (token && userJson) {
           try {
             const user = JSON.parse(userJson);
-            // console.log('Inicializando auth desde localStorage:', { user, token: !!token, refreshToken: !!refreshToken });
             return AuthActions.initializeAuthSuccess({
               user,
               token,
@@ -143,7 +144,6 @@ export class AuthEffects {
             return AuthActions.initializeAuthFailure();
           }
         } else {
-          console.log('No se encontró información de auth en localStorage');
           return AuthActions.initializeAuthFailure();
         }
       })
