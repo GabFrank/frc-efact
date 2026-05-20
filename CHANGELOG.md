@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/GabFrank/frc-efact/compare/v1.0.2...v1.0.3) (2026-05-20)
+
+
+### Bug Fixes
+
+* **pdf:** abrir PDF en pestaña nueva en desktop en lugar de la hoja de compartir ([9d49e3e](https://github.com/GabFrank/frc-efact/commit/9d49e3eace6303cc125ca150b7c4d64992eacdc5))
+
 ## [1.0.2](https://github.com/GabFrank/frc-efact/compare/v1.0.1...v1.0.2) (2026-04-13)
 
 
