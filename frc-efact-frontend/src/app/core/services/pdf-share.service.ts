@@ -34,10 +34,26 @@ export class PdfShareService {
   }
 
   /**
-   * Detecta si el navegador soporta compartir archivos (Web Share API Level 2).
+   * Decide si conviene usar el menú de compartir nativo (móvil) en lugar de
+   * abrir el PDF en una nueva pestaña (desktop).
+   *
+   * OJO: no alcanza con que existan navigator.share / navigator.canShare.
+   * Safari de macOS (desktop) también las expone, lo que hacía que en la versión
+   * web de escritorio se abriera la hoja de compartir del SO en vez de abrir el
+   * PDF en una pestaña. Por eso restringimos el "share" a dispositivos
+   * táctiles/móviles reales.
    */
   private canShareFiles(): boolean {
-    return !!navigator.share && !!navigator.canShare;
+    if (!navigator.share || !navigator.canShare) {
+      return false;
+    }
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPhone|iPad|iPod/.test(ua)
+      // iPadOS se identifica como Mac; se distingue por los puntos táctiles
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/.test(ua);
+    const isTouchPrimary = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    return isIOS || isAndroid || isTouchPrimary;
   }
 
   /**
