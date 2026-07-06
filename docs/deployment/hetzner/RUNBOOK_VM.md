@@ -32,6 +32,16 @@ Render. El contexto y los riesgos están en [PLAN_MIGRACION_HETZNER.md](PLAN_MIG
 - Certificados en `empresa.empresa`:
   - `empresa_1_1774969696647.pfx` — ANATOLE DEINZER DUARTE, vence 2026-11-18
   - `empresa_2_1777486604669.pfx` — FRANCO AREVALOS S.A., **vence 2026-08-20**
+- Env vars reales del backend en Render (verificado 2026-07-06):
+  `MAIL_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRATION`, `LOG_LEVEL`, `GITHUB_TOKEN`,
+  `GITHUB_USERNAME`, `SPRING_PROFILES_ACTIVE`, `DATABASE_URL`. **No hay
+  `ENCRYPTION_KEY`** → prod usa el default de `application.yml` (poner ese mismo
+  valor en `deploy/.env`; rotar recién post-migración). **No hay `SIFEN_*`** →
+  defaults de `SifenProperties` (enabled=false, TEST, scheduler off); no
+  activarlos en la VM salvo decisión explícita.
+- Ensayo de dump OK (2026-07-06, desde máquina local): 316 KB, ~39 s,
+  31 tablas con datos, 9 esquemas (`persona`, `empresa`, `financiero`,
+  `productos`, `clientes`, `auditoria`, `geografia`, `transporte`, `public`).
 - Esquemas reales: `persona`, `empresa`, `financiero`, `productos`, `clientes`,
   `auditoria`, `geografia`, `transporte`, `catalogo`(si existe) + `public.flyway_schema_history`.
 

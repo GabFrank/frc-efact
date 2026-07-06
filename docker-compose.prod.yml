@@ -53,10 +53,14 @@ services:
       # Origen del frontend para CORS (SecurityConfig los agrega a los defaults).
       # Con dominio único app+api es casi same-origin, pero se declara igual.
       CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN:?definir en deploy/.env}
-      # SIFEN — replicar los valores que existían en el dashboard de Render
-      SIFEN_ENABLED: ${SIFEN_ENABLED:-true}
-      SIFEN_AMBIENTE: ${SIFEN_AMBIENTE:-PROD}
-      SIFEN_SCHEDULER_ENABLED: ${SIFEN_SCHEDULER_ENABLED:-true}
+      # SIFEN — Render NO define ninguna SIFEN_* (verificado 2026-07-06):
+      # prod corre con los defaults de SifenProperties (enabled=false,
+      # ambiente=TEST, scheduler off) y la emisión real se gobierna por la
+      # config por empresa en DB. Replicar exacto: no activar acá salvo
+      # decisión explícita. Nunca dos schedulers (Render+VM) a la vez.
+      SIFEN_ENABLED: ${SIFEN_ENABLED:-false}
+      SIFEN_AMBIENTE: ${SIFEN_AMBIENTE:-TEST}
+      SIFEN_SCHEDULER_ENABLED: ${SIFEN_SCHEDULER_ENABLED:-false}
     volumes:
       - certificates:/app/certificates
       - backend_logs:/app/logs
