@@ -1,6 +1,6 @@
 #!/bin/bash
-# Backup diario de PostgreSQL + certificados. Instalar en cron (como root):
-#   crontab -e →  30 3 * * * /root/frc-efact/deploy/backup-db.sh >> /var/log/frc-efact-backup.log 2>&1
+# Backup diario de PostgreSQL + certificados. Instalar en cron (como deploy):
+#   crontab -e →  30 3 * * * /home/deploy/frc-efact/deploy/backup-db.sh >> /var/backups/frc-efact/backup.log 2>&1
 # Retención local: 30 días. Copia off-site: completar la sección rsync/rclone.
 
 set -euo pipefail

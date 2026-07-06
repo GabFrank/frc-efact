@@ -4,6 +4,17 @@
 **Objetivo:** migrar todo el sistema FRC eFact (backend + frontend + PostgreSQL) desde Render
 a una VM de Hetzner Cloud **sin pérdida de datos**.
 
+> **⚠️ Addendum 2026-07-06 (verificación real — prevalece sobre lo de abajo):**
+> - La VM destino **ya existe y es compartida** (`deploy@178.105.107.171`, Fedora 42) con
+>   servicios productivos: nginx (80/443), farmacia Next.js, headscale (127.0.0.1:8080),
+>   mediamtx, PostgreSQL nativo. **Se descarta Caddy**: TLS/routing con el nginx del host +
+>   certbot; el stack Docker expone solo loopback (backend 8081, frontend 8082).
+> - Render: el backend **sí tiene disco persistente** (1 GB en `/app/certificates`) — el
+>   riesgo "filesystem efímero" de §1 no aplica. La DB es **PostgreSQL 16.13** (no 15),
+>   base `frc_efact_db_7koy`, **13 MB**. 0 lotes EN_PROCESO al 2026-07-06.
+> - Dominio elegido: **`efact.frc-ecommerce.com`** (único, `/api` → backend, `/` → SPA).
+> - Pasos ejecutables actualizados: [RUNBOOK_VM.md](RUNBOOK_VM.md) (versión 2026-07-06).
+
 ---
 
 ## 1. Arquitectura actual (Render) — inventario verificado

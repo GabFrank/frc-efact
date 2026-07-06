@@ -17,7 +17,7 @@
 # Cursor MCP configuration (ignore real config, allow example)
 .cursor/mcp.json
 !.cursor/mcp.json.example
-
+.env
 # ============================================
 # OS generated files
 # ============================================

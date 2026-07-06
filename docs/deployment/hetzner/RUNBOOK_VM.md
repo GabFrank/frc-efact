@@ -1,19 +1,55 @@
-# Runbook: configuración de la VM Hetzner y migración
+# Runbook: migración FRC eFact a la VM Hetzner (compartida)
 
-Guía ejecutable paso a paso. Pensada para correrse desde una **sesión local de
-Claude Code con acceso SSH a la VM** (o a mano). El contexto y los riesgos están en
-[PLAN_MIGRACION_HETZNER.md](PLAN_MIGRACION_HETZNER.md) — leerlo antes.
+Guía ejecutable paso a paso, **actualizada 2026-07-06** tras inspeccionar la VM real y
+Render. El contexto y los riesgos están en [PLAN_MIGRACION_HETZNER.md](PLAN_MIGRACION_HETZNER.md).
 
-**Artefactos ya listos en el repo** (rama `claude/frc-efact-expert-skill-cbsx4z`):
+## La VM real (verificado 2026-07-06)
+
+- `deploy@178.105.107.171` — **Fedora 42**, 4 vCPU, 7.6 GB RAM, 131 GB libres.
+  `deploy` tiene sudo (wheel). Acceso solo por clave SSH.
+- ⚠️ **VM COMPARTIDA con servicios productivos que NO se tocan:**
+  - nginx del host (dueño de **80/443**, vhosts `farmacia-franco.conf`, `headscale.conf`)
+  - PostgreSQL **nativo** en 5432 (localhost) — no es el nuestro
+  - farmacia Next.js (127.0.0.1:3000), headscale (**127.0.0.1:8080**), mediamtx (8554, 8889…)
+  - firewalld + fail2ban ya activos; certbot ya instalado (certs `*.farmaciafrancopy.com`)
+- Consecuencias de diseño (vs. el plan original):
+  - **Sin Caddy** — el TLS/routing lo hace el nginx del host + certbot (patrón ya usado en la VM).
+  - Stack Docker expone **solo loopback**: backend `127.0.0.1:8081`, frontend `127.0.0.1:8082`
+    (8080 del host está ocupado por headscale). Postgres del stack sin puerto al host.
+  - `setup-vm.sh` NO instala ufw/fail2ban ni toca SSH — solo Docker CE (Fedora), grupo docker
+    y directorio de backups.
+
+## Render (verificado 2026-07-06, solo lectura)
+
+- Backend `frc-efact-backend` (`srv-d61m4p4hg0os73fpbjm0`), plan starter, Oregon.
+  **Tiene disco persistente de 1 GB en `/app/certificates`** — los `.pfx` sí sobreviven
+  redeploys de Render (el plan original asumía filesystem efímero).
+- DB `frc-efact-db` (`dpg-d75teee3jp1c73djsip0-a`): **PostgreSQL 16.13**, base
+  `frc_efact_db_7koy`, user `frc_efact_db_7koy_user`, **13 MB** → dump/restore en segundos.
+- Counts de referencia (2026-07-06): 10 `factura_legal`, 12 `documento_electronico`,
+  12 `lote_de` (8 PROCESADO, 4 ERROR_PERMANENTE, 0 EN_PROCESO), 3 `nota_credito`,
+  2 `empresa`, 6 `usuario`, 5 `cliente`, 4 `producto`, 35 filas `flyway_schema_history`.
+- Certificados en `empresa.empresa`:
+  - `empresa_1_1774969696647.pfx` — ANATOLE DEINZER DUARTE, vence 2026-11-18
+  - `empresa_2_1777486604669.pfx` — FRANCO AREVALOS S.A., **vence 2026-08-20**
+- Esquemas reales: `persona`, `empresa`, `financiero`, `productos`, `clientes`,
+  `auditoria`, `geografia`, `transporte`, `catalogo`(si existe) + `public.flyway_schema_history`.
+
+## Dominio
+
+**`efact.frc-ecommerce.com`** (dominio único: `/` → SPA, `/api` → backend).
+`app.frc-ecommerce.com` apunta a **otra máquina** (159.203.86.103) — no confundir.
+
+**Artefactos en el repo** (rama `claude/frc-efact-expert-skill-cbsx4z`):
 
 | Archivo | Qué es |
 |---|---|
-| `docker-compose.prod.yml` | Stack completo: postgres + backend + frontend + caddy |
-| `deploy/Caddyfile` | Reverse proxy con TLS automático (dominios por env var) |
+| `docker-compose.prod.yml` | postgres:16 + backend (127.0.0.1:8081) + frontend (127.0.0.1:8082) |
+| `deploy/nginx-vhost-efact.conf` | vhost para el nginx del HOST (reemplaza al Caddyfile) |
 | `deploy/.env.example` | Plantilla de secretos → copiar a `deploy/.env` (gitignored) |
-| `deploy/setup-vm.sh` | Bootstrap: Docker, ufw, fail2ban, unattended-upgrades, SSH hardening |
+| `deploy/setup-vm.sh` | Instala Docker CE en Fedora; NO toca firewall/SSH/nginx |
 | `deploy/migrate-db-from-render.sh` | Dump desde Render + restore local + verificación |
-| `deploy/backup-db.sh` | Backup diario DB + certificados (instalar en cron) |
+| `deploy/backup-db.sh` | Backup diario DB + certificados (cron de deploy) |
 | `frc-efact-frontend/Dockerfile` | Build multi-stage Angular → nginx |
 
 ## Prerrequisitos (fuera de la VM)
@@ -22,30 +58,34 @@ Claude Code con acceso SSH a la VM** (o a mano). El contexto y los riesgos está
       nuevo con scope `read:packages`.
 - [ ] Exportar del dashboard de Render **todas** las env vars del backend
       (`ENCRYPTION_KEY`, `MAIL_PASSWORD`, `SIFEN_*`, …) y la **External Database URL** de `frc-efact-db`.
-- [ ] Reunir los `.pfx` de todas las empresas activas + passwords.
-- [ ] DNS: registros A de `API_DOMAIN` y `APP_DOMAIN` → IP de la VM (TTL bajo, ej. 300).
-- [ ] Auth0 dashboard → aplicación SPA: agregar `https://<APP_DOMAIN>` a Allowed Callback URLs,
-      Allowed Logout URLs, Allowed Web Origins y Allowed Origins (CORS). **No quitar** las de onrender todavía.
+- [ ] Reunir los `.pfx` de las 2 empresas activas + passwords (nombres exactos arriba).
+- [ ] DNS: **registro A `efact.frc-ecommerce.com` → `178.105.107.171`** (TTL bajo, ej. 300).
+- [ ] Auth0 dashboard → aplicación SPA (`ozA1x7MTVu8yVuOhYc3nUHWdLCPr6L6s`): agregar
+      `https://efact.frc-ecommerce.com` a Allowed Callback URLs, Allowed Logout URLs,
+      Allowed Web Origins y Allowed Origins (CORS). **No quitar** las de onrender todavía.
 
-## Cambio de código pendiente de dominio
+## Cambios de código (ya hechos en la rama)
 
-Cuando el dominio esté definido, en `frc-efact-frontend/src/environments/environment.prod.ts`:
-`apiUrl: 'https://<API_DOMAIN>/api'` y `redirect_uri: 'https://<APP_DOMAIN>'`.
-Commitear en la rama (⚠️ recordar que al mergear a `main` esto apunta el build de Render al
-dominio nuevo — coordinar con el cutover).
+- `environment.prod.ts`: `apiUrl: 'https://efact.frc-ecommerce.com/api'`,
+  `redirect_uri: 'https://efact.frc-ecommerce.com'`.
+  ⚠️ Al mergear a `main`, el build de Render frontend queda apuntando al dominio nuevo —
+  coordinar el merge con el cutover.
+- `SecurityConfig.java`: soporta `CORS_ALLOWED_ORIGINS` (commit `f58aac4`), el compose la setea.
 
 ## Paso 1 — Bootstrap de la VM
 
 ```bash
-ssh root@<IP_VM>
-git clone https://github.com/GabFrank/frc-efact.git /root/frc-efact
-cd /root/frc-efact
+ssh deploy@178.105.107.171
+git clone https://github.com/GabFrank/frc-efact.git ~/frc-efact
+cd ~/frc-efact
 git checkout claude/frc-efact-expert-skill-cbsx4z   # hasta que se mergee a main
 chmod +x deploy/*.sh
 ./deploy/setup-vm.sh
+# si el script agregó al grupo docker: salir y volver a entrar por SSH
 ```
 
-Verificar: `docker --version`, `ufw status` (22/80/443), `systemctl status fail2ban`.
+Verificar: `docker --version`, `docker compose version`, y que los servicios existentes
+siguen sanos: `systemctl is-active nginx farmacia headscale mediamtx postgresql`.
 
 ## Paso 2 — Secretos
 
@@ -55,7 +95,7 @@ nano deploy/.env      # completar TODO; ENCRYPTION_KEY idéntica a Render
 chmod 600 deploy/.env
 ```
 
-## Paso 3 — Levantar el stack
+## Paso 3 — Levantar el stack (solo loopback, aún sin dominio)
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file deploy/.env up -d --build
@@ -64,14 +104,33 @@ docker compose -f docker-compose.prod.yml logs -f backend   # esperar "Started F
 ```
 
 - El primer build del backend tarda (descarga Maven + jsifenlib con el PAT).
-- En DB vacía, Flyway aplica las migraciones V1..V<N> — está bien **solo hasta** la migración
-  de datos; el restore del paso 4 pisa todo con `--clean`.
-- Probar TLS: `curl -I https://<API_DOMAIN>/api/actuator/health` → 200 y certificado válido.
-- Probar SPA: `https://<APP_DOMAIN>` carga el login.
+- En DB vacía, Flyway aplica V1..V<N> — está bien **solo hasta** la migración de datos;
+  el restore del paso 4 pisa todo con `--clean`.
+- Smoke local sin TLS: `curl -s http://127.0.0.1:8081/api/actuator/health` → `{"status":"UP"}`
+  y `curl -sI http://127.0.0.1:8082` → 200.
+
+## Paso 3b — nginx del host + TLS (requiere DNS ya propagado)
+
+```bash
+# Verificar DNS primero:
+dig +short efact.frc-ecommerce.com   # debe devolver 178.105.107.171
+sudo cp deploy/nginx-vhost-efact.conf /etc/nginx/conf.d/frc-efact.conf
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d efact.frc-ecommerce.com
+# Probar:
+curl -I https://efact.frc-ecommerce.com/api/actuator/health   # 200, cert válido
+# https://efact.frc-ecommerce.com carga el login
+```
+
+Si nginx devuelve 502 con SELinux: `getsebool httpd_can_network_connect` debe ser `on`
+(debería estarlo: el host ya proxya a farmacia/headscale).
+⚠️ `nginx -t` falla o el reload rompe otro vhost → restaurar sacando `frc-efact.conf` y
+`sudo systemctl reload nginx`; los demás servicios de la VM tienen prioridad.
 
 ## Paso 4 — Migración de datos (ventana de mantenimiento)
 
-Seguir Fase 1 del plan (congelar escrituras en Render, sin lotes `EN_PROCESO`). Luego:
+Seguir Fase 1 del plan (congelar escrituras en Render, sin lotes `EN_PROCESO` —
+al 2026-07-06 no había ninguno). Luego:
 
 ```bash
 ./deploy/migrate-db-from-render.sh --dump-only   # ensayo días antes
@@ -80,22 +139,25 @@ docker compose -f docker-compose.prod.yml restart backend
 docker compose -f docker-compose.prod.yml logs backend | grep -i flyway   # debe VALIDAR, no migrar
 ```
 
-Comparar los counts que imprime el script contra los mismos queries en Render.
+Comparar los counts que imprime el script contra los de referencia de arriba
+(re-consultar Render el día de la migración).
 
 ## Paso 5 — Certificados .pfx
 
 ```bash
 # desde tu máquina local, por cada certificado:
-scp empresa_X.pfx root@<IP_VM>:/root/
-# en la VM — el nombre de archivo debe coincidir con empresa.certificado_path:
-docker compose -f docker-compose.prod.yml cp /root/empresa_X.pfx backend:/app/certificates/
+scp empresa_1_1774969696647.pfx empresa_2_1777486604669.pfx deploy@178.105.107.171:~/
+# en la VM — el nombre debe coincidir EXACTO con empresa.certificado_path:
+docker compose -f docker-compose.prod.yml cp ~/empresa_1_1774969696647.pfx backend:/app/certificates/
+docker compose -f docker-compose.prod.yml cp ~/empresa_2_1777486604669.pfx backend:/app/certificates/
 ```
 
 Alternativa más segura: re-subir cada certificado desde la UI (Empresas → certificado),
 que regenera el path y valida el password contra la `ENCRYPTION_KEY`.
 
 **Smoke test de cifrado (bloqueante):** abrir en la UI un timbrado con CSC. Si falla el
-descifrado, la `ENCRYPTION_KEY` no es la de Render — corregir antes de seguir.
+descifrado (error GCM / tag mismatch), la `ENCRYPTION_KEY` no es la de Render — corregir
+antes de seguir.
 
 ## Paso 6 — Validación end-to-end
 
@@ -109,11 +171,12 @@ descifrado, la `ENCRYPTION_KEY` no es la de Render — corregir antes de seguir.
 ## Paso 7 — Cutover y post-migración
 
 1. Anunciar URL nueva. **Suspender el backend de Render** (no borrarlo: es el rollback;
-   nunca dejar dos schedulers activos contra SIFEN).
-2. Instalar backup: `crontab -e` → `30 3 * * * /root/frc-efact/deploy/backup-db.sh >> /var/log/frc-efact-backup.log 2>&1`.
+   nunca dejar dos schedulers SIFEN activos a la vez).
+2. Backup: `crontab -e` (como deploy) →
+   `30 3 * * * /home/deploy/frc-efact/deploy/backup-db.sh >> /var/backups/frc-efact/backup.log 2>&1`.
    Completar la copia off-site en el script (Storage Box / rclone). Probar una restauración.
-3. Activar Hetzner Backups de la VM en la consola de Hetzner.
-4. Monitoreo externo a `https://<API_DOMAIN>/api/actuator/health`.
+3. Backups/snapshots de la VM: coordinar con los demás servicios de la VM (es compartida).
+4. Monitoreo externo a `https://efact.frc-ecommerce.com/api/actuator/health`.
 5. Tras 1-2 semanas estables: dar de baja Render, quitar `*.onrender.com` del CORS,
    retirar `render.yaml`, actualizar CLAUDE.md y la skill (la regla "push = deploy" pasa a
    ser via GitHub Actions por SSH, si se configura).
@@ -127,5 +190,7 @@ descifrado, la `ENCRYPTION_KEY` no es la de Render — corregir antes de seguir.
 | Flyway valida con error tras el restore | Restore incompleto o versión distinta de migraciones entre rama y DB |
 | Error GCM / "Tag mismatch" al abrir timbrado | `ENCRYPTION_KEY` distinta a la de Render |
 | DE falla al firmar | `.pfx` ausente en `/app/certificates` o nombre ≠ `certificado_path` |
-| Caddy no emite certificado | DNS aún no propagado o puerto 80/443 cerrado |
+| certbot no emite certificado | DNS de `efact.` aún no propagado |
+| nginx 502 hacia el stack | contenedor caído, o SELinux `httpd_can_network_connect` off |
 | CORS bloqueado desde el dominio nuevo | `CORS_ALLOWED_ORIGINS` ausente en el backend |
+| Puerto 8081/8082 ya en uso | otro servicio del host lo tomó — elegir otro en `deploy/.env` |
