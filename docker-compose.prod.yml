@@ -1,0 +1,87 @@
+# FRC eFact — stack de producción en VM Hetzner
+# Uso: docker compose -f docker-compose.prod.yml --env-file deploy/.env up -d
+# Ver docs/deployment/hetzner/RUNBOOK_VM.md
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: frc-efact-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: frc_efact_db
+      POSTGRES_USER: frc_efact_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en deploy/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frc_efact_user -d frc_efact_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Sin ports: solo accesible dentro de la red de compose
+
+  backend:
+    build:
+      context: ./frc-efact-backend
+      args:
+        GITHUB_USERNAME: ${GITHUB_USERNAME:?definir en deploy/.env}
+        GITHUB_TOKEN: ${GITHUB_TOKEN:?definir en deploy/.env}
+    container_name: frc-efact-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: postgresql://frc_efact_user:${POSTGRES_PASSWORD}@postgres:5432/frc_efact_db
+      JWT_SECRET: ${JWT_SECRET:?definir en deploy/.env}
+      JWT_EXPIRATION: "86400000"
+      # ⚠️ Debe ser EXACTAMENTE la misma clave usada en Render (descifra CSC y
+      # passwords de certificados ya guardados en la DB). 32 caracteres.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?definir en deploy/.env}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:?definir en deploy/.env}
+      LOG_LEVEL: INFO
+      # Origen del frontend para CORS (SecurityConfig los agrega a los defaults)
+      CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN:?definir en deploy/.env}
+      # SIFEN — replicar los valores que existían en el dashboard de Render
+      SIFEN_ENABLED: ${SIFEN_ENABLED:-true}
+      SIFEN_AMBIENTE: ${SIFEN_AMBIENTE:-PROD}
+      SIFEN_SCHEDULER_ENABLED: ${SIFEN_SCHEDULER_ENABLED:-true}
+    volumes:
+      - certificates:/app/certificates
+      - backend_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  frontend:
+    build:
+      context: ./frc-efact-frontend
+    container_name: frc-efact-frontend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: frc-efact-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?definir en deploy/.env}
+      APP_DOMAIN: ${APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?definir en deploy/.env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  certificates:
+  backend_logs:
+  caddy_data:
+  caddy_config:
