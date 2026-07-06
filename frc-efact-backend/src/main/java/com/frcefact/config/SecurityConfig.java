@@ -4,6 +4,7 @@ import com.frcefact.security.CustomJwtAuthenticationConverter;
 import com.frcefact.security.JwtAuthenticationFilter;
 import com.frcefact.security.OAuth2TokenFilter;
 import com.frcefact.security.RateLimitingFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -22,7 +23,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Configuración de seguridad de Spring Security con JWT.
@@ -37,6 +40,14 @@ public class SecurityConfig {
     private final RateLimitingFilter rateLimitingFilter;
     private final OAuth2TokenFilter oauth2TokenFilter;
     private final CustomJwtAuthenticationConverter customJwtAuthenticationConverter;
+
+    /**
+     * Orígenes adicionales permitidos por CORS, configurables por entorno
+     * (propiedad {@code cors.allowed-origins} o env var {@code CORS_ALLOWED_ORIGINS},
+     * separados por coma). Se suman a los orígenes por defecto.
+     */
+    @Value("${cors.allowed-origins:}")
+    private List<String> additionalAllowedOrigins;
 
     public SecurityConfig(UserDetailsService userDetailsService,
                          JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -172,7 +183,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Orígenes permitidos
-        configuration.setAllowedOriginPatterns(Arrays.asList(
+        List<String> allowedOrigins = new ArrayList<>(Arrays.asList(
                 "http://localhost:4200",
                 "https://localhost:4200",
                 "http://192.168.*.*:4200",  // IP local HTTP
@@ -183,6 +194,13 @@ public class SecurityConfig {
                 "https://172.*.*.*:4200",  // IP local HTTPS (rango 172.x.x.x)
                 "https://*.onrender.com"
         ));
+        if (additionalAllowedOrigins != null) {
+            additionalAllowedOrigins.stream()
+                    .map(String::trim)
+                    .filter(origin -> !origin.isEmpty() && !allowedOrigins.contains(origin))
+                    .forEach(allowedOrigins::add);
+        }
+        configuration.setAllowedOriginPatterns(allowedOrigins);
         
         // Métodos HTTP permitidos
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
