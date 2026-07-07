@@ -50,8 +50,9 @@ Consideraciones de diseño relevadas:
 - **Async**: la aprobación SIFEN es asíncrona (lote + polling). Ofrecer webhook
   de callback (`APROBADO`/`RECHAZADO`) además del polling del cliente.
 - **Rate limiting y auditoría por app** (base ya existe: RateLimiting + AuditLog).
-- Primer consumidor natural: reemplaza el flujo manual de la skill
-  `migrate-de-central-to-frc-efact` (central podría emitir NC/ND directo via API).
+- **Primer consumidor confirmado: frc-gourmet** (2026-07-07). Si funciona bien,
+  se suman más apps del ecosistema. A futuro también reemplazaría el flujo manual
+  de la skill `migrate-de-central-to-frc-efact` (central emitiría NC/ND via API).
 
 ### Post-migración Hetzner (anotado 2026-07-07 — ver docs/deployment/hetzner/RUNBOOK_VM.md)
 
