@@ -32,7 +32,12 @@ echo "=== 1/4 Dump desde Render ==="
 # contenedor rechaza con "unsupported version (1.16) in file header".
 $COMPOSE exec -T postgres pg_dump "$RENDER_DATABASE_URL" -Fc --no-owner --no-privileges > "$DUMP_FILE"
 echo "✅ Dump: $DUMP_FILE ($(du -h "$DUMP_FILE" | cut -f1))"
-$COMPOSE exec -T postgres pg_restore --list /dev/stdin < "$DUMP_FILE" | grep -c 'TABLE DATA' | xargs echo "   Tablas con datos:"
+TABLAS=$($COMPOSE exec -T postgres pg_restore --list < "$DUMP_FILE" | grep -c 'TABLE DATA' || true)
+echo "   Tablas con datos: $TABLAS"
+if [ "${TABLAS:-0}" -eq 0 ]; then
+    echo "❌ El dump no contiene datos de tablas — no seguir."
+    exit 1
+fi
 
 if [ "${1:-}" = "--dump-only" ]; then
     echo "Modo --dump-only: no se restaura nada."
