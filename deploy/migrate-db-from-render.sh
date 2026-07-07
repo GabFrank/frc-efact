@@ -30,7 +30,9 @@ echo "=== 1/4 Dump desde Render ==="
 # ⚠️ Usar pg_dump/pg_restore DEL CONTENEDOR (v16, igual al server): el del host
 # (Fedora, v17) genera formato de archivo 1.16 que el pg_restore 16 del
 # contenedor rechaza con "unsupported version (1.16) in file header".
-$COMPOSE exec -T postgres pg_dump "$RENDER_DATABASE_URL" -Fc --no-owner --no-privileges > "$DUMP_FILE"
+# (</dev/null: sin eso, compose exec -T consume el stdin del script y el
+# 'read' de confirmación de abajo recibe EOF)
+$COMPOSE exec -T postgres pg_dump "$RENDER_DATABASE_URL" -Fc --no-owner --no-privileges > "$DUMP_FILE" < /dev/null
 echo "✅ Dump: $DUMP_FILE ($(du -h "$DUMP_FILE" | cut -f1))"
 TABLAS=$($COMPOSE exec -T postgres pg_restore --list < "$DUMP_FILE" | grep -c 'TABLE DATA' || true)
 echo "   Tablas con datos: $TABLAS"
