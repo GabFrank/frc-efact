@@ -27,9 +27,12 @@ fi
 mkdir -p "$BACKUP_DIR"
 
 echo "=== 1/4 Dump desde Render ==="
-pg_dump "$RENDER_DATABASE_URL" -Fc --no-owner --no-privileges -f "$DUMP_FILE"
+# ⚠️ Usar pg_dump/pg_restore DEL CONTENEDOR (v16, igual al server): el del host
+# (Fedora, v17) genera formato de archivo 1.16 que el pg_restore 16 del
+# contenedor rechaza con "unsupported version (1.16) in file header".
+$COMPOSE exec -T postgres pg_dump "$RENDER_DATABASE_URL" -Fc --no-owner --no-privileges > "$DUMP_FILE"
 echo "✅ Dump: $DUMP_FILE ($(du -h "$DUMP_FILE" | cut -f1))"
-pg_restore --list "$DUMP_FILE" | grep -c 'TABLE DATA' | xargs echo "   Tablas con datos:"
+$COMPOSE exec -T postgres pg_restore --list /dev/stdin < "$DUMP_FILE" | grep -c 'TABLE DATA' | xargs echo "   Tablas con datos:"
 
 if [ "${1:-}" = "--dump-only" ]; then
     echo "Modo --dump-only: no se restaura nada."
@@ -45,6 +48,13 @@ read -rp "Escribí 'MIGRAR' para continuar: " CONFIRM
 $COMPOSE exec -T postgres pg_restore -U frc_efact_user -d frc_efact_db \
     --no-owner --no-privileges --clean --if-exists < "$DUMP_FILE" \
     || echo "⚠️  pg_restore terminó con avisos (normal con --clean en DB nueva); verificar counts abajo."
+
+# Verificación dura: si empresa quedó vacía, el restore NO aplicó (los avisos taparon un error real)
+EMPRESAS=$($COMPOSE exec -T postgres psql -U frc_efact_user -d frc_efact_db -tAc "SELECT count(*) FROM empresa.empresa" | tr -d '[:space:]')
+if [ "${EMPRESAS:-0}" -eq 0 ]; then
+    echo "❌ Restore NO aplicó datos (empresa.empresa vacía). Abortando."
+    exit 1
+fi
 
 echo ""
 echo "=== 3/4 Verificación de contenido ==="
