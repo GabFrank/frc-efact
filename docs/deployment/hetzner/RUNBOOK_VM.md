@@ -1,5 +1,15 @@
 # Runbook: migración FRC eFact a la VM Hetzner (compartida)
 
+> **✅ MIGRACIÓN COMPLETADA 2026-07-07.** Pasos 1-7 ejecutados. Producción:
+> `https://efact.frc-ecommerce.com`. Validado end-to-end: login local y Auth0,
+> históricos, KuDE, CSC, consulta SIFEN mTLS, email y **una factura real APROBADA
+> por SIFEN**. Render: backend+frontend **suspendidos** (rollback 1-2 semanas),
+> DB de Render sigue corriendo. Backup diario: systemd timer
+> `frc-efact-backup.timer` 03:30 UTC (no cron: Fedora sin cronie).
+> Pendientes post-cutover: revocar el PAT filtrado, copia off-site de backups,
+> monitoreo externo, y tras el período de rollback dar de baja Render +
+> quitar `*.onrender.com` del CORS + actualizar CLAUDE.md/skill.
+
 Guía ejecutable paso a paso, **actualizada 2026-07-06** tras inspeccionar la VM real y
 Render. El contexto y los riesgos están en [PLAN_MIGRACION_HETZNER.md](PLAN_MIGRACION_HETZNER.md).
 

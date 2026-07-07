@@ -1,0 +1,14 @@
+# Instalar: sudo cp deploy/frc-efact-backup.{service,timer} /etc/systemd/system/
+#           sudo systemctl daemon-reload && sudo systemctl enable --now frc-efact-backup.timer
+[Unit]
+Description=Backup diario FRC eFact (DB + certificados)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/home/deploy/frc-efact
+ExecStart=/home/deploy/frc-efact/deploy/backup-db.sh
+StandardOutput=append:/var/backups/frc-efact/backup.log
+StandardError=append:/var/backups/frc-efact/backup.log
