@@ -152,7 +152,22 @@ docker compose -f docker-compose.prod.yml logs backend | grep -i flyway   # debe
 Comparar los counts que imprime el script contra los de referencia de arriba
 (re-consultar Render el día de la migración).
 
-## Paso 5 — Certificados .pfx
+## Paso 5 — Certificados .pfx — ✅ HECHO 2026-07-07 (leer el gotcha)
+
+**Ya copiados al volumen** con los nombres que exige `empresa.certificado_path`.
+⚠️ **Gotcha descubierto:** las copias locales en `frc-efact-backend/certificates/`
+tienen los nombres **CRUZADOS** respecto al contenido real:
+
+| Archivo local | Contenido real (verificado con openssl `-legacy` + password descifrado de la DB) | Va al volumen como |
+|---|---|---|
+| `empresa_2_1769116174461.pfx` | ANATOLE DEINZER DUARTE (vence 2026-11-18) | `empresa_1_1774969696647.pfx` |
+| `empresa_1_1769110350171.pfx` | GUILLERMO FRANCO AREVALOS (vence 2026-08-20) | `empresa_2_1777486604669.pfx` |
+
+Renombrar "por nombre" habría dejado los certificados intercambiados y la firma
+de DE fallaría. Los `.pfx` son PKCS12 legacy (RC2): `openssl pkcs12` necesita
+`-legacy` para abrirlos (Java 17 los lee sin problema).
+El descifrado de los passwords desde la DB con la ENCRYPTION_KEY default también
+**confirmó que esa key es la correcta** (pre-validación del smoke test del paso 5).
 
 ```bash
 # desde tu máquina local, por cada certificado:
