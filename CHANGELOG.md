@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/GabFrank/frc-efact/compare/v1.1.0...v1.1.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **empresa:** separar actividades económicas secundarias por ";" en vez de "," ([2cd5da0](https://github.com/GabFrank/frc-efact/commit/2cd5da0a0bdc3cfb5c39161404ecf5fe5cc748e3))
+
 # [1.1.0](https://github.com/GabFrank/frc-efact/compare/v1.0.3...v1.1.0) (2026-08-05)
 
 
