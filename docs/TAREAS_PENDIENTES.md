@@ -229,8 +229,31 @@ el `ENCRYPTION_KEY` **default**, que está en el repo.
 
 > ⚠️ **Destrackear y redactar NO borra nada del historial.** Los `.pfx`, el `client_secret` y el
 > PAT siguen recuperables desde cualquier commit anterior. Lo hecho hasta acá evita que el
-> problema crezca; **no** habilita hacer el repo público. Para eso hacen falta la rotación y la
-> purga.
+> problema crezca.
+
+### ❌ Hacer el repo público quedó DESCARTADO (decidido 2026-08-05)
+
+**Re-emitir los `.pfx` ante la SET no es posible.** Eso cambia la naturaleza del riesgo: mientras
+los certificados fueran rotables, un archivo olvidado en la purga se remediaba rotando. Sin esa
+salida, un archivo olvidado significa **un certificado de firma de producción expuesto
+públicamente, de forma permanente y sin remedio**. Y GitHub conserva objetos inalcanzables un
+tiempo tras un force-push: siguen accesibles por SHA hasta que corre el GC, salvo que se pida a
+Support purgarlos o se borre y recree el repo.
+
+Un error reversible se vuelve irreversible. El repo **se queda privado**.
+
+Consecuencia para branch protection: no hay opción gratis. Verificado el 2026-08-05 que tanto
+`/branches/{branch}/protection` como `/rulesets` devuelven
+`403 Upgrade to GitHub Pro or make this repository public`. Las alternativas son **GitHub Pro**
+(~US$4/mes, protección server-side real) o un **hook `pre-push` versionado**, que cubre el push
+accidental propio pero no es server-side.
+
+La rotación del resto de los secretos sigue valiendo por higiene, y es barata: el client secret de
+Google está muerto (cero referencias en código), el PAT ya no lo usa nadie, y el `ENCRYPTION_KEY`
+son 6 valores a re-cifrar (CSC de 3 timbrados + password de certificado de 3 empresas).
+
+La purga del historial también sigue valiendo como higiene, pero **sin la presión de habilitar
+nada** y sin exposición pública de por medio.
 
 ---
 
@@ -281,10 +304,13 @@ validación es de negocio y solo se descubre al emitir.
 Hoy la descripción es **texto libre** tipeado en el form, sin catálogo que la respalde. Riesgos
 concretos:
 
-- **Mayúsculas/minúsculas.** Las descripciones secundarias de LANGER MARIO están en minúsculas
-  (`Cultivo de productos agrícolas…`) mientras las de ANATOLE, que aprueban, están en MAYÚSCULAS.
-  Si la comparación es sensible al caso, el próximo DE de LANGER falla por esto.
-- Cualquier typo, tilde faltante o espacio de más rompe la emisión.
+- ~~**Mayúsculas/minúsculas.**~~ **DESCARTADO — verificado 2026-08-05:** la SET compara la
+  descripción **insensible al caso**. LANGER MARIO emite con descripciones en minúsculas
+  (`Cultivo de productos agrícolas…`) y ANATOLE con MAYÚSCULAS, y **ambas aprueban**. Se había
+  sospechado del caso al ver esa diferencia; la evidencia lo refuta. El `1262` original venía
+  exclusivamente del separador partiendo la descripción al medio (resuelto en `V36`).
+- Lo que **sí** rompe la emisión: cualquier typo, tilde faltante o espacio de más — la
+  comparación es exacta salvo por el caso.
 
 **Fix recomendado:** tabla de catálogo (`catalogo.actividad_economica`: `codigo`, `descripcion`)
 precargada con la lista oficial, y guardar en `empresa` **solo el código**. La descripción se
