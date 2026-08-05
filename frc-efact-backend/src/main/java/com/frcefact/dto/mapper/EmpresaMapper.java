@@ -73,11 +73,11 @@ public class EmpresaMapper {
             // Convertir listas de texto separado por comas a List
             if (empresa.getListCodigoActividadEconomicaSecundaria() != null) {
                 actividad.setCodigosSecundarios(
-                        Arrays.asList(empresa.getListCodigoActividadEconomicaSecundaria().split(",")));
+                        Arrays.asList(empresa.getListCodigoActividadEconomicaSecundaria().split(";")));
             }
             if (empresa.getListDescripcionActividadEconomicaSecundaria() != null) {
                 actividad.setDescripcionesSecundarias(
-                        Arrays.asList(empresa.getListDescripcionActividadEconomicaSecundaria().split(",")));
+                        Arrays.asList(empresa.getListDescripcionActividadEconomicaSecundaria().split(";")));
             }
 
             dto.setActividadEconomica(actividad);
@@ -143,11 +143,11 @@ public class EmpresaMapper {
             // Convertir List a texto separado por comas
             if (actividad.getCodigosSecundarios() != null && !actividad.getCodigosSecundarios().isEmpty()) {
                 empresa.setListCodigoActividadEconomicaSecundaria(
-                        String.join(",", actividad.getCodigosSecundarios()));
+                        String.join(";", actividad.getCodigosSecundarios()));
             }
             if (actividad.getDescripcionesSecundarias() != null && !actividad.getDescripcionesSecundarias().isEmpty()) {
                 empresa.setListDescripcionActividadEconomicaSecundaria(
-                        String.join(",", actividad.getDescripcionesSecundarias()));
+                        String.join(";", actividad.getDescripcionesSecundarias()));
             }
         }
 

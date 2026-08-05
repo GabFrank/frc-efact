@@ -1069,8 +1069,8 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
       actividadEconomica: {
         codigoPrincipal: actividadEconomica.codigoPrincipal || '',
         descripcionPrincipal: actividadEconomica.descripcionPrincipal || '',
-        codigosSecundarios: actividadEconomica.codigosSecundarios?.join(', ') || '',
-        descripcionesSecundarias: actividadEconomica.descripcionesSecundarias?.join(', ') || ''
+        codigosSecundarios: actividadEconomica.codigosSecundarios?.join('; ') || '',
+        descripcionesSecundarias: actividadEconomica.descripcionesSecundarias?.join('; ') || ''
       },
       sifenAmbiente: empresa.sifenAmbiente || 'DEV'
     });
@@ -1463,8 +1463,8 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
       .filter(a => a.descripcion.trim() !== '')
       .map(a => a.descripcion.trim());
 
-    this.actividadEconomica.get('codigosSecundarios')?.setValue(codigos.join(', '));
-    this.actividadEconomica.get('descripcionesSecundarias')?.setValue(descripciones.join(', '));
+    this.actividadEconomica.get('codigosSecundarios')?.setValue(codigos.join('; '));
+    this.actividadEconomica.get('descripcionesSecundarias')?.setValue(descripciones.join('; '));
   }
 
   /**
@@ -1476,11 +1476,11 @@ export class EmpresaFormComponent implements OnInit, OnDestroy {
     const descripcionesSecStr = formValue.actividadEconomica?.descripcionesSecundarias || '';
 
     const codigosSecundarios = codigosSecStr.trim()
-      ? codigosSecStr.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+      ? codigosSecStr.split(';').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
       : [];
 
     const descripcionesSecundarias = descripcionesSecStr.trim()
-      ? descripcionesSecStr.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+      ? descripcionesSecStr.split(';').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
       : [];
 
     return { codigosSecundarios, descripcionesSecundarias };
