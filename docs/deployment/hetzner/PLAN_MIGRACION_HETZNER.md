@@ -191,7 +191,7 @@ app.<dominio> {
 1. **Rotar el PAT filtrado** (§1) y crear PAT nuevo `read:packages`.
 2. **Exportar del dashboard de Render** todas las env vars del backend a un lugar seguro
    (password manager). Crítico: `ENCRYPTION_KEY` (si nunca se seteó, el sistema usó el default
-   `<REDACTADO-ENCRYPTION-KEY-ROTADA>` de `application.yml` — verificar), `MAIL_PASSWORD`, `SIFEN_*`.
+   `<clave rotada 2026-08-05 — valor no documentado: los backups previos siguen cifrados con ella>` de `application.yml` — verificar), `MAIL_PASSWORD`, `SIFEN_*`.
    `JWT_SECRET` puede regenerarse (solo invalida sesiones activas).
 3. **Verificar acceso externo a la DB de Render**: dashboard → `frc-efact-db` → External Database URL.
    Probar: `psql "<EXTERNAL_URL>" -c "select version();"` y anotar la versión de PostgreSQL

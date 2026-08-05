@@ -78,9 +78,16 @@ logging:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:frc-efact-secret-key-change-this-in-production-minimum-512-bits-required}
+  # SIN default a propósito: si falta JWT_SECRET, la app NO arranca.
+  # Un default acá significa firmar tokens con una clave que está en el repo.
+  secret: ${JWT_SECRET}
   expiration: 86400000 # 24 hours
 
 # Encryption Configuration
 encryption:
-  secret-key: ${ENCRYPTION_KEY:<REDACTADO-ENCRYPTION-KEY-ROTADA>}
+  # SIN default a propósito. El default que había acá era el valor que producción usaba
+  # realmente, así que la clave que cifra los CSC y los passwords de los certificados
+  # estaba versionada. Rotada el 2026-08-05; el valor anterior NO se documenta porque los
+  # backups previos a esa fecha siguen cifrados con él.
+  # Los valores de desarrollo viven en application-dev.yml.
+  secret-key: ${ENCRYPTION_KEY}

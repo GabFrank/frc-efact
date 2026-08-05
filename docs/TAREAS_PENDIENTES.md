@@ -221,8 +221,16 @@ el `ENCRYPTION_KEY` **default**, que está en el repo.
 - [ ] **Revocar el client secret de Google** en la consola de Google Cloud.
 - [ ] **Rotar el app password de Gmail** de `frcsistemasinformaticos@gmail.com`.
 - [ ] Rotar `JWT_SECRET` (invalida las sesiones activas).
-- [ ] Rotar `ENCRYPTION_KEY` — implica **re-cifrar en la DB** los CSC y los passwords de
-      certificados, no es solo cambiar la env var.
+- [x] **`ENCRYPTION_KEY` rotada el 2026-08-05.** Era el default hardcodeado de
+      `application.yml`, o sea la clave que cifra los CSC y los passwords de certificados
+      estaba versionada. Se re-cifraron los 6 valores (CSC de 3 timbrados +
+      `certificado_password_encrypted` de 3 empresas) en una transacción, con verificación
+      antes y después. Los defaults de `JWT_SECRET` y `ENCRYPTION_KEY` se quitaron de
+      `application.yml` — ahora la app **no arranca** si faltan; los valores de desarrollo
+      viven en `application-dev.yml`.
+      ⚠️ Los backups previos al 2026-08-05 siguen cifrados con la clave vieja, que sobrevive
+      solo en `deploy/.env.bak-20260805_194154` de la VM. Ver
+      [deployment/hetzner/RUNBOOK_VM.md](deployment/hetzner/RUNBOOK_VM.md).
 - [ ] Re-emitir los `.pfx` ante la SET (el de FRANCO AREVALOS vence el 2026-08-20 igual).
 - [ ] Purgar el historial con `git-filter-repo` — reescribe los 132 commits, force-push a todas
       las ramas, y hay que rehacer tags y releases de `semantic-release`.

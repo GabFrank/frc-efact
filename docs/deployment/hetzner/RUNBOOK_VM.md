@@ -256,6 +256,37 @@ antes de seguir.
    ✅ CLAUDE.md, README y la skill `frc-efact-expert` ya fueron actualizados (2026-08-05):
    la regla vigente es **deploy manual por SSH**; `git push` solo corre `semantic-release`.
 
+## ⚠️ Rotación del ENCRYPTION_KEY (2026-08-05) — implicancia para los backups
+
+La `ENCRYPTION_KEY` se rotó el **2026-08-05 19:41 UTC** antes de publicar el repo, porque el
+valor que usaba producción era el default hardcodeado en `application.yml`, que iba a quedar
+visible. Se re-cifraron los 6 valores sensibles: el `csc_encrypted` de los 3 timbrados y el
+`certificado_password_encrypted` de las 3 empresas.
+
+**Consecuencia que no es obvia:** los backups **anteriores** a esa fecha
+(`/var/backups/frc-efact/db_2026080[0-5]_0330*.dump` y previos) tienen esos 6 valores cifrados
+con la **clave vieja**. Si se restaura uno de ellos con la `deploy/.env` actual:
+
+- El backend arranca igual y la app funciona.
+- Pero al abrir un timbrado con CSC o al firmar un DE falla con error GCM / *Tag mismatch*.
+- No se pierde nada de forma irreversible **siempre que se conserve la clave vieja**.
+
+**La clave vieja sobrevive únicamente en `deploy/.env.bak-20260805_194154` de la VM.**
+No borrar ese archivo. Si se necesita restaurar un backup previo, hay dos caminos:
+
+1. Restaurar el dump y arrancar temporalmente con la `ENCRYPTION_KEY` vieja, o
+2. Restaurar el dump y volver a correr el re-cifrado (descifrar con la vieja, cifrar con la
+   nueva) sobre esos 6 campos.
+
+Si ese `.env.bak` se pierde, los CSC y los passwords de certificados de todo backup previo
+quedan **irrecuperables** — habría que volver a cargarlos a mano desde Marangatú y desde los
+`.pfx`.
+
+> El valor de la clave vieja **no se documenta en el repo**, justamente porque el repo es
+> público y eso volvería descifrable cualquier dump previo que se filtre.
+
+---
+
 ## Troubleshooting rápido
 
 | Síntoma | Causa probable |
