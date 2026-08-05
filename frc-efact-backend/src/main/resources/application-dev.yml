@@ -81,3 +81,12 @@ sifen:
     enabled: false
 
     
+
+# Claves SOLO para desarrollo local. No tienen ningún valor en producción: allá las
+# provee deploy/.env y `application.yml` no define default, así que la app no arranca
+# si faltan. Ver docs/TAREAS_PENDIENTES.md §9.
+jwt:
+  secret: ${JWT_SECRET:solo-para-desarrollo-local-no-usar-en-produccion-jwt-hs512-minimo-512-bits-000}
+
+encryption:
+  secret-key: ${ENCRYPTION_KEY:SOLO-DEV-NO-USAR-EN-PRODUCCION12}
