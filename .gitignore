@@ -87,3 +87,14 @@ frc-efact-frontend/*.js.map
 **/build/
 **/node_modules/
 **/.angular/
+
+# ── Secretos y material criptográfico (agregado 2026-08-05, ver docs/TAREAS_PENDIENTES.md §9)
+# Los .pfx NO los necesita el build: el Dockerfile solo hace `mkdir -p /app/certificates`
+# y en producción los certificados vienen del volumen Docker `certificates`, cargados a mano
+# (ver docs/deployment/hetzner/RUNBOOK_VM.md paso 5). Estaban versionados por error.
+*.pfx
+*.p12
+*.jks
+*.keystore
+client_secret*.json
+*service-account*.json

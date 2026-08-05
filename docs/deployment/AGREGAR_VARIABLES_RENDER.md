@@ -34,14 +34,14 @@ Esta guía explica cómo agregar variables de entorno manualmente en Render Dash
 3. **Agregar segunda variable:**
    - Click en **"Add Environment Variable"** nuevamente
    - **Key:** `GITHUB_TOKEN`
-   - **Value:** `<REDACTADO-PAT-GITHUB>` (tu Personal Access Token)
+   - **Value:** `<TOKEN_REVOCADO — ver docs/TAREAS_PENDIENTES.md §9>` (tu Personal Access Token)
    - Click en **"Save"**
 
 ### Paso 4: Verificar
 
 Deberías ver ambas variables en la lista:
 - ✅ `GITHUB_USERNAME` = `GabFrank`
-- ✅ `GITHUB_TOKEN` = `<REDACTADO-PAT-GITHUB>`
+- ✅ `GITHUB_TOKEN` = `<TOKEN_REVOCADO — ver docs/TAREAS_PENDIENTES.md §9>`
 
 ### Paso 5: Triggerear Nuevo Build
 
@@ -57,7 +57,7 @@ Si tienes el MCP de Render configurado, puedes usar:
 ```typescript
 // Las variables ya fueron agregadas automáticamente usando MCP
 // GITHUB_USERNAME = GabFrank
-// GITHUB_TOKEN = <REDACTADO-PAT-GITHUB>
+// GITHUB_TOKEN = <TOKEN_REVOCADO — ver docs/TAREAS_PENDIENTES.md §9>
 ```
 
 ## Verificar que Funcionó
