@@ -1,5 +1,13 @@
 # Guía Paso a Paso - Deployment a Producción
 
+> ⚠️ **DOCUMENTO LEGACY — Render ya no es producción.**
+> Desde el **2026-07-07** producción corre en una **VM Hetzner**: `https://efact.frc-ecommerce.com`.
+> El deploy es **manual por SSH**, no por `git push`. Guía vigente:
+> [RUNBOOK_VM.md](hetzner/RUNBOOK_VM.md).
+> El servicio de Render quedó **suspendido** como ventana de rollback (conserva `autoDeploy`
+> sobre `main`: reanudarlo lo vuelve a poner a auto-desplegar). Este documento se conserva
+> como referencia histórica hasta darlo de baja.
+
 Esta guía te llevará paso a paso a través del proceso completo de deployment.
 
 > 💡 **Tip:** Configura el MCP de Render para acceder a información de deployments directamente desde Cursor. Ver [RENDER_MCP_SETUP.md](RENDER_MCP_SETUP.md)

@@ -8,7 +8,7 @@ Al revés del backend: acá el path **sí** lleva `/api/` porque viene en `envir
 ```ts
 private readonly baseUrl = `${environment.apiUrl}/clientes`; // ✅
 ```
-`apiUrl` = `http://localhost:8080/api` (dev) / `https://frc-efact-backend.onrender.com/api` (prod).
+`apiUrl` = `http://localhost:8080/api` (dev) / `https://efact.frc-ecommerce.com/api` (prod, VM Hetzner).
 
 ⚠️ Los 3 endpoints con doble prefijo (`geografia`, `auditoria`, `reportes`) se consumen hoy con `/api/api/...` desde su api-service — es deuda conocida, no “arreglar” un lado solo. Ver [backend-rules.md](backend-rules.md).
 
@@ -38,4 +38,4 @@ UI con **Angular Material 17 + SCSS**. No introducir Tailwind ni otro framework 
 UI y dominio en **español**.
 
 ## 8. Compilar antes de commit
-`cd frc-efact-frontend && npm run build:dev` o `npm run lint`. Si falla, **no** commitear. (Push = deploy a producción.)
+`cd frc-efact-frontend && npm run build:dev` o `npm run lint`. Si falla, **no** commitear. (El deploy a prod es manual por SSH a la VM Hetzner; ver [../workflows/deploy-hetzner.md](../workflows/deploy-hetzner.md).)

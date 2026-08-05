@@ -1,5 +1,11 @@
 # Checklist de Deployment a Producción
 
+> ⚠️ **DOCUMENTO LEGACY — Render ya no es producción.**
+> Desde el **2026-07-07** producción corre en una **VM Hetzner**: `https://efact.frc-ecommerce.com`.
+> El deploy es **manual por SSH**, no por `git push`. Guía vigente:
+> [RUNBOOK_VM.md](hetzner/RUNBOOK_VM.md).
+> Se conserva como referencia histórica hasta dar de baja Render.
+
 Use este checklist para asegurar que todos los pasos del deployment se completen correctamente.
 
 ## Pre-Deployment

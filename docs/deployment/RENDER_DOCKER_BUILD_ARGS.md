@@ -1,5 +1,13 @@
 # Configurar Build Arguments en Render para Docker
 
+> ⚠️ **DOCUMENTO LEGACY — Render ya no es producción.**
+> Desde el **2026-07-07** producción corre en una **VM Hetzner**: `https://efact.frc-ecommerce.com`.
+> El deploy es **manual por SSH**, no por `git push`. Guía vigente:
+> [RUNBOOK_VM.md](hetzner/RUNBOOK_VM.md).
+> El servicio de Render quedó **suspendido** como ventana de rollback (conserva `autoDeploy`
+> sobre `main`: reanudarlo lo vuelve a poner a auto-desplegar). Este documento se conserva
+> como referencia histórica hasta darlo de baja.
+
 ## Problema
 
 Render no pasa automáticamente las variables de entorno como build arguments (`ARG`) durante el build de Docker. Las variables de entorno están disponibles en runtime, pero no durante el build.

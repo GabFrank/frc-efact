@@ -124,4 +124,5 @@ cd frc-efact-frontend && npm run build:dev   # o: npm run lint
 - [ ] API service front con `${environment.apiUrl}/...`.
 - [ ] Ruta **cableada real** en `app.routes.ts` (no `TestPageComponent`) + ítem de menú.
 - [ ] `npm run build:dev` / `npm run lint` OK.
-- [ ] **No commitees sin preguntar** — push a `main` = deploy a prod (ver [deploy-render.md](deploy-render.md)).
+- [ ] **No commitees sin preguntar.** El push a `main` no despliega (el deploy es manual por
+      SSH a la VM), pero sí corre `semantic-release` — ver [deploy-hetzner.md](deploy-hetzner.md).

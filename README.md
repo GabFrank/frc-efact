@@ -43,10 +43,15 @@ Frontend en `http://localhost:4200`.
 > Nota: `EMPRESA_ADMIN`, `FACTURADOR` y `LECTOR` son **roles**, no usuarios sembrados. El único
 > usuario con rol de administrador global cargado por defecto es `admin`.
 
-### Deployment en Render
+### Deployment
 
-Ver la guía completa en **[docs/deployment/render/README.md](docs/deployment/render/README.md)**.
-El push a `main` dispara auto-deploy en Render (backend Docker + frontend estático).
+Producción corre en una **VM Hetzner** desde el 2026-07-07: **https://efact.frc-ecommerce.com**
+(`/` → SPA, `/api` → backend). El deploy es **manual por SSH** (`docker compose up -d --build`);
+`git push` **no** despliega, solo dispara `semantic-release`.
+
+Guía operativa: **[docs/deployment/hetzner/RUNBOOK_VM.md](docs/deployment/hetzner/RUNBOOK_VM.md)**.
+La documentación de Render queda como referencia histórica — el servicio está **suspendido**
+como ventana de rollback, no dado de baja.
 
 ---
 
@@ -61,13 +66,14 @@ El push a `main` dispara auto-deploy en Render (backend Docker + frontend estát
 - **[Guía de Postman](docs/guides/POSTMAN_GUIDE.md)** — Testing de API
 
 ### 🌐 Deployment
-- **[Deployment en Render](docs/deployment/render/README.md)** — Guía principal
-- **[Setup Manual en Render](docs/deployment/render/MANUAL_SETUP.md)** — Alternativa manual
+- **[Runbook VM Hetzner](docs/deployment/hetzner/RUNBOOK_VM.md)** — Guía principal (producción actual)
+- **[Plan de migración a Hetzner](docs/deployment/hetzner/PLAN_MIGRACION_HETZNER.md)** — Contexto y riesgos
 - **[Scripts de Deployment](docs/deployment/scripts/README.md)** — Scripts útiles
+- _Legacy:_ [Deployment en Render](docs/deployment/render/README.md) · [Setup Manual](docs/deployment/render/MANUAL_SETUP.md) — Render suspendido
 
 ### 🔧 Solución de problemas
-- **[Problemas en Render](docs/troubleshooting/RENDER_ISSUES.md)**
 - **[Errores Comunes](docs/troubleshooting/COMMON_ERRORS.md)**
+- _Legacy:_ [Problemas en Render](docs/troubleshooting/RENDER_ISSUES.md)
 
 ### 📖 Arquitectura y dominio
 - **[Estructura de Documentación](docs/ESTRUCTURA.md)** — Cómo está organizado `docs/`
@@ -89,7 +95,9 @@ frc-efact/
 │   └── README.md
 ├── docs/                  # 📚 Documentación técnica y funcional
 ├── certificates/          # Certificados .pfx para firma SIFEN (no se commitean)
-└── render.yaml            # Blueprint para Render
+├── deploy/                # Stack VM Hetzner (.env.example, nginx vhost, backup)
+├── docker-compose.prod.yml # Stack de producción (VM Hetzner)
+└── render.yaml            # Blueprint Render (legacy — servicio suspendido)
 ```
 
 Detalle de capas y flujo de datos: [docs/FLUJO_SISTEMA_ENTIDADES.md](docs/FLUJO_SISTEMA_ENTIDADES.md).
@@ -136,5 +144,5 @@ Proyecto privado y confidencial.
 Ante problemas, revisá:
 1. **[START_HERE.md](START_HERE.md)** — Guía rápida de inicio
 2. **[Errores Comunes](docs/troubleshooting/COMMON_ERRORS.md)**
-3. **[Problemas en Render](docs/troubleshooting/RENDER_ISSUES.md)**
+3. **[Troubleshooting de la VM](docs/deployment/hetzner/RUNBOOK_VM.md)** — sección final
 4. Logs de la aplicación

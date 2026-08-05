@@ -30,7 +30,7 @@ export const httpsInterceptor: HttpInterceptorFn = (req, next) => {
 ```typescript
 export const environment = {
   production: true,
-  apiUrl: 'https://frc-efact-backend.onrender.com/api',
+  apiUrl: 'https://efact.frc-ecommerce.com/api',
   enableHttps: true,
   secureOnly: true
 };
@@ -96,7 +96,9 @@ nonces. Un CSP inicial sería:
 default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://frc-efact-backend.onrender.com
 ```
 
-> Cualquier cambio a `render.yaml` se despliega vía `git push` a `main` (auto-deploy).
+> ⚠️ Producción ya **no** es Render. Los headers hay que definirlos en el nginx del stack
+> (`frc-efact-frontend/deploy/nginx-spa.conf`) o en el vhost del host (`deploy/nginx-vhost-efact.conf`), y aplicarlos
+> con un deploy **manual por SSH** — `git push` no despliega.
 
 ## Authentication Security
 

@@ -7,7 +7,8 @@
 ## Información General
 
 - **Base URL (Desarrollo)**: `http://localhost:8080/api`
-- **Base URL (Producción)**: `https://frc-efact-backend.onrender.com/api`
+- **Base URL (Producción)**: `https://efact.frc-ecommerce.com/api` (VM Hetzner desde 2026-07-07;
+  el anterior `https://frc-efact-backend.onrender.com/api` quedó suspendido)
 - **Context-path**: `/api` (definido en `application.yml`). **Todas las rutas de todos los
   controllers cuelgan de `/api`.** Un controller anotado `@RequestMapping("/clientes")`
   responde en `/api/clientes`. Ver [CONTROLLER_ROUTING_RULE.md](./CONTROLLER_ROUTING_RULE.md).
@@ -35,7 +36,7 @@
 ## Swagger UI
 
 - **Desarrollo**: http://localhost:8080/swagger-ui.html
-- **Producción**: https://frc-efact-backend.onrender.com/swagger-ui.html
+- **Producción**: https://efact.frc-ecommerce.com/swagger-ui.html
 - **OpenAPI JSON**: `/api/v3/api-docs`
 
 ---
@@ -466,7 +467,7 @@ Actuator también cuelga del context-path `/api` (no hay override de `management
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/actuator/health` | Estado del servicio (usado por Render como health check) |
+| GET | `/api/actuator/health` | Estado del servicio (health check del contenedor y del monitoreo externo) |
 
 **Response 200**:
 ```json
@@ -581,8 +582,9 @@ Ejemplo de body de error (formato aproximado):
 - **JWT Bearer**: endpoints protegidos requieren `Authorization: Bearer <token>`.
 - **Auth0**: soportado en paralelo como OAuth2 Resource Server (ver `docs/AUTH0_SETUP.md`).
 - **Rate limiting**: aplicado a endpoints de autenticación.
-- **CORS**: orígenes permitidos configurados en `SecurityConfig` (dev `http://localhost:4200`,
-  prod `https://frc-efact-frontend.onrender.com`).
+- **CORS**: orígenes permitidos en `SecurityConfig` (dev `http://localhost:4200`, LAN, y el
+  patrón legacy `https://*.onrender.com`), más los de la env var `CORS_ALLOWED_ORIGINS`
+  (así se habilitó `https://efact.frc-ecommerce.com`).
 
 ---
 

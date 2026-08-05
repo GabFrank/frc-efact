@@ -112,13 +112,13 @@ El frontend cachea `currentUser` en NgRx; tras vincular, el usuario debe re-logu
 **Acción:** documentar como obligatoria (hecho) y/o hacer el mail opcional/lazy.
 **Labels:** `bug`, `deployment`, `priority:high`
 
-### CFG-2 · 🟡 `autoDeploy` no pineado en `render.yaml`
-El "push a `main` = deploy" funciona por el default de Render; el blueprint no declara `branch`/`autoDeploy`/`autoDeployTrigger`, así que depende de config implícita del dashboard.
-**Acción:** pinear explícitamente en `render.yaml`.
-**Labels:** `tech-debt`, `deployment`
+### CFG-2 · 🟡 Render suspendido conserva `autoDeploy` sobre `main`
+_(reformulado 2026-08-05 tras la migración a Hetzner)_ El servicio `srv-d61m4p4hg0os73fpbjm0` está **suspendido**, no dado de baja, y mantiene `autoDeploy: yes` / `autoDeployTrigger: commit` sobre `main`. Si alguien lo reanuda, vuelve a auto-desplegar desde `main` — y quedarían **dos schedulers SIFEN activos** (Render + VM) consultando y emitiendo en paralelo.
+**Acción:** al cerrar la ventana de rollback, dar de baja el servicio y retirar `render.yaml`. Mientras tanto, no reanudarlo. Ver `TAREAS_PENDIENTES.md` §5.
+**Labels:** `tech-debt`, `deployment`, `priority:high`
 
 ### CFG-3 · 🟡 `JWT_EXPIRATION` / `LOG_LEVEL` inertes
-Declaradas en `render.yaml` pero el código no las lee (`JwtTokenProvider` usa `jwt.expiration-ms` de `application-prod.yml`; los niveles de log están fijos). Falsa sensación de configurabilidad.
+Declaradas en `render.yaml` pero el código no las lee (`JwtTokenProvider` usa `jwt.expiration-ms` de `application-prod.yml`; los niveles de log están fijos). Falsa sensación de configurabilidad. Se arrastran a `deploy/.env.example` de la VM — verificar antes de confiar en ellas.
 **Labels:** `tech-debt`, `deployment`
 
 ---

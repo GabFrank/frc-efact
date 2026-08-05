@@ -22,7 +22,7 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 - **Dominio:** Empresa → Timbrado → Punto de expedición → **FacturaLegal** → **DocumentoElectronico** (CDC 44 chars, firma, QR) → **LoteDE** → envío SIFEN → polling scheduler → APROBADO/RECHAZADO → **Eventos** (cancelación / inutilización / nominación). Notas de Crédito/Débito/Remisión con numeración propia. Multi-empresa con certificado `.pfx` por empresa.
 - **Credenciales dev (verificado en Flyway V4):** `admin` / **`admin123`** y `testuser` / `test123`. Los roles EMPRESA_ADMIN/FACTURADOR/LECTOR **no** son usuarios sembrados — se asignan vía `rolEmpresa` al vincular usuario↔empresa.
 - **Esquemas DB reales:** `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte`. **Nada en `public`. No existe `catalogo`.**
-- **Deploy:** push a `main` → Render auto-despliega (por **default de Render**, NO pineado en `render.yaml`) + `semantic-release` en GitHub Actions. **⚠️ Push a `main` = deploy a producción.**
+- **Deploy:** producción corre en una **VM Hetzner** (`https://efact.frc-ecommerce.com`) desde el **2026-07-07**. El deploy es **manual por SSH** (`docker compose up -d --build`), **no** por git. Un push a `main` solo dispara `semantic-release` en GitHub Actions. **Render quedó suspendido** como ventana de rollback (conserva `autoDeploy` — no reanudarlo a ciegas).
 - **Comandos:**
   - Backend: `./dev.sh` (dev), `./mvnw compile` (**verificar compilación antes de commit**), `./mvnw spring-boot:run`, `./mvnw test`.
   - Frontend: `npm start` (dev), `npm run build:dev` / `npm run build:prod`, `npm run lint`, `npm run test:ci`.
@@ -59,7 +59,7 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 | Trampas SIFEN (campos que rompen validación) | [conventions/sifen-gotchas.md](conventions/sifen-gotchas.md) |
 | Agregar una entidad de punta a punta | [workflows/add-new-entity.md](workflows/add-new-entity.md) |
 | Generar y enviar un DE a SIFEN | [workflows/generar-y-enviar-de.md](workflows/generar-y-enviar-de.md) |
-| Deploy a Render (env vars, GitHub Packages) | [workflows/deploy-render.md](workflows/deploy-render.md) |
+| Deploy a producción (VM Hetzner, env vars, SSH) | [workflows/deploy-hetzner.md](workflows/deploy-hetzner.md) |
 | Debuggear un rechazo SIFEN (E605b, E644a, NRE…) | [workflows/debug-sifen-errors.md](workflows/debug-sifen-errors.md) |
 | Índice de entidades | [reference/entities-index.md](reference/entities-index.md) |
 | Índice de endpoints + roles | [reference/endpoints-index.md](reference/endpoints-index.md) |
@@ -79,7 +79,7 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 5. **URLs API desde el frontend incluyen `/api/`**: `${environment.apiUrl}/clientes`.
 6. **JWT en memoria** (no `localStorage`). Una rama NgRx por entidad principal (pero **no todas la tienen** — ver ngrx-index).
 7. **Compilar antes de commit/push.** Backend: `./mvnw compile`. Frontend: `npm run build:dev` o `npm run lint`. Si falla, **no commitear**.
-8. **⚠️ Push a `main` = deploy a producción.** Preguntar SIEMPRE antes de `commit`+`push`. Deploys **solo vía git push** (no usar Render MCP/API/botón para disparar deploys).
+8. **⚠️ El deploy a prod es manual por SSH a la VM Hetzner** — `git push` no despliega. Preguntar SIEMPRE antes de `commit`+`push`, y con más razón antes de tocar la VM (es **compartida** con otros servicios productivos). Ver [workflows/deploy-hetzner.md](workflows/deploy-hetzner.md).
 9. **No commitear secretos** ni `.pfx`.
 10. **Antes de tocar `SifenService`:** leer [conventions/sifen-gotchas.md](conventions/sifen-gotchas.md) y los manuales de `docs/sifen/`. El XML SIFEN es estrictísimo — un campo de más/menos rompe la validación (E605b, E644a, etc.).
 
@@ -89,7 +89,8 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 
 > Esta sección puede quedar desactualizada. Si preguntan por estado actual, revisar `git log` antes de responder.
 
-- **Rama de trabajo actual:** `claude/frc-efact-docs-expert-bmjpae`. Rama de releases/prod: **`main`**. Último release: **v1.0.3**.
+- **Rama de trabajo actual:** `docs/integracion-hetzner` (integra la auditoría de documentación sobre la rama de la migración a Hetzner). Rama de releases: **`main`**, último release **v1.0.3** — ⚠️ `main` **todavía no tiene** la migración a Hetzner ni esta auditoría; ambas están pendientes de merge.
+- **Infra:** producción en VM Hetzner desde el 2026-07-07 (`https://efact.frc-ecommerce.com`), deploy manual por SSH. Render suspendido como rollback. Ver [workflows/deploy-hetzner.md](workflows/deploy-hetzner.md) y `docs/deployment/hetzner/RUNBOOK_VM.md`.
 - **`CLAUDE.md` es la fuente de verdad de más alto nivel** — actualizado y confiable. Esta skill lo complementa con detalle verificado por dominio.
 - **Feature más activa:** Notas de crédito/débito/remisión (heredan moneda/items de la factura referenciada, KuDE vía endpoint `kude-pdf`). Transporte (vehículo/chofer, V35) es lo más reciente.
 - **Deuda técnica conocida y verificada** (detalle en [reference/known-bugs.md](reference/known-bugs.md)):
@@ -114,7 +115,7 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 
 - Habla **español** (rioplatense/paraguayo). Respondé en español salvo que escriba en otro idioma.
 - Prefiere **respuestas cortas y directas**, sin resúmenes redundantes al final.
-- **Push = deploy a prod:** nunca pushear sin confirmación explícita.
+- **Deploy manual por SSH a la VM:** nunca pushear ni deployar sin confirmación explícita.
 - Antes de marcar un fix como "resuelto", esperar validación del usuario probándolo.
 
 ---

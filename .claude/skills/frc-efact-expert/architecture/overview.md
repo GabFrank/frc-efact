@@ -10,13 +10,15 @@ frc-efact/
 ├── frc-efact-frontend/   Angular 17 (standalone) · NgRx 17 · puerto 4200
 ├── certificates/         .pfx para firma SIFEN (no se commitean)
 ├── docs/ · docs/sifen/   Documentación + manuales/XML SIFEN v150
+├── deploy/               Stack VM Hetzner: .env.example, nginx vhost, backup systemd
+├── docker-compose.prod.yml  Stack de producción (VM Hetzner)
 ├── .kiro/specs/          Specs por feature
-└── render.yaml           Blueprint Render
+└── render.yaml           Blueprint Render (legacy — Render suspendido)
 ```
 
 - **Backend**: REST API bajo `/api`. PostgreSQL + Flyway (`V1`–`V35`, `ddl-auto: validate`). Seguridad JWT local + Auth0. Librería SIFEN `jsifenlib` (fork `io.github.gabfrank`).
 - **Frontend**: SPA Angular Material. HTTP con interceptores; estado NgRx solo en 8 ramas (no todas las entidades). Auth0 + JWT local, JWT **en memoria**.
-- **Deploy**: push a `main` → Render auto-despliega (default de Render, **no** pineado en `render.yaml`) + `semantic-release`. Push = producción.
+- **Deploy**: producción en **VM Hetzner** (`https://efact.frc-ecommerce.com`) desde el 2026-07-07; el deploy es **manual por SSH** (`docker compose up -d --build`). Un push a `main` solo corre `semantic-release`. Render suspendido como rollback. Ver [../workflows/deploy-hetzner.md](../workflows/deploy-hetzner.md).
 
 ## Cómo viaja un dato de punta a punta
 

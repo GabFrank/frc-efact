@@ -68,10 +68,13 @@ frc-efact/
 ├── frc-efact-frontend/        # Angular SPA (puerto 4200)
 ├── certificates/              # Certificados .pfx para firma SIFEN
 ├── deployment-data/           # Datos para deployment
+├── deploy/                    # Stack VM Hetzner: .env.example, nginx vhost, backup systemd
+├── docker-compose.prod.yml    # Stack de producción (VM Hetzner)
 ├── docs/                      # Documentación funcional/técnica
-│   └── sifen/                 # Manuales y XML de ejemplo SIFEN v150
+│   ├── sifen/                 # Manuales y XML de ejemplo SIFEN v150
+│   └── deployment/hetzner/    # Plan y runbook de la migración a la VM
 ├── .kiro/specs/               # Specs (requirements/design/tasks) por feature
-└── render.yaml                # Blueprint deployment Render
+└── render.yaml                # Blueprint Render (legacy — Render suspendido)
 ```
 
 ### Backend — capas (paquete `com.frcefact`)
@@ -207,9 +210,14 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - `user-administration-panel/` — Panel admin de usuarios
 
 ### Deployment
-- [docs/deployment/](docs/deployment/), [render.yaml](render.yaml)
-- Backend desplegado en Render via Docker, frontend como sitio estático
-- URLs prod: `https://frc-efact-backend.onrender.com/api` · `https://frc-efact-frontend.onrender.com`
+- **Producción actual: VM Hetzner** (desde 2026-07-07). Runbook operativo:
+  [docs/deployment/hetzner/RUNBOOK_VM.md](docs/deployment/hetzner/RUNBOOK_VM.md) ·
+  contexto y riesgos: [docs/deployment/hetzner/PLAN_MIGRACION_HETZNER.md](docs/deployment/hetzner/PLAN_MIGRACION_HETZNER.md)
+- URL prod única: `https://efact.frc-ecommerce.com` (`/` → SPA, `/api` → backend)
+- Stack: `docker-compose.prod.yml` + `deploy/` (nginx vhost del host, backup por systemd timer)
+- **Render: suspendido**, conservado como ventana de rollback. [docs/deployment/render/](docs/deployment/render/)
+  y [render.yaml](render.yaml) quedan como referencia histórica hasta darlo de baja
+  (ver [docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md) §5)
 
 ---
 
@@ -221,11 +229,16 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - `MAIL_PASSWORD` (Gmail SMTP `frcsistemasinformaticos@gmail.com`)
 - `ENCRYPTION_KEY` (AES-256, 32 chars) — para datos sensibles (CSC, password de certificado)
 - `SPRING_PROFILES_ACTIVE` (`dev` | `prod`)
+- `PORT` — **obligatoria en la VM** (`PORT=8080`): el `ENTRYPOINT` del Dockerfile es forma
+  exec y no expande `${PORT:-8080}`; sin ella Tomcat arranca en puerto `-1`
+- `CORS_ALLOWED_ORIGINS` — orígenes extra separados por coma, se suman a los del código
+  (`cors.allowed-origins` en `SecurityConfig`)
 - Auth0: configurado en `application.yml` (`issuer-uri: dev-gp1w0u2bgw35q6v5.us.auth0.com`, `audiences: https://api.frcefact.com`)
+- Valores reales de prod: `deploy/.env` en la VM (plantilla: `deploy/.env.example`, no commitear)
 
 ### Frontend
 - `environment.ts` (`apiUrl: http://localhost:8080/api`)
-- `environment.prod.ts` (`apiUrl: https://frc-efact-backend.onrender.com/api`)
+- `environment.prod.ts` (`apiUrl: https://efact.frc-ecommerce.com/api`)
 
 ---
 
@@ -269,10 +282,21 @@ Esto funciona tanto para JWT local ([JwtAuthenticationFilter.java:50](frc-efact-
 
 ## Workflow / reglas de colaboración
 
-- **⚠️ Push = deploy a producción.** Render auto-despliega desde `main` al hacer push. **Nota de fidelidad:** este comportamiento funciona por el **default de Render** (auto-deploy activo sobre la branch conectada), **no** está pineado en `render.yaml` (no hay claves `autoDeploy`/`branch`/`autoDeployTrigger` en el blueprint). Además `.github/workflows/release.yml` corre semantic-release en push a `main`. **Cada vez que termines una tarea, preguntar al usuario si querés hacer `commit` + `push`** — nunca asumir que se quiere pushear sin confirmación explícita, porque cualquier push lanza el cambio a producción.
+- **⚠️ El deploy a producción es MANUAL por SSH a la VM Hetzner.** Desde la migración
+  del 2026-07-07, `git push` **ya no despliega**. El flujo real es entrar a la VM
+  (`deploy@178.105.107.171`), `git pull` y `docker compose -f docker-compose.prod.yml
+  --env-file deploy/.env up -d --build` del servicio que corresponda. Procedimiento y
+  gotchas: [docs/deployment/hetzner/RUNBOOK_VM.md](docs/deployment/hetzner/RUNBOOK_VM.md).
+  **Nunca ejecutar ese deploy sin confirmación explícita del usuario.**
+- **Qué sí dispara un `git push` a `main`:** `.github/workflows/release.yml` corre
+  `semantic-release`. Con commits `feat`/`fix`/`perf` genera tag, `CHANGELOG.md` y bump de
+  `pom.xml` + `package.json`; con `docs`/`chore`/`refactor` no libera nada. **Igual,
+  preguntar siempre antes de `commit` + `push`.**
+- **Render está suspendido** (`srv-d61m4p4hg0os73fpbjm0`), no dado de baja — es la ventana
+  de rollback. Conserva `autoDeploy: yes` sobre `main`, así que **si alguien lo reanuda
+  vuelve a auto-desplegar**. No reanudarlo sin decisión explícita.
 - **Siempre compilar antes de commit/push.** Si tocaste backend Java: `cd frc-efact-backend && ./mvnw compile`. Si tocaste frontend: `cd frc-efact-frontend && npm run build:dev` o `npm run lint`. Si la compilación falla, **no commitear** — arreglar primero.
-- **Disparar deploys SIEMPRE vía `git push`** (auto-deploy). **No usar** `mcp__render__*` ni la API de Render ni el botón "Manual Deploy" del dashboard para lanzar deploys. Si hace falta forzar un redeploy del mismo commit, usar `git commit --allow-empty -m "chore: trigger redeploy"` y push. El mecanismo via API funciona técnicamente igual, pero rompe la trazabilidad commit↔deploy y la convención del proyecto.
-- Las tools de Render MCP (`mcp__render__list_deploys`, `get_deploy`, `get_service`, `list_logs`, etc.) **se pueden usar para inspeccionar/diagnosticar** estado, logs, env vars — no para mutar estado de deploys.
+- Las tools de Render MCP (`mcp__render__list_deploys`, `get_deploy`, `get_service`, `list_logs`, etc.) **se pueden usar para inspeccionar/diagnosticar** estado, logs y env vars del Render suspendido — nunca para mutar estado de deploys ni para reanudar servicios.
 - Antes de marcar un fix como "resuelto" en este documento, **esperar validación del usuario** ejecutando/probando el cambio.
 
 ---

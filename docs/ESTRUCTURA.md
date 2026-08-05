@@ -32,15 +32,18 @@ docs/
 │   └── email/                        # Recursos de plantillas de email
 │
 ├── deployment/                       # 🚀 Deployment
-│   ├── AGREGAR_VARIABLES_RENDER.md
-│   ├── DEPLOYMENT_CHECKLIST.md
-│   ├── PRODUCTION_DEPLOYMENT.md
-│   ├── RENDER_DOCKER_BUILD_ARGS.md
-│   ├── RENDER_GITHUB_PACKAGES.md
-│   ├── RENDER_MCP_SETUP.md
-│   ├── STEP_BY_STEP_GUIDE.md
-│   ├── render/
-│   │   ├── README.md                 # ⭐ Guía principal de Render
+│   ├── hetzner/                      # ⭐ PRODUCCIÓN ACTUAL (desde 2026-07-07)
+│   │   ├── RUNBOOK_VM.md             # ⭐ Guía operativa vigente
+│   │   └── PLAN_MIGRACION_HETZNER.md # Contexto y riesgos de la migración
+│   ├── AGREGAR_VARIABLES_RENDER.md   # legacy
+│   ├── DEPLOYMENT_CHECKLIST.md       # legacy
+│   ├── PRODUCTION_DEPLOYMENT.md      # legacy
+│   ├── RENDER_DOCKER_BUILD_ARGS.md   # legacy
+│   ├── RENDER_GITHUB_PACKAGES.md     # legacy
+│   ├── RENDER_MCP_SETUP.md           # legacy
+│   ├── STEP_BY_STEP_GUIDE.md         # legacy
+│   ├── render/                       # legacy — Render suspendido
+│   │   ├── README.md
 │   │   └── MANUAL_SETUP.md
 │   └── scripts/
 │       ├── README.md
@@ -89,10 +92,10 @@ En la raíz del repo: [README.md](../README.md), [START_HERE.md](../START_HERE.m
 |-----------|---------|
 | Entender el modelo de datos y el flujo SIFEN | [FLUJO_SISTEMA_ENTIDADES.md](FLUJO_SISTEMA_ENTIDADES.md) |
 | Ver deuda técnica / bugs conocidos | [TAREAS_PENDIENTES.md](TAREAS_PENDIENTES.md) |
-| Hacer deployment en Render | [deployment/render/README.md](deployment/render/README.md) |
+| Deployar a producción (VM Hetzner) | [deployment/hetzner/RUNBOOK_VM.md](deployment/hetzner/RUNBOOK_VM.md) |
 | Desarrollar localmente | [guides/DEVELOPMENT.md](guides/DEVELOPMENT.md) |
 | Probar la API | [guides/POSTMAN_GUIDE.md](guides/POSTMAN_GUIDE.md) |
-| Solucionar un error en Render | [troubleshooting/RENDER_ISSUES.md](troubleshooting/RENDER_ISSUES.md) |
+| Solucionar un error de la VM de producción | [deployment/hetzner/RUNBOOK_VM.md](deployment/hetzner/RUNBOOK_VM.md) (§ Troubleshooting) |
 | Solucionar un error general | [troubleshooting/COMMON_ERRORS.md](troubleshooting/COMMON_ERRORS.md) |
 | Manuales y ejemplos SIFEN | [sifen/](sifen/) |
 | Configurar Auth0 | [AUTH0_SETUP.md](AUTH0_SETUP.md) |

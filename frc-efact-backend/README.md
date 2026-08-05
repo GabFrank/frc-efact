@@ -130,9 +130,25 @@ ver [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
 
 ## Deployment
 
-### Deployment en Render (Recomendado: Docker)
+### Deployment en la VM Hetzner (producción actual)
 
-El proyecto incluye un `Dockerfile` optimizado para deployment en Render:
+Desde el **2026-07-07** el backend corre en la VM Hetzner vía
+[`docker-compose.prod.yml`](../docker-compose.prod.yml) (contenedor en `127.0.0.1:8081`, TLS y
+routing por el nginx del host). El deploy es **manual por SSH**:
+
+```bash
+ssh deploy@178.105.107.171 && cd ~/frc-efact && git pull
+docker compose -f docker-compose.prod.yml --env-file deploy/.env up -d --build backend
+```
+
+⚠️ `PORT=8080` es **obligatoria** en `deploy/.env`: el `ENTRYPOINT` del Dockerfile es forma exec
+y no expande `${PORT:-8080}` — sin ella Tomcat arranca en puerto `-1`.
+
+Runbook completo: [docs/deployment/hetzner/RUNBOOK_VM.md](../docs/deployment/hetzner/RUNBOOK_VM.md).
+
+### Deployment en Render (legacy — servicio suspendido)
+
+El mismo `Dockerfile` se usaba en Render:
 
 **Configuración en Render:**
 - **Runtime**: Docker
@@ -146,7 +162,7 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=generated-secure-key
 JWT_EXPIRATION=86400000
 SPRING_PROFILES_ACTIVE=prod
-CORS_ALLOWED_ORIGINS=https://frc-efact-frontend.onrender.com
+CORS_ALLOWED_ORIGINS=https://efact.frc-ecommerce.com
 LOG_LEVEL=INFO
 ```
 

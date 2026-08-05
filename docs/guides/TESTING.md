@@ -44,17 +44,18 @@ Este script verifica:
 
 ## 📊 Testing en Producción
 
-Para validar el deployment en Render:
+Producción corre en la **VM Hetzner** (`https://efact.frc-ecommerce.com`) desde el 2026-07-07:
 
 ```bash
 ./docs/deployment/scripts/validate-production.sh \
-  https://tu-backend.onrender.com \
-  https://tu-frontend.onrender.com
+  https://efact.frc-ecommerce.com \
+  https://efact.frc-ecommerce.com
 ```
 
-> El health de producción es `https://tu-backend.onrender.com/api/actuator/health`.
+> Backend y frontend comparten dominio: `/` → SPA, `/api` → backend.
+> El health de producción es `https://efact.frc-ecommerce.com/api/actuator/health`.
 
-**Antes de probar en producción**, verifica que el backend arrancó con las variables obligatorias configuradas en el Dashboard de Render:
+**Antes de probar en producción**, verifica que el backend arrancó con las variables obligatorias de `deploy/.env` en la VM (antes iban en el Dashboard de Render):
 - `GITHUB_USERNAME` / `GITHUB_TOKEN` — sin ellas el build de Docker ni siquiera compila (`jsifenlib`).
 - `MAIL_PASSWORD` — sin valor por defecto; su ausencia puede impedir el arranque.
 - `ENCRYPTION_KEY` — 32 caracteres; si falta se usa un default inseguro.

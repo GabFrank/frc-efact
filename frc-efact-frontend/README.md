@@ -139,7 +139,7 @@ Registrados en `app.config.ts` (`withInterceptors([...])`), **en este orden**:
 por IP de red local.
 
 `src/environments/environment.prod.ts` (prod) apunta a
-`https://frc-efact-backend.onrender.com/api`.
+`https://efact.frc-ecommerce.com/api` (VM Hetzner).
 
 Ambos incluyen la config de Auth0 (`domain`, `clientId`, `audience`).
 
@@ -172,26 +172,31 @@ npm run build:prod
 
 Salida en `dist/frc-efact-frontend/browser/`.
 
-## Deployment (Render)
+## Deployment (VM Hetzner)
 
-Sitio estático en Render, definido en [`render.yaml`](../render.yaml) (raíz del repo):
+Desde el **2026-07-07** el frontend se sirve desde la VM Hetzner en
+`https://efact.frc-ecommerce.com`, como contenedor nginx del stack
+[`docker-compose.prod.yml`](../docker-compose.prod.yml):
 
-- **Build command:** `cd frc-efact-frontend && npm ci && npm run build:prod`
-- **Publish path:** `frc-efact-frontend/dist/frc-efact-frontend/browser`
-- **SPA routing:** `render.yaml` usa `routes` con `rewrite` de `/*` → `/index.html`
-  (más `src/_redirects` como respaldo).
-- **Auto-deploy:** cada push a `main` dispara deploy. **No** disparar deploys por API
-  ni por el botón manual del dashboard — solo por `git push` (convención del proyecto).
+- **Build:** multi-stage en `frc-efact-frontend/Dockerfile` (Angular `build:prod` → nginx).
+- **Publicación:** el contenedor escucha en `127.0.0.1:8082`; el **nginx del host** hace TLS
+  (certbot) y proxya `/` → SPA y `/api` → backend.
+- **SPA routing:** lo resuelve el nginx del contenedor ([`deploy/nginx-spa.conf`](./deploy/nginx-spa.conf)).
+- **Deploy:** **manual por SSH** —
+  `docker compose -f docker-compose.prod.yml --env-file deploy/.env up -d --build frontend`.
+  `git push` **no** despliega.
 
-Detalle completo: [DEPLOYMENT.md](./DEPLOYMENT.md).
+Runbook: [docs/deployment/hetzner/RUNBOOK_VM.md](../docs/deployment/hetzner/RUNBOOK_VM.md).
+Deployment legacy en Render: [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Seguridad
 
 Ver [SECURITY.md](./SECURITY.md). En resumen: JWT en memoria (no `localStorage`),
 interceptor HTTPS, guards de routing, sanitización automática de Angular.
 
-> **Deuda de seguridad conocida:** los security headers (X-Frame-Options, CSP, etc.)
-> **no están configurados** en `render.yaml`. Ver SECURITY.md.
+> **Deuda de seguridad conocida:** los security headers del frontend (X-Frame-Options, CSP,
+> etc.) **no están configurados** — ni en `render.yaml` (legacy) ni en el nginx de la VM.
+> Ver SECURITY.md.
 
 ## Convenciones de código
 

@@ -8,11 +8,14 @@ This document describes the security measures implemented in the FRC eFact backe
 
 ### SSL Termination
 
-Render handles SSL termination at the load balancer level:
-- Automatic SSL certificates via Let's Encrypt
-- TLS 1.2+ support
-- Automatic certificate renewal
-- HTTPS redirect handled by Render
+Producción (VM Hetzner, desde 2026-07-07): el **nginx del host** termina el SSL con
+certificados de Let's Encrypt gestionados por **certbot**, y proxya `/api` al contenedor del
+backend en `127.0.0.1:8081`. El contenedor habla HTTP plano puertas adentro.
+- Certificados Let's Encrypt (renovación automática por certbot)
+- TLS 1.2+
+- Redirección HTTPS en el vhost (`deploy/nginx-vhost-efact.conf`)
+
+_(Legacy: en Render el SSL lo terminaba el load balancer de la plataforma.)_
 
 ### HTTPS Enforcement
 
@@ -25,9 +28,9 @@ The application enforces HTTPS in production:
 ```
 
 This configuration:
-- Detects proxy headers from Render
+- Detects proxy headers (`X-Forwarded-Proto`) del nginx del host — antes, de Render
 - Requires secure channel (HTTPS) for all requests
-- Works with Render's SSL termination
+- Funciona con cualquier terminación TLS aguas arriba (nginx+certbot hoy, Render antes)
 
 ## Security Headers
 

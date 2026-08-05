@@ -36,8 +36,9 @@ También: usuario nuevo queda **sin rol** (ni `crearUsuario()` ni auto-registro 
 
 - **STATELESS** (`SessionCreationPolicy.STATELESS`), CSRF deshabilitado (API sin cookies de sesión).
 - **BCrypt** (`BCryptPasswordEncoder`) vía `DaoAuthenticationProvider`.
-- **HTTPS enforcement**: `requiresChannel` fuerza `requiresSecure()` cuando llega header `X-Forwarded-Proto` (Render termina el SSL).
+- **HTTPS enforcement**: `requiresChannel` fuerza `requiresSecure()` cuando llega header `X-Forwarded-Proto` (en la VM Hetzner lo termina el **nginx del host** + certbot; antes lo hacía Render).
 - **Security headers**: `frameOptions.deny`, HSTS (1 año, includeSubDomains, preload), CSP (`connect-src 'self' https://frc-efact-backend.onrender.com`), `contentTypeOptions`, `xssProtection`, Referrer-Policy, Permissions-Policy.
+  - ⚠️ El `connect-src` sigue nombrando el host de Render. **No rompe** hoy porque en la VM el SPA y el API comparten origen (`efact.frc-ecommerce.com`) y `'self'` lo cubre; queda como limpieza pendiente al dar de baja Render.
 - **Filtros** (orden): `RateLimitingFilter` → `JwtAuthenticationFilter` → `OAuth2TokenFilter` (antes de `BearerTokenAuthenticationFilter`).
 - **Rate limiting** (`RateLimitingFilter`): solo `POST /auth/login`, por IP. Config real (`application-prod.yml`): **`max-attempts: 100` por ventana de `15` minutos** (defaults `100`/`15`), `enabled: true`. (No es "5/min".) Excede → HTTP 429.
 
@@ -48,6 +49,8 @@ También: usuario nuevo queda **sin rol** (ni `crearUsuario()` ni auto-registro 
 
 ### CORS (hardcodeado en `corsConfigurationSource()`)
 `allowedOriginPatterns`: `localhost:4200` (http/https), rangos LAN `192.168.*.*`, `10.*.*.*`, `172.*.*.*` (http/https, puerto 4200), y **`https://*.onrender.com`**. Métodos `GET/POST/PUT/DELETE/OPTIONS/PATCH`, `allowCredentials: true`, expone `Authorization` y `Content-Disposition`.
+
+A esa lista se le suman los orígenes de **`CORS_ALLOWED_ORIGINS`** (propiedad `cors.allowed-origins`, coma-separada; commit `f58aac4`) — así se habilitó `https://efact.frc-ecommerce.com` sin tocar código. El patrón `*.onrender.com` sigue permitido a propósito durante la ventana de rollback; sacarlo es tarea de cierre (`docs/TAREAS_PENDIENTES.md` §5).
 
 ## 2ª capa de autorización: `EmpresaSecurityService` (multi-empresa, programática)
 

@@ -51,4 +51,4 @@ Dependencia H2 ya incluida. Los tests de repositorio/JPA corren contra H2, no Po
 Hibernate solo valida (`application.yml:17`). Cambios de esquema **únicamente** por migración Flyway versionada. Ver [database-standards.md](database-standards.md).
 
 ## 9. Compilar antes de commit
-`cd frc-efact-backend && ./mvnw compile`. Si falla, **no** commitear — arreglar primero. (Push = deploy a producción vía Render.)
+`cd frc-efact-backend && ./mvnw compile`. Si falla, **no** commitear — arreglar primero. (El deploy a prod es manual por SSH a la VM Hetzner; ver [../workflows/deploy-hetzner.md](../workflows/deploy-hetzner.md).)

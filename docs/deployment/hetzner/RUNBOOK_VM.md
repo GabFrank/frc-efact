@@ -60,7 +60,7 @@ Render. El contexto y los riesgos están en [PLAN_MIGRACION_HETZNER.md](PLAN_MIG
 **`efact.frc-ecommerce.com`** (dominio único: `/` → SPA, `/api` → backend).
 `app.frc-ecommerce.com` apunta a **otra máquina** (159.203.86.103) — no confundir.
 
-**Artefactos en el repo** (rama `claude/frc-efact-expert-skill-cbsx4z`):
+**Artefactos en el repo** (rama `docs/integracion-hetzner`; originalmente `claude/frc-efact-expert-skill-cbsx4z`):
 
 | Archivo | Qué es |
 |---|---|
@@ -98,7 +98,7 @@ Render. El contexto y los riesgos están en [PLAN_MIGRACION_HETZNER.md](PLAN_MIG
 ssh deploy@178.105.107.171
 git clone https://github.com/GabFrank/frc-efact.git ~/frc-efact
 cd ~/frc-efact
-git checkout claude/frc-efact-expert-skill-cbsx4z   # hasta que se mergee a main
+git checkout docs/integracion-hetzner   # hasta que se mergee a main
 chmod +x deploy/*.sh
 ./deploy/setup-vm.sh
 # si el script agregó al grupo docker: salir y volver a entrar por SSH
@@ -212,9 +212,11 @@ antes de seguir.
    Completar la copia off-site en el script (Storage Box / rclone). Probar una restauración.
 3. Backups/snapshots de la VM: coordinar con los demás servicios de la VM (es compartida).
 4. Monitoreo externo a `https://efact.frc-ecommerce.com/api/actuator/health`.
-5. Tras 1-2 semanas estables: dar de baja Render, quitar `*.onrender.com` del CORS,
-   retirar `render.yaml`, actualizar CLAUDE.md y la skill (la regla "push = deploy" pasa a
-   ser via GitHub Actions por SSH, si se configura).
+5. Tras 1-2 semanas estables: dar de baja Render, quitar `*.onrender.com` del CORS y del
+   `connect-src` de la CSP en `SecurityConfig`, retirar `render.yaml`, y decidir si se arma
+   deploy por GitHub Actions via SSH a la VM.
+   ✅ CLAUDE.md, README y la skill `frc-efact-expert` ya fueron actualizados (2026-08-05):
+   la regla vigente es **deploy manual por SSH**; `git push` solo corre `semantic-release`.
 
 ## Troubleshooting rápido
 
