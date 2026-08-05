@@ -11,7 +11,12 @@ name: Deploy
 # Secrets requeridos (Settings → Secrets and variables → Actions):
 #   VM_HOST     → 178.105.107.171
 #   VM_USER     → deploy
-#   VM_SSH_KEY  → clave privada SSH con acceso a ese usuario
+#   VM_SSH_KEY  → clave privada SSH dedicada al CI (github-actions-deploy@frc-efact)
+#
+# Requisito del lado de la VM: ~/frc-efact tiene que tener `origin` apuntando a GitHub
+# vía el alias SSH `github-frc-efact` (deploy key read-only en ~/.ssh/github_frc_efact).
+# NO es `github.com`: ese Host del ~/.ssh/config ya está tomado por otro proyecto de la
+# VM. Detalle en docs/deployment/hetzner/RUNBOOK_VM.md, sección "Git en la VM".
 on:
   workflow_dispatch:
     inputs:

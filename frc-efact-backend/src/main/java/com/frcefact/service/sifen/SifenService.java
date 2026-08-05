@@ -1501,8 +1501,8 @@ public class SifenService {
                 && empresa.getListDescripcionActividadEconomicaSecundaria() != null
                 && !empresa.getListDescripcionActividadEconomicaSecundaria().isBlank()) {
             
-            String[] codigosSecundarios = empresa.getListCodigoActividadEconomicaSecundaria().split(",");
-            String[] descripcionesSecundarias = empresa.getListDescripcionActividadEconomicaSecundaria().split(",");
+            String[] codigosSecundarios = empresa.getListCodigoActividadEconomicaSecundaria().split(";");
+            String[] descripcionesSecundarias = empresa.getListDescripcionActividadEconomicaSecundaria().split(";");
             
             for (int i = 0; i < codigosSecundarios.length && i < descripcionesSecundarias.length; i++) {
                 TgActEco gActEcoSec = new TgActEco();

@@ -113,7 +113,11 @@ Procedimiento y gotchas en
 |---|---|
 | `VM_HOST` | `178.105.107.171` |
 | `VM_USER` | `deploy` |
-| `VM_SSH_KEY` | Clave privada SSH con acceso a ese usuario |
+| `VM_SSH_KEY` | Clave privada SSH **dedicada al CI** (`github-actions-deploy@frc-efact`), no una personal |
+
+La VM necesita además `origin` apuntando a GitHub por el alias SSH `github-frc-efact` (deploy
+key read-only) — **no** `github.com`, que en esa máquina ya está tomado por otro proyecto. Ver
+[RUNBOOK_VM.md](docs/deployment/hetzner/RUNBOOK_VM.md), sección *Git en la VM*.
 
 ⚠️ **La VM es compartida** con servicios productivos ajenos (nginx del host, PostgreSQL
 nativo, farmacia Next.js, headscale, mediamtx). El workflow está acotado a `~/frc-efact` y

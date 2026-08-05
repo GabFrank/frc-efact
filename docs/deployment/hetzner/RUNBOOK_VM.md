@@ -72,6 +72,44 @@ Render. El contexto y los riesgos están en [PLAN_MIGRACION_HETZNER.md](PLAN_MIG
 | `deploy/backup-db.sh` | Backup diario DB + certificados (cron de deploy) |
 | `frc-efact-frontend/Dockerfile` | Build multi-stage Angular → nginx |
 
+## Git en la VM — remoto y deploy key (configurado 2026-08-05)
+
+Durante la migración la VM se sembró desde un **bundle local**
+(`/home/deploy/frc-efact.bundle`), así que `origin` no apuntaba a GitHub y solo conocía la
+rama de migración. Eso rompía cualquier `git fetch`/`checkout main`. Ya está resuelto:
+
+- `~/frc-efact` está en **`main`**, con `origin` = `git@github-frc-efact:GabFrank/frc-efact.git`.
+- Autentica con un **deploy key de solo lectura** del repo (`VM Hetzner (read-only, deploy)`),
+  cuya privada vive en la VM en `~/.ssh/github_frc_efact`.
+- ⚠️ **El host es el alias `github-frc-efact`, no `github.com`.** El `~/.ssh/config` de la VM
+  **ya tenía** un bloque `Host github.com` apuntando a otra clave (`~/.ssh/github_deploy`, de
+  otro proyecto de la VM). Sobrescribirlo rompería ese proyecto, así que se agregó un alias
+  dedicado:
+
+  ```
+  Host github-frc-efact
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/github_frc_efact
+    IdentitiesOnly yes
+  ```
+
+  Si `git fetch` en la VM devuelve `ERROR: Repository not found`, es que se está usando
+  `github.com` en vez del alias — revisar la URL del remoto.
+
+- El deploy key es **read-only**: la VM puede traer código, nunca pushear. Revocable desde
+  Settings → Deploy keys sin afectar ninguna otra clave.
+- El bundle `~/frc-efact.bundle` quedó en su lugar, ya sin uso. Se puede borrar.
+
+### Acceso de GitHub Actions a la VM
+
+`.github/workflows/deploy.yml` entra por SSH con una clave **dedicada al CI**
+(`github-actions-deploy@frc-efact`), cuya pública está en el `authorized_keys` de `deploy` y
+cuya privada es el secret `VM_SSH_KEY`. Es aparte de las claves personales: revocarle acceso
+al CI es borrar esa línea del `authorized_keys`, sin tocar nada más.
+
+---
+
 ## Prerrequisitos (fuera de la VM)
 
 - [ ] **Revocar el PAT filtrado** en `docs/deployment/AGREGAR_VARIABLES_RENDER.md` y crear uno
