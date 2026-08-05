@@ -21,7 +21,7 @@ Leyenda severidad: 🔴 alta · 🟠 media · 🟡 baja
 **Labels:** `security`, `priority:high`
 
 ### SEC-3 · 🔴 `ENCRYPTION_KEY` con default inseguro
-`application.yml`: `encryption.secret-key: ${ENCRYPTION_KEY:<REDACTADO-ENCRYPTION-KEY-ROTADA>}`. Si la var no se setea en prod, se cifran datos sensibles (CSC, password del certificado `.pfx`) con una clave AES pública y conocida.
+`application.yml`: `encryption.secret-key: ${ENCRYPTION_KEY:<clave rotada 2026-08-05 — valor no documentado: los backups previos siguen cifrados con ella>}`. Si la var no se setea en prod, se cifran datos sensibles (CSC, password del certificado `.pfx`) con una clave AES pública y conocida.
 **Acción:** quitar el default; fallar el arranque si falta en prod. Confirmar que Render la tenga seteada.
 **Labels:** `security`, `priority:high`, `backend`
 
