@@ -6,7 +6,7 @@ Si prefieres crear los servicios manualmente en lugar de usar el Blueprint.
 
 1. En Render Dashboard, click "New" → "PostgreSQL"
 2. Nombre: `frc-efact-db`
-3. Database: `frc_efact`
+3. Database: `frc_efact_db`
 4. User: `frc_efact_user`
 5. Region: Elige la más cercana
 6. Plan: Free (para desarrollo)
@@ -33,10 +33,17 @@ Si prefieres crear los servicios manualmente en lugar de usar el Blueprint.
 4. Variables de Entorno:
    ```
    DATABASE_URL=<Internal Database URL de paso 1>
-   JWT_SECRET=<genera-un-secreto-seguro-minimo-32-caracteres>
-   FRONTEND_URL=<URL-del-frontend-cuando-lo-crees>
+   JWT_SECRET=<genera-un-secreto-seguro-minimo-512-bits>
    SPRING_PROFILES_ACTIVE=prod
+   # Obligatorias para que el build de Docker (jsifenlib) funcione:
+   GITHUB_USERNAME=<tu-usuario-github>
+   GITHUB_TOKEN=<tu-personal-access-token>
+   # Necesarias en runtime:
+   MAIL_PASSWORD=<password-app-gmail>        # sin ella el arranque puede fallar
+   ENCRYPTION_KEY=<32-caracteres>            # AES-256; sin ella se usa un default inseguro
    ```
+
+   > No existe una variable `FRONTEND_URL`. El backend no la consume; el CORS de producción está fijo en `SecurityConfig.java` / `application-prod.yml`.
 
 5. Click "Create Web Service"
 
@@ -48,29 +55,20 @@ Si prefieres crear los servicios manualmente en lugar de usar el Blueprint.
    - **Name**: `frc-efact-frontend`
    - **Branch**: `main`
    - **Root Directory**: `frc-efact-frontend`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm ci && npm run build:prod`
    - **Publish Directory**: `dist/frc-efact-frontend/browser`
 
-4. Variables de Entorno:
-   ```
-   API_URL=<URL-del-backend-del-paso-2>
-   ```
+   > Usa `npm run build:prod` (no `npm run build`, que genera un build de desarrollo).
+
+4. Variables de Entorno: **ninguna requerida.** La URL del backend se fija en `environment.prod.ts` en **tiempo de compilación**; no existe una variable `API_URL` que el frontend consuma en runtime. Si cambia la URL del backend, editar `environment.prod.ts` y rebuildear.
 
 5. Click "Create Static Site"
 
-## 4. Actualizar Variables de Entorno
+## 4. Verificar
 
-Una vez que ambos servicios estén creados:
-
-1. Ve al backend y actualiza `FRONTEND_URL` con la URL del frontend
-2. Ve al frontend y verifica que `API_URL` apunte al backend
-3. Redeploy ambos servicios si es necesario
-
-## 5. Verificar
-
-- Backend health: `https://tu-backend.onrender.com/actuator/health`
+- Backend health: `https://tu-backend.onrender.com/api/actuator/health`
 - Frontend: `https://tu-frontend.onrender.com`
-- Login con usuario admin
+- Login con usuario `admin` / `admin123`
 
 ## Notas
 

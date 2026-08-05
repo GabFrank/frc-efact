@@ -1,7 +1,16 @@
 # User Administration API Endpoints - Implementation Summary
 
 ## Overview
-This document summarizes the comprehensive backend API endpoints implemented for user administration in the FRC eFact system. All endpoints are secured with role-based access control requiring ADMIN privileges.
+This document summarizes the backend API endpoints implemented for user administration in the FRC eFact system, exposed by `UsuarioController` (`@RequestMapping("/usuarios")`, i.e. `/api/usuarios/...`).
+
+> **Corrección importante:** NO todos los endpoints requieren `hasRole('ADMIN')`. La
+> autorización varía por endpoint. Las **lecturas** (listar, buscar, ver, roles) están
+> abiertas a **todos los roles** (`ADMIN`, `EMPRESA_ADMIN`, `FACTURADOR`, `LECTOR`); la
+> **creación** (`POST /usuarios`) requiere `ADMIN` o `EMPRESA_ADMIN`; y las operaciones
+> **destructivas o sensibles** (update, delete, reset-password, activar/desactivar/desbloquear,
+> estadísticas, check-username/check-email) sí requieren **solo `ADMIN`**. La tabla de la
+> sección [Controller Implementation](#4-controller-implementation) refleja los roles reales
+> verificados en el código.
 
 ## Implemented Components
 
@@ -26,32 +35,36 @@ This document summarizes the comprehensive backend API endpoints implemented for
   - `obtenerEstadisticasUsuarios()` - User statistics
 
 ### 4. Controller Implementation
-- **UsuarioController.java** - Comprehensive admin endpoints:
 
-#### Core CRUD Operations
-- `GET /usuarios` - List all users (admin only)
-- `GET /usuarios/{id}` - Get user by ID
-- `POST /usuarios` - Create new user
-- `PUT /usuarios/{id}` - Update existing user
-- `DELETE /usuarios/{id}` - Soft delete user
+**UsuarioController.java** — rutas reales bajo `/api/usuarios/...` con sus roles
+(`@PreAuthorize`) verificados en el código. Leyenda: **todos** = ADMIN, EMPRESA_ADMIN,
+FACTURADOR, LECTOR · **A, EA** = ADMIN, EMPRESA_ADMIN · **ADMIN** = solo ADMIN ·
+**autenticado** = sin `@PreAuthorize` a nivel método (usa el contexto de seguridad).
 
-#### Search and Filtering
-- `GET /usuarios/buscar` - Advanced search with pagination
-- `GET /usuarios/search` - Simple search by term
+| Método | Ruta | Roles reales |
+|--------|------|--------------|
+| GET | `/usuarios/perfil` | autenticado (usa contexto) |
+| GET | `/usuarios/asignables` | todos |
+| GET | `/usuarios` | todos |
+| GET | `/usuarios/buscar` | todos |
+| GET | `/usuarios/{id}` | todos |
+| GET | `/usuarios/{id}/roles` | todos |
+| GET | `/usuarios/roles` | todos |
+| POST | `/usuarios` | **A, EA** |
+| PUT | `/usuarios/{id}` | **ADMIN** |
+| DELETE | `/usuarios/{id}` (soft delete) | **ADMIN** |
+| POST | `/usuarios/reset-password` | **ADMIN** |
+| POST | `/usuarios/{id}/activar` | **ADMIN** |
+| POST | `/usuarios/{id}/desactivar` | **ADMIN** |
+| POST | `/usuarios/{id}/desbloquear` | **ADMIN** |
+| GET | `/usuarios/estadisticas` | **ADMIN** |
+| GET | `/usuarios/search` | **A, EA** |
+| GET | `/usuarios/check-username` | **ADMIN** |
+| GET | `/usuarios/check-email` | **ADMIN** |
 
-#### Password Management
-- `POST /usuarios/reset-password` - Admin password reset
-
-#### Account Management
-- `POST /usuarios/{id}/activar` - Activate user account
-- `POST /usuarios/{id}/desactivar` - Deactivate user account
-- `POST /usuarios/{id}/desbloquear` - Unlock user account
-
-#### Role Management
-- `GET /usuarios/{id}/roles` - Get user roles
-
-#### Statistics
-- `GET /usuarios/estadisticas` - Get user statistics
+> ⚠️ `SecurityConfig` incluye una regla para el patrón `/usuarios/admin/**`, pero **no existe**
+> ningún endpoint bajo `/usuarios/admin/...` en el controller. La regla es inefectiva (deuda
+> a limpiar, o falta un endpoint que nunca se implementó).
 
 ### 5. Mapper Enhancements
 - **UsuarioMapper.java** - Added `toDtoList()` and `toDtoSimpleList()` methods
@@ -59,9 +72,12 @@ This document summarizes the comprehensive backend API endpoints implemented for
 ## Security Features
 
 ### Role-Based Access Control
-- All admin endpoints require `@PreAuthorize("hasRole('ADMIN')")`
-- Proper JWT token validation
-- Audit logging for administrative actions
+- La autorización es **por endpoint**, no uniforme (ver tabla arriba). Las operaciones
+  destructivas/sensibles usan `@PreAuthorize("hasRole('ADMIN')")`; la creación usa
+  `hasAnyRole('ADMIN', 'EMPRESA_ADMIN')`; las lecturas usan
+  `hasAnyRole('ADMIN', 'EMPRESA_ADMIN', 'FACTURADOR', 'LECTOR')`.
+- Validación de token JWT (login local) y Auth0 OAuth2.
+- Audit logging de acciones administrativas.
 
 ### Data Validation
 - Comprehensive input validation using Bean Validation
@@ -165,7 +181,7 @@ POST /usuarios
   "username": "newuser",
   "email": "user@example.com", 
   "password": "SecurePass123",
-  "roles": ["USER"],
+  "roles": ["FACTURADOR"],
   "isActive": true
 }
 ```

@@ -213,7 +213,7 @@ El script mostrará un reporte de datos importados. Verificar que los números c
 ### 7.1 Verificar Backend
 
 ```bash
-curl https://frc-efact-backend-xxxxx.onrender.com/actuator/health
+curl https://frc-efact-backend-xxxxx.onrender.com/api/actuator/health
 ```
 
 **Respuesta esperada:**

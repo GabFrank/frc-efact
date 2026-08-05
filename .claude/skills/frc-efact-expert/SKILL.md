@@ -1,146 +1,122 @@
 ---
 name: frc-efact-expert
-description: >
-  Experto en el proyecto FRC eFact (facturación electrónica SIFEN Paraguay).
-  Usar SIEMPRE que se trabaje en este repo sobre: generación de Documentos
-  Electrónicos (DE/XML/CDC/firma/QR), errores SIFEN (E605b, E644a, 1706, 1552,
-  etc.), notas de crédito/débito/remisión, timbrados y puntos de expedición,
-  migraciones Flyway, nuevos endpoints o entidades, NgRx en el frontend, roles
-  y permisos, o deploys a Render. Contiene checklists operativos, playbook de
-  errores SIFEN y el mapa de archivos clave.
+description: Experto integral del sistema FRC eFact — facturación electrónica SIFEN (Paraguay/SET). Spring Boot 3.2.1 + Angular 17 + PostgreSQL/Flyway, multi-empresa, firma digital, XML SIFEN, KuDE PDF, notas C/D/R, eventos, transporte. Conoce arquitectura, dominios, convenciones, endpoints, migraciones y bugs conocidos. Activar al trabajar en cualquier parte de este repo.
+license: Proprietary
 ---
 
 # FRC eFact Expert
 
-Guía operativa experta para trabajar en este repo. Complementa `CLAUDE.md`
-(leerlo siempre) con procedimientos paso a paso y un playbook SIFEN.
+Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión de Documentos Electrónicos (DE) conforme a **SIFEN** (SET Paraguay). Al activarme asumo contexto completo: no redescubro patrones ni pregunto dónde está cada cosa.
 
-## Reglas de oro (violarlas rompe producción)
+> **Cómo está organizada esta skill:** este archivo es el índice. Cada tema apunta a un documento dedicado en `architecture/`, `domains/`, `conventions/`, `workflows/` o `reference/`. Cargá **solo** los documentos relevantes a la tarea, no todos a la vez.
 
-1. **Push a `main` = deploy a producción en Render.** Nunca pushear sin
-   confirmación explícita del usuario. Para forzar redeploy:
-   `git commit --allow-empty -m "chore: trigger redeploy"` + push. Jamás usar
-   la API/MCP de Render para mutar deploys (solo para inspeccionar logs/estado).
-2. **Compilar antes de commitear.** Backend: `cd frc-efact-backend && ./mvnw compile`.
-   Frontend: `cd frc-efact-frontend && npm run build:dev` (o `npm run lint`).
-   Si falla, no se commitea.
-3. **`@RequestMapping` sin `/api/`** — el context-path ya lo agrega
-   (`CONTROLLER_ROUTING_RULE.md`). El frontend sí incluye `/api/` en
-   `environment.apiUrl`.
-4. **Nunca modificar una migración Flyway ya aplicada** — crear `V<N+1>__*.sql`.
-   Ver el último `V<N>` con: `ls db/migration | sort -V | tail -1`.
-5. **Nada en el esquema `public`.** Esquemas: `persona`, `empresa`,
-   `financiero`, `productos`, `clientes`, `auditoria`, `catalogo`.
-6. **No commitear secretos ni `.pfx`** (certificados en `certificates/`).
-7. Idioma: dominio y UI en **español** (`razon_social`, `numero_factura`);
-   campos genéricos en inglés (`id`, `is_active`).
+> **Fidelidad:** esta skill fue verificada contra el código el **2026-08-05**. Los datos de `reference/` salen directo del código. Aun así, antes de editar un archivo o afirmar la firma de un símbolo, **leelo** — los nombres pueden cambiar.
 
-## Playbook de errores SIFEN
+---
 
-El XML SIFEN v150 es estricto: un campo de más o de menos rechaza el DE.
-**Antes de tocar `SifenService`**, leer
-`docs/ANALISIS_DIFERENCIAS_SIFEN_SERVICE.md` y los manuales en `docs/sifen/`.
+## 1. Quick facts (siempre verdadero)
 
-| Código | Causa | Fix conocido |
-|---|---|---|
-| E644a / 1706 | Se envía `dCuotas` con `iCondCred=1` (Plazo) | No enviar `dCuotas` en ese caso (commit `e9db5de`) |
-| E605b / 1552 | Se envía `gPaConEIni` en factura a crédito sin entrega inicial | Omitir `gPaConEIni` (commit `de5542c`) |
-| Errores NRE | Ver análisis dedicado | `docs/sifen/analisis-errores-nre-sifen-v150.md` |
+- **Stack backend:** Java 17, **Spring Boot 3.2.1**, Maven, **PostgreSQL 15+ con Flyway** (35 migraciones, `V1`–`V35`; `ddl-auto: validate`). Seguridad: Spring Security 6 + **JWT local** + **Auth0** (ambas vías). Puerto **8080**, **context-path `/api`**.
+- **Stack frontend:** **Angular 17.3 (standalone) + Angular Material 17 + SCSS + NgRx 17.2**. **NO usa Tailwind.** Chart.js 4.5, @auth0/auth0-angular 2.3. Puerto **4200**.
+- **Librería SIFEN:** fork interno `io.github.gabfrank:rshk-jsifenlib:0.2.4-frc.13` desde **GitHub Packages** (requiere `GITHUB_USERNAME`/`GITHUB_TOKEN` en el build). KuDE PDF con JasperReports, QR con ZXing.
+- **Dominio:** Empresa → Timbrado → Punto de expedición → **FacturaLegal** → **DocumentoElectronico** (CDC 44 chars, firma, QR) → **LoteDE** → envío SIFEN → polling scheduler → APROBADO/RECHAZADO → **Eventos** (cancelación / inutilización / nominación). Notas de Crédito/Débito/Remisión con numeración propia. Multi-empresa con certificado `.pfx` por empresa.
+- **Credenciales dev (verificado en Flyway V4):** `admin` / **`admin123`** y `testuser` / `test123`. Los roles EMPRESA_ADMIN/FACTURADOR/LECTOR **no** son usuarios sembrados — se asignan vía `rolEmpresa` al vincular usuario↔empresa.
+- **Esquemas DB reales:** `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte`. **Nada en `public`. No existe `catalogo`.**
+- **Deploy:** push a `main` → Render auto-despliega (por **default de Render**, NO pineado en `render.yaml`) + `semantic-release` en GitHub Actions. **⚠️ Push a `main` = deploy a producción.**
+- **Comandos:**
+  - Backend: `./dev.sh` (dev), `./mvnw compile` (**verificar compilación antes de commit**), `./mvnw spring-boot:run`, `./mvnw test`.
+  - Frontend: `npm start` (dev), `npm run build:dev` / `npm run build:prod`, `npm run lint`, `npm run test:ci`.
+  - Swagger: `http://localhost:8080/swagger-ui.html`. Health: `http://localhost:8080/api/actuator/health`.
 
-Reglas de dominio validadas contra SIFEN:
-- **Notas de crédito**: heredan moneda e items de la factura referenciada,
-  motivos validados según catálogo SIFEN, fecha de firma correcta y
-  numeración propia (commits `1680341`, `21f4a89`, `7a8e215`).
-- **Moneda extranjera**: totales siempre en guaraníes con tipo de cambio;
-  ver `docs/sifen/implementacion_monedas_sifen_v150.md` y
-  `docs/sifen/ejemplo_de_moneda_extranjera.xml`.
-- **CDC**: 44 caracteres; la firma usa el certificado `.pfx` por empresa
-  (multi-empresa: `.kiro/specs/electronic-invoicing-system/MULTI_EMPRESA_CERTIFICADOS.md`).
-- Comparar XML generado contra los ejemplos aprobados en `docs/sifen/*.xml`
-  antes de enviar a SIFEN.
+---
 
-Código SIFEN clave:
-- `service/sifen/` → `SifenService` (construcción DE), `SifenEventoService`
-  (cancelación/inutilización/nominación), `SifenSchedulerService` (polling).
-- `sifen/util/` → `SifenReceptorHelper`, `SifenTotalsHelper`,
-  `SifenResponseParser`, `SifenDocumentoLogger`.
-- `sifen/config/` → `SifenConfigFactory`, `SifenProperties`.
-- Librería: fork `jsifenlib` (`io.github.gabfrank`, GitHub Packages;
-  auth: `frc-efact-backend/GITHUB_PACKAGES_SETUP.md`).
+## 2. Cómo navegar esta skill
 
-## Checklist: nueva entidad (end-to-end)
+**Si la tarea es sobre…**
 
-Flujo completo en `docs/FLUJO_SISTEMA_ENTIDADES.md`. Orden:
-
-**Backend** (`com.frcefact`):
-1. Migración Flyway `V<N+1>__*.sql`: tabla con `id BIGSERIAL PK`,
-   `creado_en`, `creado_por`, `actualizado_en`, `actualizado_por` + trigger
-   `actualizar_timestamp_modificacion()`, en el esquema correcto.
-2. `model/` — entidad JPA extendiendo `AuditableEntity` (`ddl-auto: validate`:
-   la entidad debe calzar exacto con la migración).
-3. `repository/` (+ `specification/` si hay filtros dinámicos).
-4. `dto/` + `dto/mapper/`.
-5. `service/` con `@PreAuthorize` según la tabla de roles de `CLAUDE.md`.
-6. `controller/` — ruta sin `/api/`.
-7. `./mvnw compile` y correr `./check-migrations.sh`.
-
-**Frontend** (`src/app/`):
-1. `models/` — interfaz espejo del DTO.
-2. `core/api/` — servicio HTTP (`${environment.apiUrl}/<ruta>`).
-3. `core/state/<entidad>/` — actions/effects/reducer/selectors (una rama
-   NgRx por entidad, como `documentos`, `notas`, `timbrados`).
-4. `features/<dominio>/` — separar `*-list.component.ts` y
-   `*-form.component.ts`; standalone components, Material, kebab-case.
-5. `npm run lint` / `npm run build:dev`.
-
-## Trampas conocidas (no redescubrirlas)
-
-- **Roles en dos capas mal integradas**: los `@PreAuthorize` del backend pasan
-  con `rolEmpresa` (remapeo dinámico en `CustomUserDetailsService`), pero el
-  `PermissionsService` del frontend solo mira `user.roles` globales → el menú
-  se oculta aunque el backend autorice. Detalle y fixes en la sección
-  "Issues conocidos" de `CLAUDE.md`. Workaround: asignar también el rol global
-  `EMPRESA_ADMIN`; tras vincular empresa, el usuario debe re-loguearse.
-- **Usuarios nuevos quedan con `roles=[]`** (ni registro local ni auto-registro
-  Auth0 asignan rol por defecto).
-- **Inutilización de números funciona parcialmente** — falla cuando está
-  vinculada a una factura legal (`docs/TAREAS_PENDIENTES.md`).
-- **`dEst`/código de establecimiento**: validar no-null antes de armar el DE;
-  el repo de referencia lo toma de `Sucursal`, este proyecto de
-  `TimbradoDetalle` (ver `docs/ANALISIS_DIFERENCIAS_SIFEN_SERVICE.md`).
-- JWT del frontend vive **en memoria**, no en `localStorage`.
-- Datos sensibles (CSC, password de certificado) se cifran con
-  `ENCRYPTION_KEY` (AES-256); `JWT_SECRET` mínimo 512 bits (HS512).
-
-## Comandos rápidos
-
-```bash
-# Backend
-cd frc-efact-backend && ./dev.sh          # dev (recomendado)
-./mvnw compile && ./mvnw test             # verificación pre-commit
-./check-migrations.sh                     # valida Flyway
-# Swagger: http://localhost:8080/swagger-ui.html  (context-path /api)
-
-# Frontend
-cd frc-efact-frontend && npm start        # http://localhost:4200
-npm run lint && npm run test:ci
-```
-
-Credenciales dev: `admin/Admin123!`, `empresa_admin/Empresa123!`,
-`facturador/Facturador123!`, `lector/Lector123!`.
-
-## Dónde leer más, por tema
-
-| Tema | Documento |
+| Tema | Cargar |
 |---|---|
-| Endpoints REST | `frc-efact-backend/API_DOCUMENTATION.md` |
-| Estándares DB | `frc-efact-backend/DATABASE_STANDARDS.md` |
-| NRE y cancelación v150 | `docs/sifen/manual-implementacion-nre-y-cancelacion-sifen-v150.md` |
-| Notas C/D/R con jsifenlib | `docs/sifen/manual-notas-credito-debito-remision-sifen-jsifenlib.md` |
-| Tipos de clientes/productos SIFEN | `docs/sifen/tipos_clientes_sifen_v150.md`, `docs/sifen/tipos_productos_sifen_v150.md` |
-| KuDE Jasper | `frc-efact-backend/src/main/resources/reports/`, `docs/sifen/KuDE_NotaCredito.jrxml` |
-| Auth0 | `docs/AUTH0_SETUP.md` |
-| SMTP / envío de facturas | `frc-efact-backend/CONFIGURACION_GMAIL.md` |
-| Deployment Render | `render.yaml`, `docs/deployment/` |
-| Specs por feature | `.kiro/specs/` |
-| Repo de referencia (comparar SifenService) | `docs/franco-system-backend-filial/`, `docs/rshk-jsifenlib/` |
+| Estructura general, capas backend/frontend, cómo viaja un dato | [architecture/overview.md](architecture/overview.md) |
+| Capas backend (model→repo→dto/mapper→service→controller), paquetes | [architecture/backend-capas.md](architecture/backend-capas.md) |
+| Capas frontend (models→core/api→NgRx→features), shell, layout | [architecture/frontend-capas.md](architecture/frontend-capas.md) |
+| Login, JWT local, Auth0, roles globales vs `rolEmpresa`, `@PreAuthorize` | [architecture/auth-seguridad.md](architecture/auth-seguridad.md) |
+| PostgreSQL, esquemas, Flyway, auditoría, `AuditableEntity` | [architecture/base-datos-flyway.md](architecture/base-datos-flyway.md) |
+| Cómo se integra jsifenlib, `SifenService`, config por empresa, scheduler | [architecture/sifen-integracion.md](architecture/sifen-integracion.md) |
+| **Facturación** (FacturaLegal, ítems, moneda extranjera, generar-de) | [domains/facturacion.md](domains/facturacion.md) |
+| **Documento Electrónico + Lote** (CDC, firma, QR, envío, polling, KuDE) | [domains/documento-electronico-lote.md](domains/documento-electronico-lote.md) |
+| **SIFEN core** (armado del XML, receptor, totales, monedas, gotchas E605b/E644a) | [domains/sifen-core.md](domains/sifen-core.md) |
+| **Notas** de crédito/débito/remisión (herencia de moneda, numeración) | [domains/notas-cdr.md](domains/notas-cdr.md) |
+| **Eventos** (cancelación, inutilización, nominación) | [domains/eventos.md](domains/eventos.md) |
+| **Clientes y Productos** (tipos SIFEN, RUC, tipo transacción, IVA) | [domains/clientes-productos.md](domains/clientes-productos.md) |
+| **Timbrados** y puntos de expedición (físico/electrónico, CSC) | [domains/timbrados.md](domains/timbrados.md) |
+| **Empresas / multi-empresa** (certificados `.pfx`, branding, vinculación usuarios) | [domains/empresas-multiempresa.md](domains/empresas-multiempresa.md) |
+| **Transporte** (vehículos, choferes, nota de remisión) | [domains/transporte-remision.md](domains/transporte-remision.md) |
+| **Usuarios, roles y permisos** (RBAC, el bug de permisos frontend) | [domains/usuarios-roles-permisos.md](domains/usuarios-roles-permisos.md) |
+| **Dashboard, reportes y auditoría** | [domains/dashboard-reportes-auditoria.md](domains/dashboard-reportes-auditoria.md) |
+| Reglas de código backend (routing, idioma, esquemas) | [conventions/backend-rules.md](conventions/backend-rules.md) |
+| Reglas de código frontend (URLs API, NgRx, JWT en memoria) | [conventions/frontend-rules.md](conventions/frontend-rules.md) |
+| Estándares DB (auditoría, triggers, esquemas, Flyway) | [conventions/database-standards.md](conventions/database-standards.md) |
+| Trampas SIFEN (campos que rompen validación) | [conventions/sifen-gotchas.md](conventions/sifen-gotchas.md) |
+| Agregar una entidad de punta a punta | [workflows/add-new-entity.md](workflows/add-new-entity.md) |
+| Generar y enviar un DE a SIFEN | [workflows/generar-y-enviar-de.md](workflows/generar-y-enviar-de.md) |
+| Deploy a Render (env vars, GitHub Packages) | [workflows/deploy-render.md](workflows/deploy-render.md) |
+| Debuggear un rechazo SIFEN (E605b, E644a, NRE…) | [workflows/debug-sifen-errors.md](workflows/debug-sifen-errors.md) |
+| Índice de entidades | [reference/entities-index.md](reference/entities-index.md) |
+| Índice de endpoints + roles | [reference/endpoints-index.md](reference/endpoints-index.md) |
+| Catálogo de enums | [reference/enums-index.md](reference/enums-index.md) |
+| Índice de migraciones Flyway | [reference/migrations-index.md](reference/migrations-index.md) |
+| Índice NgRx / servicios / interceptores frontend | [reference/ngrx-state-index.md](reference/ngrx-state-index.md) |
+| **Bugs conocidos y deuda técnica** | [reference/known-bugs.md](reference/known-bugs.md) |
+
+---
+
+## 3. Reglas duras del proyecto (no negociables)
+
+1. **`@RequestMapping` sin `/api/`** — el context-path `/api` ya lo agrega. Usar `@RequestMapping("/clientes")`, no `"/api/clientes"`. (Hay 3 controllers que aún lo violan → ver known-bugs.)
+2. **Idioma de campos:** español para dominio (`razon_social`, `numero_factura`), inglés para genéricos (`id`, `username`, `is_active`).
+3. **Nada en el esquema `public`** — usar los esquemas de dominio. Toda tabla con campos de auditoría (`id BIGSERIAL`, `creado_en/por`, `actualizado_en/por`) + trigger `actualizar_timestamp_modificacion()`.
+4. **Migraciones Flyway versionadas** (`V36__...`); **nunca** modificar una ya aplicada. `ddl-auto: validate`.
+5. **URLs API desde el frontend incluyen `/api/`**: `${environment.apiUrl}/clientes`.
+6. **JWT en memoria** (no `localStorage`). Una rama NgRx por entidad principal (pero **no todas la tienen** — ver ngrx-index).
+7. **Compilar antes de commit/push.** Backend: `./mvnw compile`. Frontend: `npm run build:dev` o `npm run lint`. Si falla, **no commitear**.
+8. **⚠️ Push a `main` = deploy a producción.** Preguntar SIEMPRE antes de `commit`+`push`. Deploys **solo vía git push** (no usar Render MCP/API/botón para disparar deploys).
+9. **No commitear secretos** ni `.pfx`.
+10. **Antes de tocar `SifenService`:** leer [conventions/sifen-gotchas.md](conventions/sifen-gotchas.md) y los manuales de `docs/sifen/`. El XML SIFEN es estrictísimo — un campo de más/menos rompe la validación (E605b, E644a, etc.).
+
+---
+
+## 4. Estado actual del repo (snapshot 2026-08-05)
+
+> Esta sección puede quedar desactualizada. Si preguntan por estado actual, revisar `git log` antes de responder.
+
+- **Rama de trabajo actual:** `claude/frc-efact-docs-expert-bmjpae`. Rama de releases/prod: **`main`**. Último release: **v1.0.3**.
+- **`CLAUDE.md` es la fuente de verdad de más alto nivel** — actualizado y confiable. Esta skill lo complementa con detalle verificado por dominio.
+- **Feature más activa:** Notas de crédito/débito/remisión (heredan moneda/items de la factura referenciada, KuDE vía endpoint `kude-pdf`). Transporte (vehículo/chofer, V35) es lo más reciente.
+- **Deuda técnica conocida y verificada** (detalle en [reference/known-bugs.md](reference/known-bugs.md)):
+  - 🐛 `PermissionsService` (frontend) solo lee `user.roles`, no `rolEmpresa` → oculta menús aunque el backend autorice.
+  - 🐛 Validación de RUC del frontend **deshabilitada**; `mock-ruc.interceptor` sirve RUCs ficticios (incluso en prod). El backend RUC ya es correcto.
+  - 🐛 Routing `/api/api/...` en `Geografia`/`AuditLog`/`Reporte` controllers.
+  - 🐛 `iTipCont` del emisor hardcodeado `PERSONA_JURIDICA` en `SifenService`.
+  - ⚠️ Inutilización de números funciona parcialmente.
+- **Documentación:** auditada y corregida el 2026-08-05 para ser fiel al código. Manuales normativos SIFEN v150 en `docs/sifen/` son confiables.
+
+---
+
+## 5. Antes de actuar, recordá
+
+- **Verificá el código antes de afirmar:** esta skill describe el sistema en un momento; nombres de archivos/símbolos pueden haber cambiado. Si vas a editar o recomendar, **leé primero**.
+- **CLAUDE.md gana** si algo acá lo contradice — y luego actualizá esta skill.
+- **No toques `SifenService` a ciegas** — leé los gotchas y los manuales primero.
+
+---
+
+## 6. Modo de trabajo con el usuario (Gabriel)
+
+- Habla **español** (rioplatense/paraguayo). Respondé en español salvo que escriba en otro idioma.
+- Prefiere **respuestas cortas y directas**, sin resúmenes redundantes al final.
+- **Push = deploy a prod:** nunca pushear sin confirmación explícita.
+- Antes de marcar un fix como "resuelto", esperar validación del usuario probándolo.
+
+---
+
+*Este es el índice. Para cada tarea concreta, cargá el documento específico que aplique.*

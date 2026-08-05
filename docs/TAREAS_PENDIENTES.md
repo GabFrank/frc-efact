@@ -1,42 +1,125 @@
-# Tareas Pendientes y Errores Conocidos
+# Tareas Pendientes y Deuda Técnica
 
-Este documento contiene un registro de todas las funcionalidades que aún faltan implementar o que tienen errores conocidos en el sistema FRC-eFact.
+Registro accionable de funcionalidades incompletas, bugs conocidos y deuda técnica del sistema
+FRC eFact. Todo lo de acá está verificado contra el código.
 
----
-
-## Funcionalidades con Errores o Implementación Incompleta
-
-### Inutilización de Números
-
-**Estado:** ⚠️ Funciona parcialmente  
-**Prioridad:** Media/Baja  
-**Descripción:** La funcionalidad de inutilización de números funciona en su versión desvinculada con una factura legal, es decir, funciona a medias.
-
-**TODO:**
-- Revisar la implementación completa de inutilización de números
-- Verificar la vinculación con facturas legales
-- Completar la funcionalidad para que funcione correctamente en todos los casos
-
-**Archivos relacionados:**
-- `frc-efact-frontend/src/app/features/facturacion/inutilizar-numeros-dialog.component.ts`
-- Backend: Servicios relacionados con inutilización de números
-
-**Notas:**
-- Funciona cuando no está vinculado a una factura legal
-- Requiere revisión para casos donde está vinculado a facturas legales
+**Leyenda de estado:** ✅ Completo · ⚠️ Parcial · ❌ No implementado · 🐛 Con errores
+**Prioridad:** Alta / Media / Baja
 
 ---
 
-## Funcionalidades Pendientes de Implementar
+## 1. ⚠️ Inutilización de números (parcial)
 
-### API pública de facturación electrónica (roadmap, anotado 2026-07-07)
+**Estado:** ⚠️ Parcial · **Prioridad:** Media
 
-**Estado:** ❌ No implementado
-**Prioridad:** Media
-**Descripción:** Exponer las capacidades SIFEN de frc-efact (emisión de DE, notas
-C/D/R, eventos, consulta de estado, KuDE) como API para que otras apps del
-ecosistema (Franco Systems central/filial, e-commerce, etc.) facturen sin
-reimplementar SIFEN.
+La inutilización de numeración funciona **solo** en su versión desvinculada de una factura legal.
+Cuando el número a inutilizar está vinculado a una `FacturaLegal`, no completa correctamente.
+
+**Archivos:**
+- Frontend: `frc-efact-frontend/src/app/features/facturacion/inutilizar-numeros-dialog.component.ts`
+- Backend: `EventoInutilizacionDE` + `SifenEventoService` (endpoint `POST /sifen/timbrados/{id}/inutilizar`)
+
+**TODO:** revisar la implementación completa; cubrir el caso vinculado a factura legal.
+
+---
+
+## 2. 🐛 Sistema de roles / permisos (4 bugs)
+
+El sistema tiene **dos capas de roles** que no están bien integradas:
+- **Roles globales**: `persona.usuario_rol` → `Usuario.usuarioRoles` → `Rol`
+  (`ADMIN`, `EMPRESA_ADMIN`, `FACTURADOR`, `LECTOR`).
+- **Roles por empresa**: `persona.usuario_empresa.rol_empresa` → `UsuarioEmpresa.rolEmpresa`
+  (string `ADMINISTRADOR` / `FACTURADOR` / `LECTOR`).
+
+El backend (`CustomUserDetailsService`) mapea dinámicamente en **cada request** los `rolEmpresa`
+activos a authorities Spring (`ADMINISTRADOR → ROLE_EMPRESA_ADMIN`, etc.), por lo que los
+`@PreAuthorize` **pasan** con tener solo `rolEmpresa`. El problema está en el frontend y en el alta.
+
+### 2.1 🐛 PermissionsService del frontend ignora `rolEmpresa` — Prioridad Alta
+El `PermissionsService` solo lee `user.roles` (roles globales) y **no** mira los `rolEmpresa`.
+Resultado: aunque el backend autoriza, el frontend oculta menús/botones y muestra "sin permisos".
+**Síntoma:** asignás `rolEmpresa = ADMINISTRADOR` y el usuario sigue sin ver la lista de facturas
+ni el botón crear.
+- **Archivo:** `frc-efact-frontend/src/app/core/services/permissions.service.ts`
+- **Fix recomendado (backend, una sola fuente de verdad):** que `UsuarioMapper.toDto()` agregue al
+  array `roles` los roles de empresa mapeados, con la misma lógica que `CustomUserDetailsService`
+  (`frc-efact-backend/.../dto/mapper/UsuarioMapper.java`).
+- **Workaround:** asignar también el rol global `EMPRESA_ADMIN` vía endpoint admin de usuarios.
+
+### 2.2 🐛 Usuario nuevo no recibe ningún rol — Prioridad Alta
+Ni `UsuarioService.crearUsuario()` ni el auto-registro Auth0 en `CustomJwtAuthenticationConverter`
+asignan un rol por defecto. El usuario queda con `roles=[]` y sin acceso hasta que un admin lo vincule.
+- **Archivos:** `frc-efact-backend/.../service/UsuarioService.java`,
+  `frc-efact-backend/.../security/CustomJwtAuthenticationConverter.java`
+
+### 2.3 ⚠️ Vincular usuario a empresa no refresca la sesión — Prioridad Media
+El backend remapea bien en cada request, pero el frontend cachea el `currentUser` en NgRx con el
+array `roles` viejo. El usuario receptor debe **cerrar sesión y volver a entrar** para ver el
+`UsuarioDto` actualizado.
+- **Fix sugerido:** emitir un evento o forzar refresh del `currentUser` tras la vinculación.
+
+### 2.4 ⚠️ Inconsistencia de nombres `ADMINISTRADOR` vs `EMPRESA_ADMIN` — Prioridad Baja
+A nivel `rol_empresa` el valor es `ADMINISTRADOR`; a nivel rol global es `EMPRESA_ADMIN`. El mapping
+vive **solo** en `CustomUserDetailsService`. Si se duplica en otro lado (p. ej. frontend), riesgo de
+divergencia. Centralizar el mapeo.
+
+---
+
+## 3. 🐛 Routing `/api/api` en 3 controllers — Prioridad Media
+
+El `context-path` de la app es `/api`, por lo que `@RequestMapping` **no** debe incluir `/api/`
+(ver `CONTROLLER_ROUTING_RULE.md`). Estos 3 controllers lo violan y resuelven a `/api/api/...`:
+
+- `frc-efact-backend/.../controller/GeografiaController.java` → `@RequestMapping("/api/geografia")`
+- `frc-efact-backend/.../controller/AuditLogController.java` → `@RequestMapping("/api/auditoria")`
+- `frc-efact-backend/.../controller/ReporteController.java` → `@RequestMapping("/api/reportes")`
+
+**Fix:** sacar el prefijo `/api` de cada `@RequestMapping`. Ojo: hay que ajustar en paralelo las
+URLs que consumen estos endpoints desde el frontend (`audit-api.service`, `reporte-api.service`,
+y el servicio de geografía) para que no se rompan.
+
+---
+
+## 4. 🐛 Validación de RUC deshabilitada en el frontend — Prioridad Media
+
+`RucValidationService` tiene la validación real **deshabilitada** y devuelve resultados mock:
+- `validateRucFormat()` valida solo el **formato** (`\d{6,8}-\d`); el chequeo de dígito verificador
+  (`validateRucCheckDigit`) está comentado ("TEMPORALMENTE DESHABILITADO: Backend usa algoritmo incorrecto").
+- `validateRucLive()` retorna siempre `of({ valid: true, exists: false })` sin llamar al backend.
+
+- **Archivo:** `frc-efact-frontend/src/app/services/ruc-validation.service.ts`
+- **Causa raíz:** el algoritmo de dígito verificador del backend rechaza RUCs válidos.
+- **TODO:** corregir el algoritmo en el backend y reactivar `validateRucCheckDigit()` +
+  la llamada real a `/empresas/validate-ruc`.
+
+---
+
+## 5. ⚠️ Cierre post-migración Hetzner — Prioridad Alta
+
+**Estado:** ⚠️ Parcial (migración ejecutada el 2026-07-07; quedan tareas de cierre)
+
+Producción corre en la VM Hetzner (`https://efact.frc-ecommerce.com`) desde el
+2026-07-07. Render quedó **suspendido** como ventana de rollback, no dado de baja.
+Detalle completo en [deployment/hetzner/RUNBOOK_VM.md](deployment/hetzner/RUNBOOK_VM.md).
+
+- [ ] Revocar el PAT de GitHub filtrado (sigue válido; Render suspendido ya no lo usa)
+- [ ] Copia off-site de backups (sección rclone/rsync de `deploy/backup-db.sh`)
+- [ ] Monitoreo externo a `https://efact.frc-ecommerce.com/api/actuator/health`
+- [ ] **Renovar certificado de FRANCO AREVALOS S.A. — vence `2026-08-20`** y
+      re-subirlo desde la UI
+- [ ] Tras 1-2 semanas estables: dar de baja Render (incl. DB), quitar
+      `*.onrender.com` del CORS, retirar `render.yaml`, y decidir si se arma
+      deploy por GitHub Actions via SSH a la VM
+
+---
+
+## 6. API pública de facturación electrónica (roadmap)
+
+**Estado:** ❌ No implementado · **Prioridad:** Media · _(anotado 2026-07-07)_
+
+Exponer las capacidades SIFEN de frc-efact (emisión de DE, notas C/D/R, eventos,
+consulta de estado, KuDE) como API para que otras apps del ecosistema (Franco
+Systems central/filial, e-commerce, etc.) facturen sin reimplementar SIFEN.
 
 Consideraciones de diseño relevadas:
 - **Auth M2M**: hoy el API usa JWT de usuario. Para apps consumidoras usar
@@ -54,31 +137,8 @@ Consideraciones de diseño relevadas:
   se suman más apps del ecosistema. A futuro también reemplazaría el flujo manual
   de la skill `migrate-de-central-to-frc-efact` (central emitiría NC/ND via API).
 
-### Post-migración Hetzner (anotado 2026-07-07 — ver docs/deployment/hetzner/RUNBOOK_VM.md)
-
-**Estado:** ⚠️ Parcial (migración hecha; quedan tareas de cierre)
-**Prioridad:** Alta
-
-- [ ] Revocar el PAT de GitHub filtrado (sigue válido; Render suspendido ya no lo usa)
-- [ ] Copia off-site de backups (sección rclone/rsync de `deploy/backup-db.sh`)
-- [ ] Monitoreo externo a `https://efact.frc-ecommerce.com/api/actuator/health`
-- [ ] Tras 1-2 semanas estables: dar de baja Render (incl. DB), quitar
-      `*.onrender.com` del CORS, mergear la rama de migración a `main`,
-      actualizar CLAUDE.md y skill (regla "push = deploy a Render" obsoleta),
-      y decidir si se arma deploy por GitHub Actions via SSH a la VM
-- [ ] Renovar certificado de FRANCO AREVALOS S.A. (vence **2026-08-20**) y
-      re-subirlo desde la UI
-
 ---
 
-## Mejoras Sugeridas
+## 7. Funcionalidades pendientes / mejoras
 
-_(Añadir mejoras sugeridas aquí)_
-
----
-
-## Notas
-
-- Las prioridades se clasifican como: **Alta**, **Media**, **Baja**
-- Los estados pueden ser: ✅ **Completo**, ⚠️ **Parcial**, ❌ **No implementado**, 🐛 **Con errores**
-
+_(Añadir nuevas funcionalidades pendientes o mejoras sugeridas aquí.)_

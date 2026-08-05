@@ -1,162 +1,107 @@
-# 📁 Estructura de Documentación
+# 📁 Estructura de la Documentación
 
-Visualización de cómo está organizada toda la documentación del proyecto.
+Índice real de la carpeta `docs/` y de los documentos técnicos que viven junto al código.
+Todos los enlaces de abajo apuntan a archivos que existen en el repositorio.
 
-## 🗂️ Estructura Completa
+## 🗂️ Árbol real de `docs/`
 
 ```
-frc-efact/
+docs/
+├── ESTRUCTURA.md                     # Este archivo (índice de documentación)
+├── FLUJO_SISTEMA_ENTIDADES.md        # Mapa entidad por entidad + flujo SIFEN
+├── TAREAS_PENDIENTES.md              # Deuda técnica / issues conocidos
+├── ANALISIS_DIFERENCIAS_SIFEN_SERVICE.md   # Comparativa SifenService vs. repo de referencia
+├── AUTH0_SETUP.md                    # Configuración de Auth0
+├── CURSOR_RULES.mdc                  # Reglas del editor
+├── MEJORA_ACTIVIDAD_ECONOMICA.md     # Nota de mejora (actividad económica)
 │
-├── START_HERE.md                    # 👈 EMPIEZA AQUÍ - Guía rápida
-├── README.md                        # 📖 Índice principal del proyecto
+├── sifen/                            # 📑 SIFEN v150: manuales, ejemplos y recursos
+│   ├── manual-implementacion-nre-y-cancelacion-sifen-v150.md
+│   ├── manual-notas-credito-debito-remision-sifen-jsifenlib.md
+│   ├── analisis-errores-nre-sifen-v150.md
+│   ├── implementacion_monedas_sifen_v150.md
+│   ├── tipos_clientes_sifen_v150.md
+│   ├── tipos_productos_sifen_v150.md
+│   ├── correcion-transportista-chofer.md
+│   ├── ejemplo_de_aprobado.xml
+│   ├── ejemplo_de_moneda_extranjera.xml
+│   ├── ejemplo_nota_credito.xml
+│   ├── KuDE_NotaCredito.jrxml        # Plantilla Jasper de KuDE
+│   ├── carga_geografia_sifen.sql
+│   ├── CODIGO DE REFERENCIA GEOGRAFICA.csv / .xlsx
+│   └── email/                        # Recursos de plantillas de email
 │
-├── docs/                            # 📚 Toda la documentación
-│   ├── ESTRUCTURA.md                # Guía de navegación
-│   ├── RESUMEN_CAMBIOS.md           # Resumen de reorganización
-│   │
-│   ├── deployment/                  # 🚀 Todo sobre deployment
-│   │   ├── render/                  # Específico de Render
-│   │   │   ├── README.md           # ⭐ GUÍA PRINCIPAL DE RENDER
-│   │   │   └── MANUAL_SETUP.md     # Setup manual (alternativa)
-│   │   │
-│   │   └── scripts/                 # Scripts automatizados
-│   │       ├── README.md
-│   │       ├── prepare-deployment.sh
-│   │       ├── validate-production.sh
-│   │       └── verify-integration.sh
-│   │
-│   ├── guides/                      # 📖 Guías de uso
-│   │   ├── DEVELOPMENT.md          # Desarrollo local
-│   │   ├── TESTING.md              # Testing manual y automatizado
-│   │   └── POSTMAN_GUIDE.md        # Testing de API con Postman
-│   │
-│   └── troubleshooting/            # 🔧 Solución de problemas
-│       ├── RENDER_ISSUES.md        # Problemas específicos de Render
-│       └── COMMON_ERRORS.md        # Errores generales
+├── deployment/                       # 🚀 Deployment
+│   ├── AGREGAR_VARIABLES_RENDER.md
+│   ├── DEPLOYMENT_CHECKLIST.md
+│   ├── PRODUCTION_DEPLOYMENT.md
+│   ├── RENDER_DOCKER_BUILD_ARGS.md
+│   ├── RENDER_GITHUB_PACKAGES.md
+│   ├── RENDER_MCP_SETUP.md
+│   ├── STEP_BY_STEP_GUIDE.md
+│   ├── render/
+│   │   ├── README.md                 # ⭐ Guía principal de Render
+│   │   └── MANUAL_SETUP.md
+│   └── scripts/
+│       ├── README.md
+│       ├── prepare-deployment.sh
+│       ├── validate-production.sh
+│       ├── verify-integration.sh
+│       ├── export-dev-data.sh
+│       └── import-prod-data.sh
 │
-├── frc-efact-backend/              # Backend Spring Boot
-│   ├── README.md                    # Documentación del backend
-│   ├── API_DOCUMENTATION.md        # Documentación de endpoints
-│   ├── SECURITY.md                 # Configuración de seguridad
-│   ├── DEPLOYMENT.md               # Deployment del backend
-│   ├── Dockerfile                  # Para deployment en Render
-│   ├── dev.sh                      # Script para desarrollo local
-│   └── setup-local-db.sh           # Setup de base de datos local
+├── guides/                           # 📖 Guías de uso
+│   ├── DEVELOPMENT.md
+│   ├── TESTING.md
+│   └── POSTMAN_GUIDE.md
 │
-└── frc-efact-frontend/             # Frontend Angular
-    ├── README.md                    # Documentación del frontend
-    ├── SECURITY.md                 # Configuración de seguridad
-    ├── DEPLOYMENT.md               # Deployment del frontend
-    └── dev.sh                      # Script para desarrollo local
+├── troubleshooting/                  # 🔧 Solución de problemas
+│   ├── COMMON_ERRORS.md
+│   └── RENDER_ISSUES.md
+│
+├── archive/                          # 🗃️ Resúmenes históricos de implementación (referencia)
+│   ├── README.md
+│   └── *_IMPLEMENTATION_SUMMARY.md, etc.
+│
+├── rshk-jsifenlib/                   # 📦 Copia del fork de la librería SIFEN (referencia de código)
+├── franco-system-backend-filial/     # (vacío — placeholder de repo de referencia)
+└── franco-system-backend-servidor/   # (vacío — placeholder de repo de referencia)
 ```
 
-## 🎯 Flujo de Navegación
+## 📄 Documentación técnica junto al código
 
-### Para Desarrollo Local
-```
-START_HERE.md
-    ↓
-docs/guides/DEVELOPMENT.md
-    ↓
-frc-efact-backend/README.md
-frc-efact-frontend/README.md
-```
+Estos documentos NO están en `docs/`, viven en cada subproyecto:
 
-### Para Deployment en Render
-```
-START_HERE.md
-    ↓
-docs/deployment/render/README.md  ⭐ ÚNICA GUÍA NECESARIA
-    ↓
-(Si hay problemas)
-    ↓
-docs/troubleshooting/RENDER_ISSUES.md
-```
+- [frc-efact-backend/API_DOCUMENTATION.md](../frc-efact-backend/API_DOCUMENTATION.md) — Endpoints REST
+- [frc-efact-backend/DATABASE_STANDARDS.md](../frc-efact-backend/DATABASE_STANDARDS.md) — Estándares de DB
+- [frc-efact-backend/CONTROLLER_ROUTING_RULE.md](../frc-efact-backend/CONTROLLER_ROUTING_RULE.md) — Regla de `@RequestMapping`
+- [frc-efact-backend/SECURITY.md](../frc-efact-backend/SECURITY.md)
+- [frc-efact-backend/CONFIGURACION_GMAIL.md](../frc-efact-backend/CONFIGURACION_GMAIL.md)
+- [frc-efact-backend/GITHUB_PACKAGES_SETUP.md](../frc-efact-backend/GITHUB_PACKAGES_SETUP.md)
+- [frc-efact-frontend/SECURITY.md](../frc-efact-frontend/SECURITY.md)
 
-### Para Testing
-```
-START_HERE.md
-    ↓
-docs/guides/TESTING.md
-    ↓
-docs/guides/POSTMAN_GUIDE.md (para API)
-```
+En la raíz del repo: [README.md](../README.md), [START_HERE.md](../START_HERE.md),
+[MANUAL_DE_USUARIO.md](../MANUAL_DE_USUARIO.md), [CLAUDE.md](../CLAUDE.md), [CHANGELOG.md](../CHANGELOG.md).
 
-### Para Solución de Problemas
-```
-(Encuentras un error)
-    ↓
-docs/troubleshooting/RENDER_ISSUES.md (si es en Render)
-    o
-docs/troubleshooting/COMMON_ERRORS.md (si es general)
-```
+## 🔍 Búsqueda rápida
 
-## 📊 Documentos por Categoría
-
-### 🚀 Deployment (2 guías)
-- `docs/deployment/render/README.md` - **Guía principal** (la única que necesitas)
-- `docs/deployment/render/MANUAL_SETUP.md` - Alternativa manual
-
-### 📖 Guías de Uso (3 guías)
-- `docs/guides/DEVELOPMENT.md` - Desarrollo local
-- `docs/guides/TESTING.md` - Testing
-- `docs/guides/POSTMAN_GUIDE.md` - API testing
-
-### 🔧 Troubleshooting (2 guías)
-- `docs/troubleshooting/RENDER_ISSUES.md` - Problemas de Render
-- `docs/troubleshooting/COMMON_ERRORS.md` - Errores generales
-
-### 🛠️ Scripts (3 scripts)
-- `docs/deployment/scripts/prepare-deployment.sh` - Preparar deployment
-- `docs/deployment/scripts/validate-production.sh` - Validar producción
-- `docs/deployment/scripts/verify-integration.sh` - Verificar integración
-
-### 📚 Documentación Técnica (6 documentos)
-- `frc-efact-backend/README.md` - Backend general
-- `frc-efact-backend/API_DOCUMENTATION.md` - Endpoints
-- `frc-efact-backend/SECURITY.md` - Seguridad backend
-- `frc-efact-frontend/README.md` - Frontend general
-- `frc-efact-frontend/SECURITY.md` - Seguridad frontend
-- `frc-efact-frontend/COMPONENT_TESTING.md` - Testing de componentes
-
-## 🎨 Código de Colores
-
-En los documentos verás estos emojis:
-
-- ⭐ = Documento principal/más importante
-- 👈 = Punto de entrada recomendado
-- 🚀 = Relacionado con deployment
-- 📖 = Guía de uso
-- 🔧 = Solución de problemas
-- 💻 = Desarrollo local
-- 🧪 = Testing
-- 📚 = Documentación técnica
-
-## 💡 Consejos de Navegación
-
-1. **Siempre empieza en `START_HERE.md`** - Te dirije al documento correcto
-2. **Para Render, solo necesitas un documento** - `docs/deployment/render/README.md`
-3. **Los documentos están enlazados** - Sigue los links internos
-4. **Usa el README principal** - `README.md` en la raíz tiene todo organizado
-5. **Busca por emoji** - Los emojis te ayudan a identificar el tipo de documento
-
-## 🔍 Búsqueda Rápida
-
-¿Buscas algo específico?
-
-| Quiero... | Ve a... |
+| Quiero... | Ir a... |
 |-----------|---------|
-| Hacer deployment en Render | `docs/deployment/render/README.md` |
-| Desarrollar localmente | `docs/guides/DEVELOPMENT.md` |
-| Probar la API | `docs/guides/POSTMAN_GUIDE.md` |
-| Solucionar error en Render | `docs/troubleshooting/RENDER_ISSUES.md` |
-| Solucionar error general | `docs/troubleshooting/COMMON_ERRORS.md` |
-| Ver endpoints disponibles | `frc-efact-backend/API_DOCUMENTATION.md` |
-| Configurar seguridad | `frc-efact-backend/SECURITY.md` |
+| Entender el modelo de datos y el flujo SIFEN | [FLUJO_SISTEMA_ENTIDADES.md](FLUJO_SISTEMA_ENTIDADES.md) |
+| Ver deuda técnica / bugs conocidos | [TAREAS_PENDIENTES.md](TAREAS_PENDIENTES.md) |
+| Hacer deployment en Render | [deployment/render/README.md](deployment/render/README.md) |
+| Desarrollar localmente | [guides/DEVELOPMENT.md](guides/DEVELOPMENT.md) |
+| Probar la API | [guides/POSTMAN_GUIDE.md](guides/POSTMAN_GUIDE.md) |
+| Solucionar un error en Render | [troubleshooting/RENDER_ISSUES.md](troubleshooting/RENDER_ISSUES.md) |
+| Solucionar un error general | [troubleshooting/COMMON_ERRORS.md](troubleshooting/COMMON_ERRORS.md) |
+| Manuales y ejemplos SIFEN | [sifen/](sifen/) |
+| Configurar Auth0 | [AUTH0_SETUP.md](AUTH0_SETUP.md) |
+| Ver endpoints REST | [../frc-efact-backend/API_DOCUMENTATION.md](../frc-efact-backend/API_DOCUMENTATION.md) |
 
 ## 📝 Notas
 
-- **Eliminados**: 17 documentos duplicados que estaban en la raíz
-- **Consolidados**: Múltiples guías de Render en una sola
-- **Organizados**: Todo en carpetas lógicas
-- **Simplificados**: Una guía clara para cada tarea
+- La carpeta `archive/` contiene resúmenes de implementación de features ya construidas; sirven
+  como referencia histórica, no como documentación viva.
+- `rshk-jsifenlib/` es una copia del fork interno de la librería SIFEN (`GabFrank/rshk-jsifenlib`),
+  útil para inspeccionar el código de la dependencia. Las carpetas `franco-system-backend-*`
+  están reservadas para los repos de referencia del mismo autor y hoy están vacías.

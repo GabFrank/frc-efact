@@ -87,16 +87,26 @@ npm run analyze
 
 ### How it Works
 
-The `_redirects` file ensures all routes are handled by Angular:
+El routing SPA en Render se resuelve **principalmente vía `render.yaml`**, con una regla
+`routes` de tipo `rewrite` que reescribe todas las rutas a `index.html`:
+
+```yaml
+# render.yaml → servicio frc-efact-frontend
+routes:
+  - type: rewrite
+    source: /*
+    destination: /index.html
+```
+
+Adicionalmente, `src/_redirects` existe como respaldo (útil en otros hosts estáticos):
+
 ```
 /*    /index.html   200
 ```
 
-This configuration:
-- Redirects all requests to `index.html`
-- Preserves the URL path
-- Returns 200 status code
-- Allows Angular Router to handle navigation
+Este esquema:
+- Reescribe todas las rutas a `index.html` (preserva el path)
+- Deja que Angular Router maneje la navegación del lado del cliente
 
 ### Testing Routing Locally
 
@@ -114,17 +124,22 @@ http-server -p 8080 --proxy http://localhost:8080?
 
 ## Security Headers
 
-The following security headers are automatically configured:
-
-| Header | Value | Purpose |
-|--------|-------|---------|
-| X-Frame-Options | DENY | Prevents clickjacking |
-| X-Content-Type-Options | nosniff | Prevents MIME sniffing |
-| X-XSS-Protection | 1; mode=block | XSS protection |
-| Referrer-Policy | strict-origin-when-cross-origin | Controls referrer info |
-| Permissions-Policy | geolocation=(), microphone=(), camera=() | Restricts browser features |
+> ⚠️ **NO configurados (verificado 2026).** `render.yaml` **no tiene sección `headers`**
+> para el frontend — solo `buildCommand`, `staticPublishPath` y `routes` (rewrite).
+> No se envía ningún header de seguridad. Es deuda de seguridad pendiente; ver
+> [SECURITY.md](./SECURITY.md) para el estado real y cómo agregarlos.
 
 ## Environment Configuration
+
+> **`apiUrl` es compile-time, no runtime.** Se resuelve al construir el bundle según la
+> configuración de build (`development` usa `environment.ts`, `production` usa
+> `environment.prod.ts` via `fileReplacements` en `angular.json`). **No** se lee de una
+> variable de entorno en Render en tiempo de ejecución: para cambiar la URL del backend
+> hay que editar `environment.prod.ts` y volver a buildear/deployar. La variable
+> `NODE_ENV` en Render no afecta `apiUrl`.
+>
+> Ambos `environment.*.ts` también incluyen la config de Auth0 (`domain`, `clientId`,
+> `audience`) y `version` (leída de `package.json`).
 
 ### Development Environment
 ```typescript
@@ -258,11 +273,20 @@ npm ci && npm run build:prod
    - Enable "Auto-Deploy" for main branch
    - Every push to main triggers automatic deployment
 
-2. **Deploy Hooks**
-   ```bash
-   # Trigger manual deploy via API
-   curl -X POST https://api.render.com/deploy/srv-xxxxx?key=your-key
-   ```
+2. **Disparar deploys — SOLO vía `git push`**
+
+   > ⚠️ **Regla del proyecto:** los deploys se disparan **únicamente** con `git push` a
+   > `main` (auto-deploy). **No** usar la API de Render, deploy hooks, ni el botón
+   > "Manual Deploy" del dashboard — rompe la trazabilidad commit ↔ deploy.
+   >
+   > Para forzar un redeploy del mismo commit:
+   > ```bash
+   > git commit --allow-empty -m "chore: trigger redeploy"
+   > git push origin main
+   > ```
+   >
+   > Las tools de Render MCP (`list_deploys`, `get_deploy`, `list_logs`, etc.) se pueden
+   > usar para **inspeccionar/diagnosticar**, nunca para mutar estado de deploys.
 
 ### Preview Deployments
 
@@ -339,11 +363,11 @@ Target metrics for production:
 ## Security Checklist
 
 - ✅ HTTPS enabled (automatic on Render)
-- ✅ Security headers configured
+- ❌ Security headers configured — **PENDIENTE** (no están en `render.yaml`; ver [SECURITY.md](./SECURITY.md))
 - ✅ No sensitive data in environment files
 - ✅ API keys not exposed in frontend code
-- ✅ Content Security Policy configured
-- ✅ XSS protection enabled
+- ❌ Content Security Policy configured — **PENDIENTE** (nunca se configuró)
+- ✅ XSS protection enabled (sanitización automática de Angular)
 - ✅ CORS properly configured on backend
 
 ## Support and Resources

@@ -34,18 +34,30 @@ NoResourceFoundException: No static resource clientes/empresa/1
 2. Todos los endpoints quedan bajo `/api/{recurso}`
 3. Mantiene consistencia con el resto de controladores
 
-### Controladores que Necesitan Corrección
+### Controladores que Necesitan Corrección (pendientes)
 
-Los siguientes controladores tienen `/api/` en el `@RequestMapping` y deben corregirse:
+Los siguientes controladores **todavía** tienen `/api/` en el `@RequestMapping` y siguen
+resolviendo a `/api/api/...` (bug real de routing). Deben corregirse:
 
-| Controlador | Actual (Incorrecto) | Debe Ser (Correcto) |
-|------------|-------------------|-------------------|
-| `DashboardController` | `/api/dashboard` | `/dashboard` |
-| `GeografiaController` | `/api/geografia` | `/geografia` |
-| `ReporteController` | `/api/reportes` | `/reportes` |
-| `AuditLogController` | `/api/auditoria` | `/auditoria` |
-| `DocumentoElectronicoController` | `/api/documentos-electronicos` | `/documentos-electronicos` |
-| `FacturaLegalController` | `/api/facturas` | `/facturas` |
+| Controlador | Actual (Incorrecto) | Ruta efectiva (bug) | Debe Ser (Correcto) |
+|------------|-------------------|---------------------|-------------------|
+| `AuditLogController` | `/api/auditoria` | `/api/api/auditoria` | `/auditoria` |
+| `GeografiaController` | `/api/geografia` | `/api/api/geografia` | `/geografia` |
+| `ReporteController` | `/api/reportes` | `/api/api/reportes` | `/reportes` |
+
+### Controladores ya corregidos
+
+Estos ya siguen la regla (se los saca de la lista de pendientes):
+
+- ✅ `DashboardController`: `@RequestMapping("/dashboard")`
+- ✅ `FacturaLegalController`: `@RequestMapping("/facturas")`
+- ✅ `DocumentoElectronicoController`: `@RequestMapping("/documentos-electronicos")`
+
+### Caso atípico válido
+
+- `TimbradoDetalleController` usa `@RequestMapping` **sin path base**; cada método define la
+  ruta completa (`/timbrados/{id}/detalles`, `/timbrado-detalles/{id}`, ...). No viola la
+  regla — no lleva `/api/` — pero es un patrón distinto al del resto de controllers.
 
 ### Controladores Correctos (Ejemplos)
 

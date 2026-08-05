@@ -31,32 +31,40 @@ El proyecto ya está configurado con:
    - 🎨 **Frontend (Static Site)**: `frc-efact-frontend`
 6. Click en "Apply"
 
-**¡Importante!** El Blueprint crea TODO automáticamente:
+**¡Importante!** El Blueprint crea automáticamente:
 - ✅ Base de datos (NO necesitas crearla antes)
 - ✅ Backend con Docker
 - ✅ Frontend con build de Angular
-- ✅ Variables de entorno conectadas entre servicios
-- ✅ CORS configurado automáticamente
+- ✅ `DATABASE_URL` y `JWT_SECRET` conectados/generados entre servicios
+
+⚠️ **Pero NO todo es automático.** Antes de que el backend compile debes agregar manualmente en el Dashboard:
+- `GITHUB_USERNAME` y `GITHUB_TOKEN` — **obligatorias**: la dependencia `jsifenlib` se descarga desde GitHub Packages y **sin estas credenciales el build de Docker falla**. Vienen comentadas en `render.yaml` (deben ir en el Dashboard, no en el YAML por ser secretos).
+- `MAIL_PASSWORD` — necesaria para el envío de emails; sin ella el arranque puede fallar (no tiene valor por defecto en `application.yml`).
+- `ENCRYPTION_KEY` — recomendada (AES-256, 32 caracteres) para cifrar datos sensibles como el CSC y la contraseña del certificado. Si falta, el sistema usa un valor por defecto **inseguro**.
 
 **Opción B: Manual**
 
 Si prefieres crear los servicios manualmente, sigue la guía en `MANUAL_SETUP.md`
 
-### 3. Variables de Entorno (Automáticas)
+### 3. Variables de Entorno
 
-**¡No necesitas configurar nada manualmente!** El Blueprint configura todo:
+**Definidas automáticamente por el Blueprint (`render.yaml`):**
 
 **Backend:**
 - ✅ `DATABASE_URL` - Conectado automáticamente a la base de datos
 - ✅ `JWT_SECRET` - Generado automáticamente (seguro)
-- ✅ `CORS_ALLOWED_ORIGINS` - Apunta automáticamente al frontend
 - ✅ `SPRING_PROFILES_ACTIVE` - Configurado como `prod`
-
-**Frontend:**
-- ✅ `API_URL` - Apunta automáticamente al backend
+- `JWT_EXPIRATION=86400000` y `LOG_LEVEL=INFO` — declaradas en `render.yaml` pero **el código actual no las lee** (la expiración del JWT y los niveles de log están fijos en `application-prod.yml`). Son inertes.
 
 **Base de Datos:**
 - ✅ Creada automáticamente con nombre, usuario y contraseña
+
+**Que debes configurar manualmente en el Dashboard (Environment):**
+- ⚠️ `GITHUB_USERNAME` / `GITHUB_TOKEN` — **obligatorias o el build falla** (jsifenlib desde GitHub Packages).
+- ⚠️ `MAIL_PASSWORD` — para envío de emails; sin ella el arranque puede fallar.
+- ⚠️ `ENCRYPTION_KEY` — cifrado de datos sensibles (32 chars); sin ella se usa un default inseguro.
+
+> ❌ **No existen** las variables `CORS_ALLOWED_ORIGINS` ni `API_URL`. **CORS no se configura por variable de entorno**: los orígenes permitidos están **fijos en el código** (`SecurityConfig.java`) y en `application-prod.yml` (`cors.allowed-origins`). La URL del backend que usa el frontend se fija en **tiempo de compilación** en `environment.prod.ts`.
 
 ### 4. Monitorear el Deployment
 
@@ -76,14 +84,15 @@ Si prefieres crear los servicios manualmente, sigue la guía en `MANUAL_SETUP.md
 
 **1. Verifica el Backend:**
 ```
-https://frc-efact-backend.onrender.com/actuator/health
+https://frc-efact-backend.onrender.com/api/actuator/health
 ```
 Deberías ver: `{"status":"UP"}`
 
-**Nota**: Los endpoints del backend están en la raíz (sin `/api`):
-- Health: `/actuator/health`
-- Login: `/auth/login`
-- Users: `/usuarios`
+**Nota**: El backend usa `context-path: /api`, por lo que **todos los endpoints van bajo `/api`**:
+- Health: `/api/actuator/health`
+- Login: `/api/auth/login`
+- Usuarios: `/api/usuarios`
+- Perfil: `/api/perfil`
 
 **2. Verifica el Frontend:**
 ```
@@ -111,8 +120,8 @@ Si el login funciona, ¡todo está correcto! ✅
 3. Verifica las variables de entorno
 
 ### El frontend no se conecta al backend
-1. Verifica que `API_URL` en el frontend apunte al backend correcto
-2. Verifica que CORS esté configurado correctamente en el backend
+1. Verifica que `environment.prod.ts` tenga la `apiUrl` correcta (se fija **en tiempo de compilación**, no por variable de entorno). Si la cambias, hay que **rebuildear** el frontend.
+2. Verifica que el origen del frontend esté permitido por CORS en `SecurityConfig.java` / `application-prod.yml`.
 3. Revisa la consola del navegador para errores
 
 ## 📚 Documentación Adicional
@@ -129,7 +138,8 @@ Si el login funciona, ¡todo está correcto! ✅
 - [ ] Cuenta en Render creada
 - [ ] Repositorio conectado a Render
 - [ ] Blueprint aplicado (servicios creados)
-- [ ] Variables de entorno configuradas
+- [ ] `GITHUB_USERNAME` / `GITHUB_TOKEN` configuradas en el Dashboard (obligatorias)
+- [ ] `MAIL_PASSWORD` y `ENCRYPTION_KEY` configuradas en el Dashboard
 - [ ] Backend desplegado y corriendo
 - [ ] Frontend desplegado y corriendo
 - [ ] Login funciona correctamente
