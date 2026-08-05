@@ -1,5 +1,13 @@
 # Configuración MCP para Render
 
+> ⚠️ **DOCUMENTO LEGACY — Render ya no es producción.**
+> Desde el **2026-07-07** producción corre en una **VM Hetzner**: `https://efact.frc-ecommerce.com`.
+> El deploy es **manual por SSH**, no por `git push`. Guía vigente:
+> [RUNBOOK_VM.md](hetzner/RUNBOOK_VM.md).
+> El servicio de Render quedó **suspendido** como ventana de rollback (conserva `autoDeploy`
+> sobre `main`: reanudarlo lo vuelve a poner a auto-desplegar). Este documento se conserva
+> como referencia histórica hasta darlo de baja.
+
 Esta guía explica cómo configurar el MCP (Model Context Protocol) de Render para acceder a información de deployments, bases de datos y servicios desde Cursor.
 
 ## ¿Qué es MCP?

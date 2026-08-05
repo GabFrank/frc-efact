@@ -32,6 +32,16 @@ dependencies {
 }
 ```
 
+> ⚠️ **Nota del proyecto FRC eFact:** los bloques de dependencia de arriba muestran la
+> librería original de Roshka (`com.roshka.sifen:rshk-jsifenlib` desde `mavenCentral`).
+> **Este proyecto NO usa esa dependencia.** Usa el fork interno
+> **`io.github.gabfrank:rshk-jsifenlib:0.2.4-frc.13`**, publicado en **GitHub Packages**
+> (`GabFrank/rshk-jsifenlib`). El acceso requiere autenticación — ver
+> [`GITHUB_PACKAGES_SETUP.md`](../../frc-efact-backend/GITHUB_PACKAGES_SETUP.md).
+> El contenido normativo y las clases (`com.roshka.sifen.core.*`) de este manual siguen
+> siendo válidas porque el fork conserva el mismo package base; sólo cambian `groupId`,
+> `version` y el repositorio de origen.
+
 ### 1.2. Configuración de SIFEN
 
 Usar la misma configuración que para FE:

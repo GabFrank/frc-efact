@@ -1,0 +1,91 @@
+# FRC eFact — stack de producción en VM Hetzner (deploy@178.105.107.171, Fedora 42)
+# La VM es COMPARTIDA (farmacia Next.js, headscale, mediamtx, nginx, postgres nativo):
+# este stack solo expone puertos en 127.0.0.1; el TLS/routing lo hace el nginx del host
+# (ver deploy/nginx-vhost-efact.conf). NO usa Caddy.
+# Uso: docker compose -f docker-compose.prod.yml --env-file deploy/.env up -d
+# Ver docs/deployment/hetzner/RUNBOOK_VM.md
+
+services:
+  postgres:
+    # Render corre PostgreSQL 16.13 → misma major para restore sin sorpresas
+    image: postgres:16-alpine
+    container_name: frc-efact-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: frc_efact_db
+      POSTGRES_USER: frc_efact_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en deploy/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U frc_efact_user -d frc_efact_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Sin ports: solo accesible dentro de la red de compose
+    # (el postgres NATIVO del host ya usa 5432; no mapear nunca ese puerto)
+
+  backend:
+    build:
+      context: ./frc-efact-backend
+      args:
+        GITHUB_USERNAME: ${GITHUB_USERNAME:?definir en deploy/.env}
+        GITHUB_TOKEN: ${GITHUB_TOKEN:?definir en deploy/.env}
+    container_name: frc-efact-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # Solo loopback: el nginx del host proxya /api hacia acá.
+      # 8080 del host está ocupado por headscale — no cambiar a 8080.
+      - "127.0.0.1:${BACKEND_PORT:-8081}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # ⚠️ Obligatoria: el ENTRYPOINT del Dockerfile (forma exec) pasa el literal
+      # -Dserver.port=${PORT:-8080} sin expandir; Spring lo resuelve como
+      # placeholder ${PORT} con default "-8080" → sin PORT el conector HTTP
+      # queda deshabilitado ("Tomcat started on port -1"). Render define PORT=10000.
+      PORT: "8080"
+      DATABASE_URL: postgresql://frc_efact_user:${POSTGRES_PASSWORD}@postgres:5432/frc_efact_db
+      JWT_SECRET: ${JWT_SECRET:?definir en deploy/.env}
+      JWT_EXPIRATION: "86400000"
+      # ⚠️ Debe ser EXACTAMENTE la misma clave usada en Render (descifra CSC y
+      # passwords de certificados ya guardados en la DB). 32 caracteres.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?definir en deploy/.env}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:?definir en deploy/.env}
+      LOG_LEVEL: INFO
+      # Origen del frontend para CORS (SecurityConfig los agrega a los defaults).
+      # Con dominio único app+api es casi same-origin, pero se declara igual.
+      CORS_ALLOWED_ORIGINS: https://${APP_DOMAIN:?definir en deploy/.env}
+      # SIFEN — Render NO define ninguna SIFEN_* (verificado 2026-07-06):
+      # prod corre con los defaults de SifenProperties (enabled=false,
+      # ambiente=TEST, scheduler off) y la emisión real se gobierna por la
+      # config por empresa en DB. Replicar exacto: no activar acá salvo
+      # decisión explícita. Nunca dos schedulers (Render+VM) a la vez.
+      SIFEN_ENABLED: ${SIFEN_ENABLED:-false}
+      SIFEN_AMBIENTE: ${SIFEN_AMBIENTE:-TEST}
+      SIFEN_SCHEDULER_ENABLED: ${SIFEN_SCHEDULER_ENABLED:-false}
+    volumes:
+      - certificates:/app/certificates
+      - backend_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  frontend:
+    build:
+      context: ./frc-efact-frontend
+    container_name: frc-efact-frontend
+    restart: unless-stopped
+    ports:
+      # Solo loopback: el nginx del host proxya / hacia acá
+      - "127.0.0.1:${FRONTEND_PORT:-8082}:80"
+
+volumes:
+  pgdata:
+  certificates:
+  backend_logs:

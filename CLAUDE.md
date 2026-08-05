@@ -15,7 +15,7 @@ Sistema web full-stack para emitir y gestionar **Documentos Electrónicos (DE)**
 - **JasperReports 6.20.0** para PDFs (KuDE)
 - **ZXing** para QR
 - **Apache POI** para Excel
-- **AspectJ AOP** para auditoría automática
+- **AspectJ AOP** para auditoría (annotation-driven: `AuditAspect` intercepta métodos anotados con `@Auditable`, no todo write automáticamente)
 - **Lombok**, **springdoc-openapi 2.3.0** (Swagger en `/swagger-ui.html`)
 - SOAP (`spring-boot-starter-web-services` + `javax.xml.soap` + `saaj-impl`) requerido por jsifenlib
 
@@ -47,16 +47,16 @@ Puerto: **8080** — context-path: **`/api`** — Swagger: http://localhost:8080
 npm start                      # ng serve → http://localhost:4200
 npm run build:prod             # Build producción
 npm run test:ci                # Tests headless
-npm run lint                   # ESLint
+npm run lint                   # ⚠️ NO FUNCIONA: el target `lint` no existe en angular.json
 ```
 
 ### Credenciales por defecto (dev)
-| Usuario | Password | Rol |
-|---------|----------|-----|
-| `admin` | `Admin123!` | ADMIN |
-| `empresa_admin` | `Empresa123!` | EMPRESA_ADMIN |
-| `facturador` | `Facturador123!` | FACTURADOR |
-| `lector` | `Lector123!` | LECTOR |
+> ⚠️ **Verificado contra migraciones Flyway (V3/V4):** solo existen **dos usuarios sembrados**. Los roles `EMPRESA_ADMIN` / `FACTURADOR` / `LECTOR` existen (V5) pero **no** como usuarios pre-cargados — se asignan vinculando usuarios a empresas (`rolEmpresa`).
+
+| Usuario | Password | Rol | Sembrado en |
+|---------|----------|-----|-------------|
+| `admin` | `admin123` | ADMIN | V4 |
+| `testuser` | `test123` | (sin rol global) | V3/V4 |
 
 ---
 
@@ -68,10 +68,13 @@ frc-efact/
 ├── frc-efact-frontend/        # Angular SPA (puerto 4200)
 ├── certificates/              # Certificados .pfx para firma SIFEN
 ├── deployment-data/           # Datos para deployment
+├── deploy/                    # Stack VM Hetzner: .env.example, nginx vhost, backup systemd
+├── docker-compose.prod.yml    # Stack de producción (VM Hetzner)
 ├── docs/                      # Documentación funcional/técnica
-│   └── sifen/                 # Manuales y XML de ejemplo SIFEN v150
+│   ├── sifen/                 # Manuales y XML de ejemplo SIFEN v150
+│   └── deployment/hetzner/    # Plan y runbook de la migración a la VM
 ├── .kiro/specs/               # Specs (requirements/design/tasks) por feature
-└── render.yaml                # Blueprint deployment Render
+└── render.yaml                # Blueprint Render (legacy — Render suspendido)
 ```
 
 ### Backend — capas (paquete `com.frcefact`)
@@ -141,8 +144,9 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 
 ### Backend
 - **NUNCA** prefijar `@RequestMapping` con `/api/` — el `context-path: /api` ya lo agrega. Ver [frc-efact-backend/CONTROLLER_ROUTING_RULE.md](frc-efact-backend/CONTROLLER_ROUTING_RULE.md). Usar `@RequestMapping("/clientes")`, no `"/api/clientes"`.
+  - **🐛 Deuda vigente (verificado 2026-08-05):** `GeografiaController`, `AuditLogController` y `ReporteController` **todavía** usan `@RequestMapping("/api/...")` → resuelven a `/api/api/...`. El frontend los consume con ese doble prefijo; corregir requiere cambiar controller **y** el api-service del front en conjunto.
 - **Idioma de campos**: español para dominio (`razon_social`, `numero_factura`), inglés para genéricos (`id`, `username`, `is_active`, `password_hash`).
-- **Esquemas DB**: nada en `public`. Usar `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `catalogo`. Ver [frc-efact-backend/DATABASE_STANDARDS.md](frc-efact-backend/DATABASE_STANDARDS.md).
+- **Esquemas DB**: nada en `public`. Esquemas realmente creados por migraciones: `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte` (**no** existe `catalogo`). Ver [frc-efact-backend/DATABASE_STANDARDS.md](frc-efact-backend/DATABASE_STANDARDS.md).
 - **Auditoría obligatoria** en toda tabla: `id BIGSERIAL PK`, `creado_en`, `creado_por`, `actualizado_en`, `actualizado_por` + trigger `actualizar_timestamp_modificacion()`.
 - **Migraciones Flyway** versionadas (`V36__...`); **nunca** modificar una migración ya aplicada — crear una nueva.
 - **`ddl-auto: validate`** — Hibernate sólo valida; el esquema lo gestiona Flyway.
@@ -206,9 +210,14 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - `user-administration-panel/` — Panel admin de usuarios
 
 ### Deployment
-- [docs/deployment/](docs/deployment/), [render.yaml](render.yaml)
-- Backend desplegado en Render via Docker, frontend como sitio estático
-- URLs prod: `https://frc-efact-backend.onrender.com/api` · `https://frc-efact-frontend.onrender.com`
+- **Producción actual: VM Hetzner** (desde 2026-07-07). Runbook operativo:
+  [docs/deployment/hetzner/RUNBOOK_VM.md](docs/deployment/hetzner/RUNBOOK_VM.md) ·
+  contexto y riesgos: [docs/deployment/hetzner/PLAN_MIGRACION_HETZNER.md](docs/deployment/hetzner/PLAN_MIGRACION_HETZNER.md)
+- URL prod única: `https://efact.frc-ecommerce.com` (`/` → SPA, `/api` → backend)
+- Stack: `docker-compose.prod.yml` + `deploy/` (nginx vhost del host, backup por systemd timer)
+- **Render: suspendido**, conservado como ventana de rollback. [docs/deployment/render/](docs/deployment/render/)
+  y [render.yaml](render.yaml) quedan como referencia histórica hasta darlo de baja
+  (ver [docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md) §5)
 
 ---
 
@@ -220,11 +229,16 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - `MAIL_PASSWORD` (Gmail SMTP `frcsistemasinformaticos@gmail.com`)
 - `ENCRYPTION_KEY` (AES-256, 32 chars) — para datos sensibles (CSC, password de certificado)
 - `SPRING_PROFILES_ACTIVE` (`dev` | `prod`)
+- `PORT` — **obligatoria en la VM** (`PORT=8080`): el `ENTRYPOINT` del Dockerfile es forma
+  exec y no expande `${PORT:-8080}`; sin ella Tomcat arranca en puerto `-1`
+- `CORS_ALLOWED_ORIGINS` — orígenes extra separados por coma, se suman a los del código
+  (`cors.allowed-origins` en `SecurityConfig`)
 - Auth0: configurado en `application.yml` (`issuer-uri: dev-gp1w0u2bgw35q6v5.us.auth0.com`, `audiences: https://api.frcefact.com`)
+- Valores reales de prod: `deploy/.env` en la VM (plantilla: `deploy/.env.example`, no commitear)
 
 ### Frontend
 - `environment.ts` (`apiUrl: http://localhost:8080/api`)
-- `environment.prod.ts` (`apiUrl: https://frc-efact-backend.onrender.com/api`)
+- `environment.prod.ts` (`apiUrl: https://efact.frc-ecommerce.com/api`)
 
 ---
 
@@ -268,10 +282,38 @@ Esto funciona tanto para JWT local ([JwtAuthenticationFilter.java:50](frc-efact-
 
 ## Workflow / reglas de colaboración
 
-- **⚠️ Push = deploy a producción.** Render auto-despliega desde `main` cuando se hace push (`autoDeploy=yes`, `autoDeployTrigger=commit`, branch `main`). **Cada vez que termines una tarea, preguntar al usuario si querés hacer `commit` + `push`** — nunca asumir que se quiere pushear sin confirmación explícita, porque cualquier push lanza el cambio a producción.
-- **Siempre compilar antes de commit/push.** Si tocaste backend Java: `cd frc-efact-backend && ./mvnw compile`. Si tocaste frontend: `cd frc-efact-frontend && npm run build:dev` o `npm run lint`. Si la compilación falla, **no commitear** — arreglar primero.
-- **Disparar deploys SIEMPRE vía `git push`** (auto-deploy). **No usar** `mcp__render__*` ni la API de Render ni el botón "Manual Deploy" del dashboard para lanzar deploys. Si hace falta forzar un redeploy del mismo commit, usar `git commit --allow-empty -m "chore: trigger redeploy"` y push. El mecanismo via API funciona técnicamente igual, pero rompe la trazabilidad commit↔deploy y la convención del proyecto.
-- Las tools de Render MCP (`mcp__render__list_deploys`, `get_deploy`, `get_service`, `list_logs`, etc.) **se pueden usar para inspeccionar/diagnosticar** estado, logs, env vars — no para mutar estado de deploys.
+**Flujo de ramas, commits, CI y deploy: [CONTRIBUTING.md](CONTRIBUTING.md)** — leerlo antes
+de abrir un PR. Resumen:
+
+```
+feature/* --PR--> develop --PR--> main --(semantic-release)--> tag + CHANGELOG
+hotfix/*  --PR--> main    --PR--> develop  (obligatorio post-hotfix)
+```
+
+- `main` = rama de release · `develop` = integración · **sin canal de prerelease** (no hay
+  entorno alpha/beta donde desplegarlo).
+- **PR de `develop` a `main`: merge commit, NO squash** — el squash colapsa los
+  `feat:`/`fix:` y `semantic-release` calcula mal el bump.
+- CI (`.github/workflows/ci.yml`) corre en PRs a `main`/`develop`: build de backend y
+  frontend bloqueantes; los tests del backend **no** bloquean todavía (6 tests de RUC
+  fallan por un bug conocido — ver [docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md) §4).
+
+- **⚠️ El deploy a producción es MANUAL por SSH a la VM Hetzner.** Desde la migración
+  del 2026-07-07, `git push` **ya no despliega**. El flujo real es entrar a la VM
+  (`deploy@178.105.107.171`), `git pull` y `docker compose -f docker-compose.prod.yml
+  --env-file deploy/.env up -d --build` del servicio que corresponda. Procedimiento y
+  gotchas: [docs/deployment/hetzner/RUNBOOK_VM.md](docs/deployment/hetzner/RUNBOOK_VM.md).
+  **Nunca ejecutar ese deploy sin confirmación explícita del usuario.**
+- **Qué sí dispara un `git push` a `main`:** `.github/workflows/release.yml` corre
+  `semantic-release`. Con commits `feat`/`fix`/`perf` genera tag, `CHANGELOG.md` y bump de
+  `pom.xml` + `package.json`; con `docs`/`chore`/`refactor` no libera nada. **Igual,
+  preguntar siempre antes de `commit` + `push`.**
+- **Render está suspendido** (`srv-d61m4p4hg0os73fpbjm0`), no dado de baja — es la ventana
+  de rollback. Conserva `autoDeploy: yes` sobre `main`, así que **si alguien lo reanuda
+  vuelve a auto-desplegar**. No reanudarlo sin decisión explícita.
+- **Siempre compilar antes de commit/push.** Si tocaste backend Java: `cd frc-efact-backend && ./mvnw compile`. Si tocaste frontend: `cd frc-efact-frontend && npm run build:dev`. Si la compilación falla, **no commitear** — arreglar primero.
+  - ⚠️ **`npm run lint` no funciona** (verificado 2026-08-05): `angular.json` solo declara los targets `build`, `serve`, `extract-i18n` y `test` — falta `@angular-eslint/schematics`. El gate real del frontend es el build AOT.
+- Las tools de Render MCP (`mcp__render__list_deploys`, `get_deploy`, `get_service`, `list_logs`, etc.) **se pueden usar para inspeccionar/diagnosticar** estado, logs y env vars del Render suspendido — nunca para mutar estado de deploys ni para reanudar servicios.
 - Antes de marcar un fix como "resuelto" en este documento, **esperar validación del usuario** ejecutando/probando el cambio.
 
 ---

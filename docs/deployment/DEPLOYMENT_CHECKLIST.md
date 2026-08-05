@@ -1,5 +1,11 @@
 # Checklist de Deployment a Producción
 
+> ⚠️ **DOCUMENTO LEGACY — Render ya no es producción.**
+> Desde el **2026-07-07** producción corre en una **VM Hetzner**: `https://efact.frc-ecommerce.com`.
+> El deploy es **manual por SSH**, no por `git push`. Guía vigente:
+> [RUNBOOK_VM.md](hetzner/RUNBOOK_VM.md).
+> Se conserva como referencia histórica hasta dar de baja Render.
+
 Use este checklist para asegurar que todos los pasos del deployment se completen correctamente.
 
 ## Pre-Deployment
@@ -25,7 +31,10 @@ Use este checklist para asegurar que todos los pasos del deployment se completen
   - [ ] `DATABASE_URL` conectado automáticamente
   - [ ] `JWT_SECRET` generado automáticamente
   - [ ] `SPRING_PROFILES_ACTIVE=prod`
-  - [ ] `JWT_EXPIRATION=86400000`
+  - [ ] `GITHUB_USERNAME` / `GITHUB_TOKEN` — **obligatorias** (Dashboard): sin ellas el build de Docker falla al bajar `jsifenlib`
+  - [ ] `MAIL_PASSWORD` — sin valor por defecto; si falta, el arranque puede fallar
+  - [ ] `ENCRYPTION_KEY` — 32 chars; si falta se usa un default inseguro
+  - [ ] (`JWT_EXPIRATION` y `LOG_LEVEL` figuran en `render.yaml` pero son **inertes** — el código no las lee)
 
 ## Migración de Datos
 
@@ -46,7 +55,7 @@ Use este checklist para asegurar que todos los pasos del deployment se completen
 
 ## Verificación
 
-- [ ] Backend responde en `/actuator/health` → `{"status":"UP"}`
+- [ ] Backend responde en `/api/actuator/health` → `{"status":"UP"}` (context-path `/api`)
 - [ ] Frontend carga correctamente en la URL de producción
 - [ ] Login funciona con usuarios existentes
 - [ ] Dashboard carga datos correctamente

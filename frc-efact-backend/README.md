@@ -1,6 +1,14 @@
 # FRC eFact Backend
 
-Backend component of the FRC eFact web application built with Spring Boot 3.2+ and PostgreSQL.
+Backend del sistema **FRC eFact** — facturación electrónica para Paraguay conforme a la
+normativa **SIFEN** (SET). Construido con Spring Boot 3.2+ y PostgreSQL. Gestiona empresas,
+timbrados, clientes, productos, facturas legales y su emisión como **Documentos Electrónicos
+(DE)**: generación de XML SIFEN, firma digital con certificado `.pfx`, envío en lotes a SIFEN,
+eventos (cancelación / inutilización / nominación), notas de crédito/débito/remisión, KuDE PDF
+y QR.
+
+> **API completa:** la lista real de los 20+ controllers, sus endpoints y roles está en
+> [API_DOCUMENTATION.md](./API_DOCUMENTATION.md). Este README cubre solo el arranque y stack.
 
 ## Technology Stack
 
@@ -25,7 +33,7 @@ src/
 │   │       ├── controller/      # REST Controllers
 │   │       ├── service/         # Servicios de negocio
 │   │       ├── repository/      # Repositorios JPA
-│   │       ├── entity/          # Entidades JPA
+│   │       ├── model/           # Entidades JPA (+ enums de dominio)
 │   │       ├── dto/             # Data Transfer Objects
 │   │       └── security/        # Configuración de seguridad
 │   └── resources/
@@ -83,8 +91,10 @@ jwt:
 ## Endpoints Principales
 
 - **Swagger UI**: http://localhost:8080/swagger-ui.html
-- **API Docs**: http://localhost:8080/v3/api-docs
-- **Health Check**: http://localhost:8080/actuator/health
+- **API Docs**: http://localhost:8080/api/v3/api-docs
+- **Health Check**: http://localhost:8080/api/actuator/health
+
+> Nota: el context-path es `/api`, así que **todas** las rutas (incluido Actuator) cuelgan de `/api`.
 
 ### Autenticación
 
@@ -94,9 +104,10 @@ jwt:
 
 ### Usuario
 
-- `GET /api/users/profile` - Obtener perfil del usuario autenticado
+- `GET /api/usuarios/perfil` - Obtener perfil del usuario autenticado
 
-Para documentación completa de la API, ver [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+Para la documentación completa de la API (todos los controllers, endpoints y roles),
+ver [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
 
 ## Testing
 
@@ -119,15 +130,31 @@ Para documentación completa de la API, ver [API_DOCUMENTATION.md](./API_DOCUMEN
 
 ## Deployment
 
-### Deployment en Render (Recomendado: Docker)
+### Deployment en la VM Hetzner (producción actual)
 
-El proyecto incluye un `Dockerfile` optimizado para deployment en Render:
+Desde el **2026-07-07** el backend corre en la VM Hetzner vía
+[`docker-compose.prod.yml`](../docker-compose.prod.yml) (contenedor en `127.0.0.1:8081`, TLS y
+routing por el nginx del host). El deploy es **manual por SSH**:
+
+```bash
+ssh deploy@178.105.107.171 && cd ~/frc-efact && git pull
+docker compose -f docker-compose.prod.yml --env-file deploy/.env up -d --build backend
+```
+
+⚠️ `PORT=8080` es **obligatoria** en `deploy/.env`: el `ENTRYPOINT` del Dockerfile es forma exec
+y no expande `${PORT:-8080}` — sin ella Tomcat arranca en puerto `-1`.
+
+Runbook completo: [docs/deployment/hetzner/RUNBOOK_VM.md](../docs/deployment/hetzner/RUNBOOK_VM.md).
+
+### Deployment en Render (legacy — servicio suspendido)
+
+El mismo `Dockerfile` se usaba en Render:
 
 **Configuración en Render:**
 - **Runtime**: Docker
 - **Dockerfile Path**: `frc-efact-backend/Dockerfile`
 - **Docker Context**: `frc-efact-backend`
-- **Health Check**: `/actuator/health`
+- **Health Check**: `/api/actuator/health`
 
 **Variables de Entorno en Render:**
 ```
@@ -135,7 +162,7 @@ DATABASE_URL=postgresql://...
 JWT_SECRET=generated-secure-key
 JWT_EXPIRATION=86400000
 SPRING_PROFILES_ACTIVE=prod
-CORS_ALLOWED_ORIGINS=https://frc-efact-frontend.onrender.com
+CORS_ALLOWED_ORIGINS=https://efact.frc-ecommerce.com
 LOG_LEVEL=INFO
 ```
 

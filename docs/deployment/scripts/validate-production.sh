@@ -92,7 +92,7 @@ fi
 print_info "Probando endpoint de login..."
 LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/auth/login" \
     -H "Content-Type: application/json" \
-    -d '{"username":"admin","password":"Admin123!"}' 2>/dev/null || echo "ERROR\n000")
+    -d '{"username":"admin","password":"admin123"}' 2>/dev/null || echo "ERROR\n000")
 
 LOGIN_HTTP_CODE=$(echo "$LOGIN_RESPONSE" | tail -n1)
 LOGIN_BODY=$(echo "$LOGIN_RESPONSE" | sed '$d')
@@ -239,7 +239,7 @@ fi
 START_TIME=$(date +%s%N)
 curl -s -X POST "${BACKEND_URL}/api/auth/login" \
     -H "Content-Type: application/json" \
-    -d '{"username":"admin","password":"Admin123!"}' > /dev/null 2>&1
+    -d '{"username":"admin","password":"admin123"}' > /dev/null 2>&1
 END_TIME=$(date +%s%N)
 LOGIN_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
 

@@ -30,7 +30,7 @@ export const httpsInterceptor: HttpInterceptorFn = (req, next) => {
 ```typescript
 export const environment = {
   production: true,
-  apiUrl: 'https://frc-efact-backend.onrender.com/api',
+  apiUrl: 'https://efact.frc-ecommerce.com/api',
   enableHttps: true,
   secureOnly: true
 };
@@ -48,11 +48,32 @@ export const environment = {
 
 ## Security Headers
 
-### Render Configuration
+> ⚠️ **DEUDA DE SEGURIDAD — NO IMPLEMENTADO (verificado 2026).**
+> Versiones anteriores de este documento afirmaban que los security headers estaban
+> "configurados en `render.yaml`". **Es falso.** El [`render.yaml`](../render.yaml) del
+> repositorio **no tiene sección `headers`**: para el frontend solo define `buildCommand`,
+> `staticPublishPath` y una regla `routes` de `rewrite` (`/*` → `/index.html`) para el
+> SPA routing. **No se envía ningún header de seguridad** (`X-Frame-Options`,
+> `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, CSP, HSTS).
 
-Security headers are configured in `render.yaml`:
+### Estado real
+
+| Header | Estado | Notas |
+|--------|--------|-------|
+| X-Frame-Options | ❌ Ausente | Sin protección de clickjacking a nivel header |
+| X-Content-Type-Options | ❌ Ausente | Sin `nosniff` |
+| Referrer-Policy | ❌ Ausente | — |
+| Permissions-Policy | ❌ Ausente | — |
+| Content-Security-Policy | ❌ Ausente | Nunca se configuró |
+| HSTS (Strict-Transport-Security) | ❌ Ausente | HTTPS sí lo provee Render en el edge |
+
+### Pendiente (recomendado)
+
+Para agregarlos, añadir una sección `headers` al servicio `frc-efact-frontend` en
+`render.yaml`. Ejemplo de punto de partida:
 
 ```yaml
+# En render.yaml, dentro del servicio frc-efact-frontend (aún NO presente):
 headers:
   - path: /*
     name: X-Frame-Options
@@ -61,9 +82,6 @@ headers:
     name: X-Content-Type-Options
     value: nosniff
   - path: /*
-    name: X-XSS-Protection
-    value: 1; mode=block
-  - path: /*
     name: Referrer-Policy
     value: strict-origin-when-cross-origin
   - path: /*
@@ -71,27 +89,16 @@ headers:
     value: geolocation=(), microphone=(), camera=()
 ```
 
-### Header Descriptions
+**CSP (futuro):** Angular Material requiere `unsafe-inline` para estilos; considerar
+nonces. Un CSP inicial sería:
 
-| Header | Value | Purpose |
-|--------|-------|---------|
-| X-Frame-Options | DENY | Prevents clickjacking by disallowing iframe embedding |
-| X-Content-Type-Options | nosniff | Prevents MIME type sniffing |
-| X-XSS-Protection | 1; mode=block | Enables browser XSS filter |
-| Referrer-Policy | strict-origin-when-cross-origin | Controls referrer information |
-| Permissions-Policy | geolocation=(), microphone=(), camera=() | Restricts browser features |
-
-### Content Security Policy (Future)
-
-Consider adding CSP headers for enhanced security:
-
-```yaml
-- path: /*
-  name: Content-Security-Policy
-  value: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://frc-efact-backend.onrender.com
+```
+default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://frc-efact-backend.onrender.com
 ```
 
-**Note**: Angular Material requires `unsafe-inline` for styles. Consider using nonces in future versions.
+> ⚠️ Producción ya **no** es Render. Los headers hay que definirlos en el nginx del stack
+> (`frc-efact-frontend/deploy/nginx-spa.conf`) o en el vhost del host (`deploy/nginx-vhost-efact.conf`), y aplicarlos
+> con un deploy **manual por SSH** — `git push` no despliega.
 
 ## Authentication Security
 
@@ -534,7 +541,7 @@ this.http.post(url, data, {
 - [ ] Source maps disabled
 - [ ] API URL points to production backend
 - [ ] HTTPS enforced
-- [ ] Security headers configured
+- [ ] Security headers configured — ⚠️ **PENDIENTE**: no configurados en `render.yaml` (ver sección *Security Headers*)
 - [ ] CORS configured correctly
 - [ ] No console.log statements with sensitive data
 - [ ] Error messages don't expose sensitive info

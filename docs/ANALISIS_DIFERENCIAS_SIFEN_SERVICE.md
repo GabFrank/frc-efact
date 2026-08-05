@@ -1,483 +1,175 @@
-# Análisis de Diferencias: SifenService - Proyecto Actual vs Repositorio de Referencia
+# Estado real de `SifenService` — Diferencias resueltas y deuda técnica vigente
 
-## Resumen Ejecutivo
-
-Este documento analiza las diferencias encontradas entre el método `construirDEDesdeFactura` del proyecto actual (`frc-efact-backend`) y el método `generarDEDesdeFacturaDatosReales` del repositorio de referencia (`franco-system-backend-filial` branch 3.0.7-3).
-
-**Objetivo**: Identificar diferencias que puedan estar causando errores al generar documentos electrónicos en el proyecto actual.
-
----
-
-## Diferencias Críticas Identificadas
-
-### 1. Código de Seguridad (dCodSeg) - Grupo B
-
-#### Proyecto Actual (frc-efact-backend)
-```java
-// Líneas 524-526
-String codigoSeguridad = xmlGeneratorService.generarCodigoSeguridad();
-gOpeDE.setdCodSeg(codigoSeguridad);
-log.debug("   Código de seguridad generado (dCodSeg): {}", codigoSeguridad);
-```
-
-#### Repositorio de Referencia (franco-system-backend-filial)
-```java
-// Línea 1412
-gOpeDE.setiTipEmi(TTipEmi.NORMAL);
-// NO se establece dCodSeg explícitamente
-```
-
-**Análisis**:
-- El proyecto actual genera explícitamente un código de seguridad de 9 dígitos.
-- El repositorio de referencia NO establece este campo explícitamente.
-- **Posible causa de error**: Si jsifenlib requiere este campo y no lo genera automáticamente, el documento puede fallar al generar el XML o el CDC.
-
-**Recomendación**: Verificar si jsifenlib genera automáticamente el `dCodSeg` cuando no se establece. Si no lo hace, mantener la generación explícita del proyecto actual.
+> ⚠️ **Documento reescrito 2026-08-05.** El análisis especulativo original
+> (2025-01-27), que comparaba `SifenService` contra el repo de referencia
+> `franco-system-backend-filial`, **quedó obsoleto**: la mayoría de las 9 "diferencias"
+> que planteaba ya se resolvieron en el código, nunca aplicaron, o fueron conjeturas
+> sobre tipos de datos que hoy están zanjadas. Este documento reemplaza aquel análisis
+> por el **estado verificado del código actual** (`frc-efact-backend`), con líneas
+> aproximadas de `SifenService.java`.
 
 ---
 
-### 2. Código de Establecimiento (dEst) - Grupo C
+## 1. Cómo leer este documento
 
-#### Proyecto Actual (frc-efact-backend)
-```java
-// Línea 535
-gTimb.setdEst(factura.getTimbradoDetalle().getCodigoEstablecimientoFactura());
-```
-
-#### Repositorio de Referencia (franco-system-backend-filial)
-```java
-// Líneas 1420-1439
-String codigoEstablecimiento = null;
-if (factura.getTimbradoDetalle().getSucursal() != null && 
-    factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura() != null &&
-    !factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura().trim().isEmpty()) {
-    codigoEstablecimiento = factura.getTimbradoDetalle().getSucursal().getCodigoEstablecimientoFactura().trim();
-} else {
-    // Lanza IllegalArgumentException con mensaje detallado
-    throw new IllegalArgumentException(mensajeError);
-}
-gTimb.setdEst(codigoEstablecimiento);
-```
-
-**Análisis**:
-- **Proyecto actual**: Obtiene el código directamente de `TimbradoDetalle`.
-- **Repositorio de referencia**: Obtiene el código de `TimbradoDetalle.getSucursal().getCodigoEstablecimientoFactura()` con validación estricta.
-- **Diferencia estructural**: El repositorio de referencia asume que el código está en la sucursal, no directamente en el timbrado detalle.
-
-**Posibles causas de error**:
-1. Si la estructura de datos del proyecto actual tiene el código en `TimbradoDetalle` pero el repositorio de referencia lo busca en `Sucursal`, puede haber un desajuste.
-2. La falta de validación en el proyecto actual puede permitir valores null o vacíos que causen errores en SIFEN.
-3. Si el proyecto actual soporta multi-empresas y la estructura es diferente, puede estar obteniendo el código de un lugar incorrecto.
-
-**Recomendación**: 
-- Verificar la estructura de datos real del proyecto actual.
-- Implementar validación similar a la del repositorio de referencia.
-- Asegurar que el código de establecimiento siempre esté presente y no sea null/vacío.
+- **Sección 2** — diferencias del análisis viejo que ya están **cerradas** (no requieren
+  acción).
+- **Sección 3** — **deuda técnica real y vigente** (candidatos a issue).
+- Las líneas citadas corresponden a
+  `frc-efact-backend/src/main/java/com/frcefact/service/sifen/SifenService.java`
+  a fecha de esta revisión; pueden desplazarse con futuras ediciones.
 
 ---
 
-### 3. Normalización de Monto de Pago (dMonTiPag) - Grupo E
+## 2. Diferencias del análisis 2025-01-27 que YA están cerradas
 
-#### Proyecto Actual (frc-efact-backend)
+### 2.1. `dEst` — Código de establecimiento (Diff #2 del doc viejo) — ✅ FALSO / resuelto
+
+El análisis viejo afirmaba que el proyecto tomaba `dEst` de un lugar distinto al repo de
+referencia (`getSucursal().getCodigoEstablecimientoFactura()`). **Es incorrecto.** El
+código toma el código directamente de `TimbradoDetalle` y lo formatea a 3 dígitos:
+
 ```java
-// Línea 792
-gPaConEIni.setdMonTiPag(normalizarDecimalesMonetarios(factura.getTotalFinal()));
+// SifenService ~L1242-1243 (factura)
+String codEstablecimiento = factura.getTimbradoDetalle().getCodigoEstablecimientoFactura().trim();
+gTimb.setdEst(String.format("%03d", Integer.parseInt(codEstablecimiento)));
 ```
 
-#### Repositorio de Referencia (franco-system-backend-filial)
+El mismo patrón se repite para Nota de Crédito (~L1724-1726) y Nota de Remisión
+(~L2167-2169). No hay dependencia de `getSucursal()`. **Sin acción.**
+
+### 2.2. `dBasExe` en ítems gravados (Diff #4) — ✅ resuelto
+
+El código **ya no** setea `dBasExe` explícitamente en los tramos gravados de IVA. Se deja
+que la librería lo maneje, con comentario explícito:
+
 ```java
-// Líneas 1628-1629
-// dMonTiPag requiere máximo 4 decimales según esquema SIFEN (montos de pago)
-gPaConEIni.setdMonTiPag(normalizarMontoPago(factura.getTotalFinal()));
+// SifenService ~L1659 y ~L1673
+// dBasExe no se setea - la librería lo maneja automáticamente (como en versión anterior)
 ```
 
-**Diferencia en métodos de normalización**:
+Coincide con el repo de referencia. **Sin acción.**
 
-**Proyecto actual**:
-```java
-private BigDecimal normalizarDecimalesMonetarios(BigDecimal valor) {
-    if (valor == null) {
-        return BigDecimal.ZERO;
-    }
-    return valor.setScale(4, RoundingMode.HALF_UP);
-}
-```
+### 2.3. Tipos numéricos `Double` vs `BigDecimal` (Diff #3, #5, #6) — ✅ zanjado
 
-**Repositorio de referencia**:
-```java
-private BigDecimal normalizarMontoPago(Double valor) {
-    if (valor == null) {
-        throw new IllegalArgumentException("El monto de pago no puede ser null");
-    }
-    return BigDecimal.valueOf(valor).setScale(4, RoundingMode.HALF_UP);
-}
-```
+Las conjeturas del doc viejo sobre `getCantidad()`, `getPrecioUnitario()` y
+`getTotalFinal()` retornando `Float`/`Double` ya no aplican: el modelo trabaja con
+`BigDecimal` de punta a punta y las normalizaciones (`setScale(...)`) operan sobre
+`BigDecimal`. No hay riesgo de `ClassCastException` ni de conversión imprecisa por esos
+métodos. **Sin acción.**
 
-**Análisis**:
-- **Proyecto actual**: Acepta `BigDecimal`, retorna `ZERO` si es null.
-- **Repositorio de referencia**: Acepta `Double`, lanza excepción si es null.
-- **Diferencia de tipo**: El proyecto actual asume `BigDecimal`, el repositorio de referencia asume `Double`.
+### 2.4. Fuente de datos del emisor y geografía (Diff #7 parcial, #8) — ✅ intencional
 
-**Posibles causas de error**:
-1. Si `factura.getTotalFinal()` retorna `Double` en lugar de `BigDecimal`, puede haber un error de compilación o conversión incorrecta.
-2. Si el valor es null, el proyecto actual usa `ZERO` (puede ser incorrecto), mientras que el repositorio de referencia falla explícitamente (más seguro).
+Que el proyecto tome datos del emisor desde `factura.getEmpresa()` y la geografía desde
+relaciones JPA (`Ciudad → Distrito → Departamento`) es una **decisión de arquitectura
+multi-empresa**, no un bug. La diferencia con el repo de referencia (una sola empresa,
+todo en `Timbrado`) es esperada. **Sin acción** — salvo el sub-punto de `iTipCont`
+hardcodeado, que sí es deuda real (ver §3.1).
 
-**Recomendación**: 
-- Verificar el tipo de retorno de `factura.getTotalFinal()`.
-- Considerar validar null explícitamente antes de normalizar.
-- Asegurar que el monto nunca sea null o cero cuando no debería serlo.
+> **Nota:** el único fragmento del Diff #7 que sigue vigente es el **tipo de
+> contribuyente del emisor hardcodeado** — se trata aparte en §3.1.
 
 ---
 
-### 4. Manejo de IVA - Campo dBasExe - Grupo E
+## 3. Deuda técnica REAL y vigente (candidatos a issue)
 
-#### Proyecto Actual (frc-efact-backend)
+### 3.1. 🐛 `iTipCont` del emisor hardcodeado como `PERSONA_JURIDICA` (3 puntos)
+
+El tipo de contribuyente del **emisor** se fija incondicionalmente a persona jurídica en
+los tres flujos de documento:
+
 ```java
-// Líneas 840-842 (IVA 5%)
-gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-gCamIVA.setdPropIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(100)));
-gCamIVA.setdTasaIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(5)));
-gCamIVA.setdBasExe(normalizarDecimalesMonetarios(BigDecimal.ZERO)); // ← Se establece explícitamente
-
-// Líneas 849-852 (IVA 10%)
-gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-gCamIVA.setdPropIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(100)));
-gCamIVA.setdTasaIVA(normalizarDecimalesMonetarios(BigDecimal.valueOf(10)));
-gCamIVA.setdBasExe(normalizarDecimalesMonetarios(BigDecimal.ZERO)); // ← Se establece explícitamente
+gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
 ```
 
-#### Repositorio de Referencia (franco-system-backend-filial)
-```java
-// Líneas 1694-1696 (IVA 5%)
-gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
-gCamIVA.setdTasaIVA(BigDecimal.valueOf(5));
-// dBasExe no se setea - la librería lo maneja automáticamente
+- **Factura:** `SifenService` **~L1351**
+- **Nota de Crédito:** `SifenService` **~L1881**
+- **Nota de Remisión:** `SifenService` **~L2780**
 
-// Líneas 1706-1708 (IVA 10%)
-gCamIVA.setiAfecIVA(TiAfecIVA.GRAVADO);
-gCamIVA.setdPropIVA(BigDecimal.valueOf(100));
-gCamIVA.setdTasaIVA(BigDecimal.valueOf(10));
-// dBasExe no se setea - la librería lo maneja automáticamente
-```
+**Impacto:** si el emisor (la empresa) fuese **persona física**, el DE saldría con
+`iTipCont` incorrecto, lo que puede provocar rechazo o inconsistencia fiscal en SIFEN. El
+repo de referencia lo hacía configurable (`tipoContribuyenteEmisor == 1 ? PERSONA_FISICA :
+PERSONA_JURIDICA`).
 
-**Análisis**:
-- **Proyecto actual**: Establece explícitamente `dBasExe = 0` para todos los casos gravados.
-- **Repositorio de referencia**: NO establece `dBasExe`, deja que jsifenlib lo calcule automáticamente.
-- **Diferencia en normalización**: El proyecto actual normaliza los valores de `dPropIVA` y `dTasaIVA`, el repositorio de referencia no.
+**Fix sugerido:** derivar `iTipCont` del emisor desde un campo de `Empresa`
+(p. ej. tipo de contribuyente / naturaleza del RUC) en lugar de la constante. Aplicar el
+mismo cambio en los 3 puntos.
 
-**Posibles causas de error**:
-1. Establecer `dBasExe = 0` explícitamente puede interferir con el cálculo automático de la librería.
-2. La normalización excesiva de valores que deberían ser enteros (100, 5, 10) puede causar problemas de precisión.
-3. Si jsifenlib espera calcular `dBasExe` automáticamente y encuentra un valor establecido, puede haber conflictos.
-
-**Recomendación**: 
-- Seguir el patrón del repositorio de referencia: NO establecer `dBasExe` explícitamente.
-- No normalizar valores que son enteros (100, 5, 10) - usar `BigDecimal.valueOf()` directamente.
+**Severidad:** media-alta (sólo afecta emisores persona física; hoy el parque de empresas
+puede ser todo PJ, pero es una bomba latente para el primer emisor PF).
 
 ---
 
-### 5. Conversión de Cantidad de Items - Grupo E
+### 3.2. 🐛 `SifenReceptorHelper` existe pero `SifenService` NO lo usa (lógica duplicada)
 
-#### Proyecto Actual (frc-efact-backend)
-```java
-// Líneas 817-823
-if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
-    gCamItem.setcUniMed(TcUniMed.kg);
-    cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP); // ← Asume BigDecimal
-} else {
-    gCamItem.setcUniMed(TcUniMed.UNI);
-    cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP); // ← Asume BigDecimal
-}
-gCamItem.setdCantProSer(cantidad);
-```
+El helper `com.frcefact.sifen.util.SifenReceptorHelper` expone
+`getNaturalezaReceptor`, `getTipoContribuyente`, `getTipoOperacion` y `requiereRuc` a
+partir de `Cliente.getTipoClienteSifen()`. **`SifenService` no lo importa ni lo invoca.**
+En su lugar, la lógica de armado del receptor está **escrita a mano y duplicada** en tres
+métodos:
 
-#### Repositorio de Referencia (franco-system-backend-filial)
-```java
-// Líneas 1658-1672
-BigDecimal cantidad;
-float cantidadFloat = item.getCantidad() != null ? item.getCantidad() : 0.0f;
+- `construirDatosReceptor(FacturaLegal)` — **~L1415**
+- `construirDatosReceptorNotaCredito(NotaCredito)` — **~L1931**
+- `construirDatosReceptorNotaRemision(NotaRemision)` — **~L2831**
 
-if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
-    gCamItem.setcUniMed(TcUniMed.kg);
-    cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(3, RoundingMode.HALF_UP);
-} else {
-    gCamItem.setcUniMed(TcUniMed.UNI);
-    cantidad = new BigDecimal(Float.toString(cantidadFloat)).setScale(0, RoundingMode.HALF_UP);
-}
-gCamItem.setdCantProSer(cantidad);
-```
+Los tres resuelven la naturaleza/tipo de operación por su cuenta (p. ej. usan
+`cliente.requiereRuc()` directo, ramas manuales para innominado / contribuyente / no
+contribuyente), en vez de centralizar en el helper.
 
-**Análisis**:
-- **Proyecto actual**: Asume que `item.getCantidad()` retorna `BigDecimal` directamente.
-- **Repositorio de referencia**: Asume que `item.getCantidad()` retorna `Float`, lo convierte a `BigDecimal` usando `Float.toString()`.
-- **Diferencia de tipo**: El proyecto actual asume `BigDecimal`, el repositorio de referencia asume `Float`.
+**Impacto:** riesgo de **divergencia** entre los tres flujos (una corrección en el
+receptor de facturas puede no replicarse en notas), y un helper muerto que aparenta ser la
+fuente de verdad pero no lo es.
 
-**Posibles causas de error**:
-1. Si `item.getCantidad()` retorna `Float` en lugar de `BigDecimal`, el proyecto actual fallará con un error de compilación o ClassCastException.
-2. La conversión directa de `Float` a `BigDecimal` puede causar problemas de precisión si no se hace correctamente.
-3. El repositorio de referencia maneja null explícitamente (usa 0.0f), el proyecto actual puede fallar si es null.
+**Fix sugerido:** refactorizar los tres métodos para delegar en `SifenReceptorHelper`
+(unificando la determinación de `iNatRec` / `iTiOpe` / `iTiContRec` / `requiereRuc`), o —
+si se decide no usarlo — eliminar el helper para no confundir. Preferible lo primero.
 
-**Recomendación**: 
-- Verificar el tipo de retorno real de `item.getCantidad()`.
-- Implementar manejo de null similar al repositorio de referencia.
-- Si es `Float`, usar la conversión `new BigDecimal(Float.toString(cantidadFloat))` para evitar problemas de precisión.
+**Severidad:** media (mantenibilidad; no rompe SIFEN hoy, pero facilita bugs futuros).
 
 ---
 
-### 6. Precio Unitario de Items - Grupo E
+### 3.3. ⚠️ Sin validación de plazo de cancelación (48 h / 168 h)
 
-#### Proyecto Actual (frc-efact-backend)
-```java
-// Línea 827
-gValorItem.setdPUniProSer(normalizarDecimalesMonetarios(item.getPrecioUnitario()));
-```
+El Manual de Implementación NRE/cancelación v150 exige respetar la ventana temporal para
+el **evento de cancelación** (plazos del orden de 48 h para algunos DE y 168 h para NRE,
+según el tipo de documento). El flujo de cancelación en
+`SifenEventoService.cancelarDocumento(...)` **no valida ningún plazo** antes de construir y
+enviar el evento: verifica que no exista cancelación aprobada previa e invalida eventos
+activos anteriores, pero no compara la fecha de emisión/firma del DE contra el límite
+normativo.
 
-#### Repositorio de Referencia (franco-system-backend-filial)
-```java
-// Línea 1674
-gValorItem.setdPUniProSer(BigDecimal.valueOf(item.getPrecioUnitario().doubleValue()));
-```
+**Impacto:** cancelaciones fuera de plazo se arman y se envían a SIFEN, que las rechaza; el
+rechazo se descubre recién en la respuesta en lugar de bloquearse localmente con un mensaje
+claro.
 
-**Análisis**:
-- **Proyecto actual**: Normaliza el precio unitario a 4 decimales usando `normalizarDecimalesMonetarios()`.
-- **Repositorio de referencia**: Convierte a `BigDecimal` usando `doubleValue()` sin normalización explícita.
+**Fix sugerido:** agregar una validación previa en `cancelarDocumento` que compare la fecha
+de emisión/firma del DE contra la ventana permitida según el tipo de documento y falle
+temprano (`BusinessException`) con un mensaje explícito antes de enviar.
 
-**Posibles causas de error**:
-1. Si `item.getPrecioUnitario()` retorna un tipo diferente (Float, Double, BigDecimal), puede haber errores de conversión.
-2. La normalización a 4 decimales puede ser necesaria según el esquema SIFEN, pero el repositorio de referencia no la aplica explícitamente.
-3. Si el precio tiene más de 4 decimales y no se normaliza, puede causar errores de validación en SIFEN.
-
-**Recomendación**: 
-- Verificar el tipo de retorno de `item.getPrecioUnitario()`.
-- Considerar mantener la normalización a 4 decimales si es requerida por el esquema SIFEN.
-- Asegurar que la conversión de tipos sea correcta.
+**Severidad:** baja-media (no corrompe datos; degrada UX y gasta un round-trip a SIFEN).
 
 ---
 
-### 7. Datos del Emisor - Fuente de Información
+## 4. Resumen de candidatos a issue
 
-#### Proyecto Actual (frc-efact-backend)
-```java
-// Línea 596
-Empresa empresa = factura.getEmpresa();
+| # | Título | Ubicación (`SifenService`/`SifenEventoService`) | Severidad |
+|---|--------|--------------------------------------------------|-----------|
+| 3.1 | `iTipCont` emisor hardcodeado `PERSONA_JURIDICA` | `SifenService` ~L1351, ~L1881, ~L2780 | Media-alta |
+| 3.2 | `SifenReceptorHelper` sin usar; receptor duplicado a mano | `SifenService` ~L1415, ~L1931, ~L2831 | Media |
+| 3.3 | Falta validación de plazo de cancelación (48 h / 168 h) | `SifenEventoService.cancelarDocumento` | Baja-media |
 
-// Líneas 599-614
-String rucCompleto = empresa.getRuc();
-gEmis.setdRucEm(rucPartes[0]);
-gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
-gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA); // ← Hardcodeado
-gEmis.setdNomEmi(empresa.getRazonSocial());
-gEmis.setdDirEmi(factura.getTimbradoDetalle().getDireccion() != null ? ... : "");
-gEmis.setdTelEmi(factura.getTimbradoDetalle().getTelefono() != null ? ... : "");
-gEmis.setdEmailE(empresa.getEmail() != null ? empresa.getEmail() : "");
-```
-
-#### Repositorio de Referencia (franco-system-backend-filial)
-```java
-// Líneas 1483-1492
-String rucCompleto = factura.getTimbradoDetalle().getTimbrado().getRuc();
-gEmis.setdRucEm(rucPartes[0]);
-gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
-gEmis.setiTipCont(tipoContribuyenteEmisor == 1 ? TiTipCont.PERSONA_FISICA : TiTipCont.PERSONA_JURIDICA); // ← Configurable
-gEmis.setdNomEmi(factura.getTimbradoDetalle().getTimbrado().getRazonSocial());
-gEmis.setdDirEmi(factura.getTimbradoDetalle().getDireccion());
-gEmis.setdTelEmi(factura.getTimbradoDetalle().getTelefono());
-gEmis.setdEmailE(factura.getTimbradoDetalle().getTimbrado().getEmail());
-```
-
-**Análisis**:
-- **Proyecto actual**: Obtiene datos de `factura.getEmpresa()` (entidad separada).
-- **Repositorio de referencia**: Obtiene datos de `factura.getTimbradoDetalle().getTimbrado()` (todo en timbrado).
-- **Tipo de contribuyente**: El proyecto actual lo hardcodea como `PERSONA_JURIDICA`, el repositorio de referencia lo hace configurable.
-
-**Posibles causas de error**:
-1. Si el proyecto actual soporta multi-empresas, puede haber inconsistencias entre los datos de `Empresa` y `Timbrado`.
-2. Si una empresa es persona física pero se marca como jurídica, puede causar errores de validación en SIFEN.
-3. Los datos geográficos pueden diferir entre `Empresa` y `Timbrado`, causando inconsistencias.
-
-**Recomendación**: 
-- Verificar que los datos de `Empresa` y `Timbrado` estén sincronizados.
-- Hacer configurable el tipo de contribuyente emisor.
-- Asegurar que todos los campos requeridos estén presentes en la fuente de datos utilizada.
+> Conflicto adicional relacionado (documentado aparte):
+> [`docs/sifen/correcion-transportista-chofer.md`](sifen/correcion-transportista-chofer.md)
+> — el código informa datos del conductor siempre (`SifenService` ~L2689-2701), en contra
+> de la recomendación histórica de omitirlos en transporte propio. Decisión abierta.
 
 ---
 
-### 8. Datos Geográficos del Emisor
+## 5. Anexo — historial
 
-#### Proyecto Actual (frc-efact-backend)
-```java
-// Líneas 618-657
-// Usa relaciones de tablas geográficas: ciudad -> distrito -> departamento
-if (factura.getTimbradoDetalle().getCiudad() != null) {
-    com.frcefact.model.Ciudad ciudad = factura.getTimbradoDetalle().getCiudad();
-    
-    if (ciudad.getDistrito() != null && ciudad.getDistrito().getDepartamento() != null) {
-        com.frcefact.model.Departamento departamento = ciudad.getDistrito().getDepartamento();
-        TDepartamento tdep = mapearDepartamento(departamento.getNombre());
-        gEmis.setcDepEmi(tdep);
-    }
-    
-    String codigoCiudad = ciudad.getCodigo();
-    if (codigoCiudad != null && !codigoCiudad.isBlank()) {
-        gEmis.setcCiuEmi(Integer.parseInt(codigoCiudad));
-    }
-    gEmis.setdDesCiuEmi(ciudad.getNombre());
-}
-```
-
-#### Repositorio de Referencia (franco-system-backend-filial)
-```java
-// Líneas 1495-1498
-TDepartamento tdep = mapearDepartamento(factura.getTimbradoDetalle().getDepartamento());
-gEmis.setcDepEmi(tdep);
-gEmis.setcCiuEmi(Integer.parseInt(factura.getTimbradoDetalle().getCodigoCiudad()));
-gEmis.setdDesCiuEmi(factura.getTimbradoDetalle().getCiudad());
-```
-
-**Análisis**:
-- **Proyecto actual**: Usa relaciones de entidades JPA (Ciudad -> Distrito -> Departamento) y mapea desde el nombre.
-- **Repositorio de referencia**: Obtiene datos directamente como strings desde `TimbradoDetalle`.
-
-**Posibles causas de error**:
-1. Si las relaciones JPA no están cargadas (lazy loading), puede haber `LazyInitializationException`.
-2. Si el código de ciudad no es numérico o está vacío, el `Integer.parseInt()` fallará.
-3. Si el nombre del departamento no coincide exactamente con los casos del switch, puede usar un valor por defecto incorrecto.
-
-**Recomendación**: 
-- Asegurar que las relaciones JPA estén cargadas (usar `@EntityGraph` o `JOIN FETCH`).
-- Validar que el código de ciudad sea numérico antes de parsear.
-- Mejorar el mapeo de departamentos para manejar más variaciones de nombres.
-
----
-
-### 9. Datos del Receptor - Lógica de Construcción
-
-#### Proyecto Actual (frc-efact-backend)
-```java
-// Líneas 669-733
-// Lógica manual para determinar tipo de receptor
-Cliente cliente = factura.getCliente();
-
-if (cliente == null) {
-    // Configuración para innominado
-} else {
-    boolean esContribuyente = cliente.requiereRuc();
-    if (esContribuyente && cliente.getRuc() != null && !cliente.getRuc().isBlank()) {
-        // Configuración para contribuyente
-    } else {
-        // Configuración para no contribuyente
-    }
-}
-```
-
-#### Repositorio de Referencia (franco-system-backend-filial)
-```java
-// Líneas 1510-1543
-// Usa SifenReceptorHelper para determinar configuración
-SifenReceptorHelper.ConfiguracionReceptor config = 
-    SifenReceptorHelper.determinarConfiguracionReceptor(
-        factura.getCliente(), 
-        factura.getTotalFinal()
-    );
-
-// Mapea la configuración a TgDatRec
-gDatRec.setiNatRec(config.iNatRec);
-gDatRec.setiTiOpe(config.iTiOpe);
-// ... etc
-```
-
-**Análisis**:
-- **Proyecto actual**: Implementa la lógica de determinación del receptor directamente en el método.
-- **Repositorio de referencia**: Delega la lógica a `SifenReceptorHelper`, que considera también el monto total de la factura.
-
-**Posibles causas de error**:
-1. La lógica manual puede no cubrir todos los casos edge.
-2. El repositorio de referencia considera el monto total para determinar si es B2B o B2C (puede haber umbrales).
-3. La falta de un helper centralizado puede llevar a inconsistencias.
-
-**Recomendación**: 
-- Considerar implementar un helper similar a `SifenReceptorHelper` para centralizar la lógica.
-- Verificar si hay umbrales de monto que determinen el tipo de operación (B2B vs B2C).
-
----
-
-## Resumen de Posibles Causas de Error
-
-### Errores Críticos (Alta Probabilidad)
-
-1. **Código de Establecimiento (dEst)**: Si la estructura de datos es diferente, puede estar obteniendo null o un valor incorrecto.
-2. **Conversión de Tipos**: Si `getCantidad()` o `getPrecioUnitario()` retornan tipos diferentes a los esperados, puede haber errores de compilación o runtime.
-3. **Datos Geográficos**: Si las relaciones JPA no están cargadas, puede haber `LazyInitializationException`.
-
-### Errores Moderados (Media Probabilidad)
-
-4. **Código de Seguridad (dCodSeg)**: Si jsifenlib no lo genera automáticamente, puede causar errores al generar el CDC o XML.
-5. **Manejo de IVA (dBasExe)**: Establecer este campo explícitamente puede interferir con los cálculos de la librería.
-6. **Normalización de Montos**: Si los montos no se normalizan correctamente, puede haber errores de validación en SIFEN.
-
-### Errores Menores (Baja Probabilidad)
-
-7. **Tipo de Contribuyente Emisor**: Hardcodear como PERSONA_JURIDICA puede causar problemas si hay empresas que son personas físicas.
-8. **Datos del Receptor**: La lógica manual puede no cubrir todos los casos edge.
-
----
-
-## Recomendaciones Prioritarias
-
-### Prioridad Alta
-
-1. **Verificar estructura de datos**: Confirmar dónde está realmente el código de establecimiento en el proyecto actual.
-2. **Validar tipos de datos**: Verificar los tipos de retorno de `getCantidad()`, `getPrecioUnitario()`, y `getTotalFinal()`.
-3. **Cargar relaciones JPA**: Asegurar que las relaciones geográficas estén cargadas antes de acceder a ellas.
-
-### Prioridad Media
-
-4. **Implementar validaciones**: Agregar validaciones similares a las del repositorio de referencia para campos críticos.
-5. **Revisar manejo de IVA**: Considerar no establecer `dBasExe` explícitamente y dejar que la librería lo calcule.
-6. **Mejorar manejo de nulls**: Implementar validaciones explícitas para valores null.
-
-### Prioridad Baja
-
-7. **Centralizar lógica de receptor**: Considerar implementar un helper similar a `SifenReceptorHelper`.
-8. **Hacer configurable tipo de contribuyente**: Permitir configurar si el emisor es persona física o jurídica.
-
----
-
-## Próximos Pasos
-
-1. Revisar la estructura de datos real del proyecto actual.
-2. Verificar los tipos de retorno de los métodos mencionados.
-3. Probar la generación de un documento electrónico y revisar los logs de error.
-4. Aplicar las correcciones priorizadas una por una, probando después de cada cambio.
-5. Comparar el XML generado con el del repositorio de referencia para identificar diferencias.
-
----
-
-## Notas Adicionales
-
-- El proyecto actual soporta **multi-empresas**, mientras que el repositorio de referencia parece estar diseñado para una sola empresa. Esto puede explicar algunas diferencias estructurales.
-- El proyecto actual usa `SifenConfigFactory` para manejar múltiples configuraciones, lo cual es correcto para multi-empresas.
-- Algunas diferencias pueden ser intencionales debido a las diferentes arquitecturas de los proyectos.
-
----
-
-**Fecha de análisis**: 2025-01-27  
-**Versión del repositorio de referencia**: 3.0.7-3  
-**Archivos analizados**:
-- `frc-efact-backend/src/main/java/com/frcefact/service/sifen/SifenService.java`
-- `franco-system-backend-filial/src/main/java/com/franco/dev/service/sifen/service/SifenService.java`
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- **2025-01-27** — Análisis original (especulativo) comparando `construirDEDesdeFactura`
+  contra `generarDEDesdeFacturaDatosReales` del repo `franco-system-backend-filial`
+  (branch 3.0.7-3). Planteaba 9 diferencias con conjeturas sobre tipos de datos y fuentes
+  de campos. La mayoría resultó ya resuelta o inaplicable (ver §2).
+- **2026-08-05** — Reescritura sobre el estado verificado del código. Se conservan sólo las
+  3 deudas técnicas reales (§3) y se cierran las diferencias falsas/resueltas (§2).

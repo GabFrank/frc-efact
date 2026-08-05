@@ -1,5 +1,13 @@
 # Guía de Puesta en Producción - FRC eFact
 
+> ⚠️ **DOCUMENTO LEGACY — Render ya no es producción.**
+> Desde el **2026-07-07** producción corre en una **VM Hetzner**: `https://efact.frc-ecommerce.com`.
+> El deploy es **manual por SSH**, no por `git push`. Guía vigente:
+> [RUNBOOK_VM.md](hetzner/RUNBOOK_VM.md).
+> El servicio de Render quedó **suspendido** como ventana de rollback (conserva `autoDeploy`
+> sobre `main`: reanudarlo lo vuelve a poner a auto-desplegar). Este documento se conserva
+> como referencia histórica hasta darlo de baja.
+
 Esta guía documenta el proceso completo de despliegue a producción en Render.
 
 ## URLs de Producción
@@ -12,7 +20,7 @@ Esta guía documenta el proceso completo de despliegue a producción en Render.
 
 ### Usuario Administrador por Defecto
 - **Username:** `admin`
-- **Password:** (verificar en base de datos o migraciones)
+- **Password:** `admin123` (sembrado por la migración Flyway `V4`)
 
 ### Base de Datos
 - **Host:** (obtener desde Render Dashboard → frc-efact-db → Connections)
@@ -23,14 +31,21 @@ Esta guía documenta el proceso completo de despliegue a producción en Render.
 ## Variables de Entorno en Producción
 
 ### Backend
+
+**Definidas por `render.yaml` (automáticas):**
 - `DATABASE_URL` - Conectado automáticamente desde la base de datos
 - `JWT_SECRET` - Generado automáticamente por Render
 - `SPRING_PROFILES_ACTIVE=prod`
-- `JWT_EXPIRATION=86400000` (24 horas)
-- `LOG_LEVEL=INFO`
+- `JWT_EXPIRATION=86400000` — ⚠️ **declarada pero inerte**: el código lee `jwt.expiration-ms`, que está fijo en `application-prod.yml`. Esta variable no tiene efecto.
+- `LOG_LEVEL=INFO` — ⚠️ **declarada pero inerte**: los niveles de log están fijos en `application-prod.yml`; el código no lee `LOG_LEVEL`.
+
+**A configurar manualmente en el Dashboard (Environment):**
+- `GITHUB_USERNAME` / `GITHUB_TOKEN` — **obligatorias**: sin ellas el build de Docker falla al descargar `jsifenlib` de GitHub Packages. Vienen comentadas en `render.yaml`.
+- `MAIL_PASSWORD` — para el envío de emails. **Sin valor por defecto**: si falta, el arranque puede fallar.
+- `ENCRYPTION_KEY` — AES-256 (32 caracteres) para cifrar datos sensibles (CSC, contraseña del certificado). Si falta, se usa un default **inseguro**.
 
 ### Frontend
-- `API_URL` - URL del backend (configurado automáticamente)
+- **Ninguna variable de entorno de runtime.** La URL del backend (`apiUrl`) se fija en `environment.prod.ts` en **tiempo de compilación**; no se configura automáticamente ni por variable en Render. Si cambia, hay que editar `environment.prod.ts` y rebuildear el frontend.
 
 ## Proceso de Deployment
 
@@ -88,9 +103,11 @@ cd docs/deployment/scripts
 
 ### 1. Verificar Backend
 ```bash
-curl https://frc-efact-backend.onrender.com/actuator/health
+curl https://frc-efact-backend.onrender.com/api/actuator/health
 ```
 Debe retornar: `{"status":"UP"}`
+
+> El backend usa `context-path: /api`, por lo que el health real es **`/api/actuator/health`**.
 
 ### 2. Verificar Frontend
 - Abrir `https://frc-efact-frontend.onrender.com`
@@ -139,16 +156,16 @@ pg_restore -d <DATABASE_URL> backup_YYYYMMDD_HHMMSS.dump
 - Frontend: Render Dashboard → frc-efact-frontend → Logs
 
 ### Métricas
-- Health check: `/actuator/health`
-- Métricas: `/actuator/metrics`
-- Info: `/actuator/info`
+- Health check: `/api/actuator/health`
+- Métricas: `/api/actuator/metrics`
+- Info: `/api/actuator/info`
 
 ## Actualizaciones Futuras
 
 1. Hacer cambios en el código
 2. Commit y push a GitHub
-3. Render detectará cambios y redeployará automáticamente (si auto-deploy está habilitado)
-4. O hacer deploy manual desde Render Dashboard
+3. Render detectará cambios y redeployará automáticamente. **Nota:** el auto-deploy funciona por el **valor por defecto de Render** (push a la rama del servicio = deploy); **no** está fijado explícitamente en `render.yaml` (no hay claves `branch` ni `autoDeploy`).
+4. Para forzar un redeploy del mismo commit, hacer `git commit --allow-empty` y push (no usar "Manual Deploy" del Dashboard, por trazabilidad commit↔deploy).
 
 ## Notas Importantes
 

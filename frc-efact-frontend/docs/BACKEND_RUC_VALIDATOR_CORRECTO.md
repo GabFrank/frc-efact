@@ -1,3 +1,14 @@
+> # ⚠️ OBSOLETO (resuelto) — ver [ESTADO_VALIDACION_RUC.md](./ESTADO_VALIDACION_RUC.md)
+>
+> El backend **ya implementa** este validador correcto (`CalcularVerificadorRuc` +
+> `RucValidator`, módulo 11 con cadena invertida). Este documento describía la solución
+> como pendiente de aplicar; **ya fue aplicada**. Sirve solo como referencia histórica del
+> algoritmo. La deuda actual está en el **frontend** (validación apagada + mock
+> interceptor) — ver el documento de estado.
+
+<details>
+<summary>Contenido histórico (obsoleto)</summary>
+
 # Validador RUC Correcto para Backend
 
 ## 🚨 Problema Identificado
@@ -264,3 +275,5 @@ Para verificar que funciona:
 **Prioridad**: 🔥 Alta - Bloquea actualizaciones de RUC
 **Esfuerzo**: ⏱️ 30 minutos - Solo reemplazar validador existente
 **Impacto**: 🎯 Alto - Resuelve problema crítico de validación
+
+</details>

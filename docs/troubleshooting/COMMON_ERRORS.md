@@ -26,21 +26,21 @@ Problemas comunes que pueden ocurrir en desarrollo o producción.
 
 **Solución**:
 1. Verifica que PostgreSQL esté corriendo
-2. Verifica las credenciales en `application.yml`
-3. Verifica que el puerto sea correcto (5432 por defecto)
+2. Verifica las credenciales/URL en `application-dev.yml` (dev) o `DATABASE_URL` (prod)
+3. En **dev**, la URL por defecto es `jdbc:postgresql://172.25.0.36:5551/frc_efact_dev` (host `172.25.0.36`, puerto `5551`), no `localhost:5432`. Ajusta a tu entorno si corresponde.
 
 ### Error: "Database does not exist"
 
-**Solución**:
+**Solución** (dev — PostgreSQL no crea la base automáticamente):
 ```bash
-createdb frc_efact
+psql -h 172.25.0.36 -p 5551 -U postgres -c "CREATE DATABASE frc_efact_dev;"
 ```
 
 ### Error: "Flyway migration failed"
 
 **Solución**:
 1. Revisa qué migración falló en los logs
-2. Si es desarrollo, puedes resetear: `DROP DATABASE frc_efact; CREATE DATABASE frc_efact;`
+2. Si es desarrollo, puedes resetear: `DROP DATABASE frc_efact_dev; CREATE DATABASE frc_efact_dev;`
 3. Si es producción, crea una migración de corrección
 
 ---
@@ -52,9 +52,9 @@ createdb frc_efact
 **Síntoma**: Frontend no puede hacer requests al backend.
 
 **Solución**:
-1. Verifica que `FRONTEND_URL` en el backend incluya la URL correcta del frontend
-2. No uses `localhost` en producción
-3. Verifica que `SecurityConfig.java` tenga la configuración CORS correcta
+1. **No existe** una variable `FRONTEND_URL`. El CORS está **fijo en el código**: los orígenes permitidos se definen en `SecurityConfig.java` (`corsConfigurationSource()`, con patrones como `https://*.onrender.com`, `http://localhost:4200`, IPs locales) y en `cors.allowed-origins` de `application-prod.yml` / `application-dev.yml`.
+2. Si el origen del frontend no está permitido, agrégalo en `SecurityConfig.java` / el `application-*.yml` correspondiente y **rebuildea/redeploya** el backend.
+3. Verifica que el frontend apunte a la URL correcta del backend (`environment.ts` en dev, `environment.prod.ts` en prod).
 
 ---
 
@@ -105,8 +105,8 @@ kill -9 <PID>
 
 **Solución**:
 1. Abre DevTools (F12) y revisa la consola
-2. Verifica que el build se haya completado correctamente
-3. Verifica que `API_URL` esté configurado correctamente
+2. Verifica que el build se haya completado correctamente (`npm run build:prod`)
+3. Verifica la `apiUrl` en `environment.ts` (dev) / `environment.prod.ts` (prod). No hay variable `API_URL` de runtime: la URL se fija en tiempo de compilación.
 
 ### Estilos no se cargan
 

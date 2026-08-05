@@ -15,7 +15,7 @@
       "changelogFile": "CHANGELOG.md"
     }],
     ["@semantic-release/exec", {
-      "prepareCmd": "sed -i 's|<version>[^<]*</version><!-- project-version -->|<version>${nextRelease.version}</version><!-- project-version -->|' frc-efact-backend/pom.xml && sed -i 's|\"version\": \"[^\"]*\"|\"version\": \"${nextRelease.version}\"|' frc-efact-frontend/package.json"
+      "prepareCmd": "sed -i 's|<version>[^<]*</version><!-- project-version -->|<version>${nextRelease.version}</version><!-- project-version -->|' frc-efact-backend/pom.xml && sed -i 's|\"version\": \"[^\"]*\"|\"version\": \"${nextRelease.version}\"|' frc-efact-frontend/package.json && sed -i '0,/\"version\":/s|\"version\": \"[^\"]*\"|\"version\": \"${nextRelease.version}\"|' package.json"
     }],
     ["@semantic-release/git", {
       "assets": [

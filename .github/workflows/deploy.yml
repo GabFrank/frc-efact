@@ -1,0 +1,99 @@
+name: Deploy
+
+# Deploy MANUAL a la VM Hetzner. Nunca corre solo: requiere workflow_dispatch,
+# elegir el servicio y escribir DEPLOY como confirmación.
+#
+# ⚠️ La VM es COMPARTIDA con servicios productivos ajenos (nginx del host,
+# PostgreSQL nativo, farmacia Next.js, headscale, mediamtx). Este workflow está
+# acotado a ~/frc-efact y al stack de docker-compose.prod.yml. No toca nginx,
+# ni firewall, ni ningún otro servicio, ni hace `down`, ni borra volúmenes.
+#
+# Secrets requeridos (Settings → Secrets and variables → Actions):
+#   VM_HOST     → 178.105.107.171
+#   VM_USER     → deploy
+#   VM_SSH_KEY  → clave privada SSH con acceso a ese usuario
+on:
+  workflow_dispatch:
+    inputs:
+      servicio:
+        description: 'Qué rebuildear y reiniciar'
+        required: true
+        type: choice
+        default: backend
+        options: [backend, frontend, ambos]
+      ref:
+        description: 'Rama o tag a desplegar'
+        required: true
+        default: main
+      confirmacion:
+        description: 'Escribí DEPLOY para confirmar'
+        required: true
+        default: ''
+
+concurrency:
+  group: deploy-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy a la VM Hetzner
+    runs-on: ubuntu-latest
+    # Si el repo pasa a GitHub Pro (o público), configurar este environment con
+    # required reviewers para tener aprobación explícita antes de cada deploy.
+    environment: production
+    steps:
+      - name: Validar confirmación
+        if: inputs.confirmacion != 'DEPLOY'
+        run: |
+          echo "::error::Confirmación inválida. Hay que escribir exactamente DEPLOY."
+          exit 1
+
+      - name: Preparar clave SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VM_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.VM_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Actualizar código y rebuildear el stack
+        env:
+          SERVICIO: ${{ inputs.servicio }}
+          REF: ${{ inputs.ref }}
+        run: |
+          case "$SERVICIO" in
+            ambos) TARGETS="backend frontend" ;;
+            *)     TARGETS="$SERVICIO" ;;
+          esac
+
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes \
+            "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}" \
+            "REF='$REF' TARGETS='$TARGETS' bash -seuo pipefail" <<'REMOTE'
+          cd ~/frc-efact
+          git fetch --all --prune --tags
+          git checkout "$REF"
+          git pull --ff-only || echo "ref detachada o sin upstream — sigo con lo que hay"
+          echo "→ commit desplegado: $(git rev-parse --short HEAD) $(git log -1 --pretty=%s)"
+
+          docker compose -f docker-compose.prod.yml --env-file deploy/.env \
+            up -d --build $TARGETS
+
+          docker compose -f docker-compose.prod.yml ps
+          REMOTE
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              https://efact.frc-ecommerce.com/api/actuator/health || true)
+            if [ "$code" = "200" ]; then
+              echo "✅ health OK tras $((i*10))s"; exit 0
+            fi
+            echo "esperando backend… (intento $i, HTTP $code)"; sleep 10
+          done
+          echo "::error::El backend no respondió 200 en /api/actuator/health tras 5 min."
+          echo "Revisar: docker compose -f docker-compose.prod.yml logs backend"
+          exit 1
+
+      - name: Limpiar clave
+        if: always()
+        run: rm -f ~/.ssh/id_deploy

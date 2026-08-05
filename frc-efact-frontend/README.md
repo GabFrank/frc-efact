@@ -1,323 +1,233 @@
 # FRC eFact Frontend
 
-Frontend de la aplicación web FRC eFact construido con Angular 17 y Angular Material.
+SPA Angular del sistema de facturación electrónica **FRC eFact** (Paraguay / SIFEN).
+Multi-empresa, multi-usuario, con dashboards, generación de documentos electrónicos,
+notas de crédito/débito/remisión y descarga de KuDE PDF.
 
-## Stack Tecnológico
+Backend asociado: `frc-efact-backend` (Spring Boot, API en `/api`).
 
-- **Framework**: Angular 17 (Standalone Components)
-- **UI Library**: Angular Material 17
-- **Lenguaje**: TypeScript 5+
-- **Estilos**: SCSS + Angular Flex Layout
-- **HTTP Client**: Angular HttpClient con interceptors
-- **Routing**: Angular Router con lazy loading
-- **Build Tool**: Angular CLI 17
-- **Node Version**: 18+
+---
 
-## Estructura del Proyecto
+## Stack tecnológico
+
+| Área | Tecnología | Versión (package.json) |
+|------|------------|------------------------|
+| Framework | Angular (standalone components) | 17.3 |
+| UI | Angular Material | 17.3 |
+| Estado | NgRx (store, effects, entity, devtools) | 17.2 |
+| Auth | @auth0/auth0-angular | 2.3 |
+| Gráficos | Chart.js | 4.5 |
+| Lenguaje | TypeScript | 5.4 |
+| Reactivo | RxJS | 7.8 |
+| Node | 18+ | — |
+| App version | — | 1.0.3 |
+
+Autenticación: **doble vía** — login local con **JWT** (usuario/contraseña contra
+`/auth/login`) **y** login con **Auth0** (`provideAuth0` configurado en `app.config.ts`).
+
+---
+
+## Estructura del proyecto
 
 ```
 src/
 ├── app/
-│   ├── components/          # Componentes de UI
-│   │   ├── login/          # Componente de login
-│   │   └── welcome/        # Página de bienvenida
-│   ├── services/           # Servicios de negocio
-│   │   └── auth.service.ts # Servicio de autenticación
+│   ├── components/          # Componentes sueltos (login, etc.)
+│   │   └── login/
+│   ├── layout/             # main-layout (sidebar/topbar) tras autenticación
+│   ├── features/           # Páginas por dominio (lazy-loaded)
+│   │   ├── dashboard/
+│   │   ├── empresas/
+│   │   ├── timbrados/
+│   │   ├── clientes/
+│   │   ├── productos/
+│   │   ├── facturacion/
+│   │   ├── notas/
+│   │   ├── transporte/     # vehículos + choferes
+│   │   ├── documentos/
+│   │   ├── usuarios/       # + perfil
+│   │   ├── reportes/       # (ruta usa placeholder — ver nota)
+│   │   ├── auditoria/      # (ruta usa placeholder — ver nota)
+│   │   └── test-page.component.ts
+│   ├── core/
+│   │   ├── api/            # 18 servicios HTTP por entidad
+│   │   ├── state/          # NgRx: 8 ramas (no todas las entidades)
+│   │   ├── services/       # 4 servicios cross-cutting
+│   │   └── interceptors/   # error.interceptor.ts (NO registrado — ver nota)
+│   ├── interceptors/       # Interceptores HTTP registrados en app.config.ts
 │   ├── guards/             # Guards de routing
-│   │   ├── auth.guard.ts   # Protección de rutas privadas
-│   │   └── no-auth.guard.ts # Redirección de usuarios autenticados
-│   ├── interceptors/       # HTTP Interceptors
-│   │   ├── auth.interceptor.ts   # Inyección de JWT
-│   │   ├── error.interceptor.ts  # Manejo de errores
-│   │   └── https.interceptor.ts  # Forzar HTTPS
-│   ├── models/             # Interfaces TypeScript
-│   │   ├── user.model.ts
-│   │   ├── login-request.model.ts
-│   │   └── auth-response.model.ts
-│   ├── app.component.ts    # Componente raíz
-│   ├── app.config.ts       # Configuración de la app
-│   └── app.routes.ts       # Definición de rutas
-├── environments/           # Configuraciones de entorno
-│   ├── environment.ts      # Desarrollo
-│   └── environment.prod.ts # Producción
-├── assets/                 # Recursos estáticos
-├── styles.scss            # Estilos globales
-└── index.html             # HTML principal
+│   ├── models/             # Interfaces TypeScript (espejo de DTOs)
+│   ├── shared/             # Componentes/dialogos reutilizables
+│   ├── app.component.ts
+│   ├── app.config.ts       # Providers: router, Auth0, HttpClient+interceptors, NgRx
+│   └── app.routes.ts
+├── environments/
+│   ├── environment.ts      # dev (apiUrl detecta localhost / IP LAN)
+│   └── environment.prod.ts # prod (apiUrl backend en Render)
+├── _redirects              # SPA fallback (respaldo local)
+├── styles.scss
+└── index.html
 ```
 
-## Requisitos Previos
+### Features (12 dominios)
+
+`dashboard`, `empresas`, `timbrados`, `clientes`, `productos`, `facturacion`,
+`notas` (crédito/débito/remisión), `transporte` (vehículos + choferes),
+`documentos` (documentos electrónicos), `usuarios` (+ perfil), `reportes`, `auditoria`.
+
+> **Nota real (código):** en `app.routes.ts`, las rutas `reportes` y `auditoria`
+> cargan actualmente `TestPageComponent` (placeholder), no un componente de feature
+> propio. La UI de esos módulos todavía no está cableada a la ruta.
+
+### NgRx (`core/state/`) — 8 ramas
+
+Store por entidad: `auth`, `empresas`, `facturacion`, `documentos`, `usuarios`,
+`timbrados`, `timbrado-detalles`, `notas`.
+
+> **No todas las entidades tienen store.** `clientes`, `productos`, `vehiculos` y
+> `choferes` se manejan **solo vía servicios API** (`core/api/`), sin NgRx.
+
+### `core/api/` — 18 servicios HTTP
+
+`audit`, `chofer`, `cliente`, `dashboard`, `documento-electronico`, `empresa`,
+`factura`, `nota-credito`, `nota-debito`, `nota-remision`, `producto`, `profile`,
+`reporte`, `sifen`, `timbrado`, `timbrado-detalle`, `usuario`, `vehiculo`.
+
+### `core/services/` — 4 servicios cross-cutting
+
+- `permissions.service.ts` — control de visibilidad de menús/botones por rol.
+- `notification.service.ts` — notificaciones/snackbars.
+- `pdf-share.service.ts` — compartir/descargar PDFs (KuDE).
+- `theme.service.ts` — tema claro/oscuro.
+
+### Guards (`guards/`)
+
+- `auth.guard.ts` — protege rutas autenticadas.
+- `no-auth.guard.ts` — evita que un usuario logueado entre a `/login`.
+- `empresa-selected.guard.ts` — exige empresa seleccionada (clientes, productos,
+  facturación, notas, transporte, documentos, reportes, auditoría).
+- `empresa-access.guard.ts`, `role.guard.ts` — presentes en el código (no todos
+  cableados en `app.routes.ts` hoy).
+
+### Interceptores HTTP
+
+Registrados en `app.config.ts` (`withInterceptors([...])`), **en este orden**:
+
+1. `httpsInterceptor` (`interceptors/https.interceptor.ts`) — fuerza HTTPS en prod.
+2. `authInterceptor` (`interceptors/auth.interceptor.ts`) — inyecta el JWT local.
+3. `errorInterceptor` (`interceptors/error.interceptor.ts`) — manejo global de errores (401/403).
+4. `mockRucInterceptor` (`interceptors/mock-ruc.interceptor.ts`) — **intercepta
+   `/api/empresas/validate-ruc` y devuelve RUCs mock.** Deuda técnica: sigue activo
+   incluso en producción. Ver [docs/ESTADO_VALIDACION_RUC.md](./docs/ESTADO_VALIDACION_RUC.md).
+
+> **Interceptores muertos (no registrados):**
+> - `interceptors/ruc-workaround.interceptor.ts` — sin referencias.
+> - `core/interceptors/error.interceptor.ts` — duplicado; el que se usa es
+>   `interceptors/error.interceptor.ts`.
+
+---
+
+## Requisitos previos
 
 - Node.js 18+ y npm 9+
-- Angular CLI 17: `npm install -g @angular/cli@17`
+- Angular CLI 17 (opcional global): `npm install -g @angular/cli@17`
 
-## Configuración de Desarrollo
+## Configuración de entorno
 
-### 1. Instalar Dependencias
+`src/environments/environment.ts` (dev) resuelve `apiUrl` dinámicamente:
+`http://localhost:8080/api` en localhost, o `http://<ip-lan>:8080/api` si se accede
+por IP de red local.
 
-```bash
-npm install
-```
+`src/environments/environment.prod.ts` (prod) apunta a
+`https://efact.frc-ecommerce.com/api` (VM Hetzner).
 
-### 2. Configurar Variables de Entorno
+Ambos incluyen la config de Auth0 (`domain`, `clientId`, `audience`).
 
-El archivo `src/environments/environment.ts` ya está configurado para desarrollo local:
+> `apiUrl` es **compile-time**: se resuelve al construir el bundle según la
+> configuración (`development` / `production`), no por variables de entorno en runtime.
 
-```typescript
-export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:8080/api'
-};
-```
-
-Para producción, editar `src/environments/environment.prod.ts`:
-
-```typescript
-export const environment = {
-  production: true,
-  apiUrl: 'https://frc-efact-backend.onrender.com/api'
-};
-```
-
-### 3. Ejecutar Servidor de Desarrollo
+## Scripts npm
 
 ```bash
-# Iniciar servidor de desarrollo
-npm start
-
-# O usando Angular CLI directamente
-ng serve
-
-# Con puerto personalizado
-ng serve --port 4200
-
-# Con proxy para evitar CORS en desarrollo
-ng serve --proxy-config proxy.conf.json
+npm start                 # ng serve → http://localhost:4200
+npm run start:network     # ng serve accesible por IP de red local
+npm run start:prod        # ng serve con configuración production
+npm run build             # ng build (config por defecto)
+npm run build:dev         # build desarrollo
+npm run build:prod        # build producción (usado en deploy)
+npm run watch             # build dev en watch mode
+npm test                  # tests unitarios (Karma)
+npm run test:ci           # tests headless (ChromeHeadless, sin watch)
+npm run test:coverage     # tests con cobertura
+npm run lint              # ⚠️ NO FUNCIONA — falta el target `lint` en angular.json
+npm run lint:fix          # ⚠️ idem
+npm run analyze           # análisis de tamaño de bundle
 ```
 
-La aplicación estará disponible en `http://localhost:4200/`
-
-## Scripts Disponibles
+## Build para producción
 
 ```bash
-# Desarrollo
-npm start                    # Servidor de desarrollo
-npm run build               # Build de producción
-npm run build:dev           # Build de desarrollo
-npm run watch               # Build con watch mode
-
-# Testing
-npm test                    # Ejecutar tests unitarios
-npm run test:ci             # Tests en modo CI (sin watch)
-npm run test:coverage       # Tests con reporte de cobertura
-
-# Linting y Formato
-npm run lint                # Ejecutar ESLint
-npm run lint:fix            # Corregir problemas de linting automáticamente
-
-# Análisis
-npm run analyze             # Analizar tamaño del bundle
+npm run build:prod
 ```
 
-## Características Principales
+Salida en `dist/frc-efact-frontend/browser/`.
 
-### Autenticación JWT
+## Deployment (VM Hetzner)
 
-- Login con username/password
-- Almacenamiento seguro de tokens en memoria
-- Refresh automático de tokens
-- Interceptor para inyección automática de JWT en requests
-- Guards para protección de rutas
+Desde el **2026-07-07** el frontend se sirve desde la VM Hetzner en
+`https://efact.frc-ecommerce.com`, como contenedor nginx del stack
+[`docker-compose.prod.yml`](../docker-compose.prod.yml):
 
-### Componentes
+- **Build:** multi-stage en `frc-efact-frontend/Dockerfile` (Angular `build:prod` → nginx).
+- **Publicación:** el contenedor escucha en `127.0.0.1:8082`; el **nginx del host** hace TLS
+  (certbot) y proxya `/` → SPA y `/api` → backend.
+- **SPA routing:** lo resuelve el nginx del contenedor ([`deploy/nginx-spa.conf`](./deploy/nginx-spa.conf)).
+- **Deploy:** **manual por SSH** —
+  `docker compose -f docker-compose.prod.yml --env-file deploy/.env up -d --build frontend`.
+  `git push` **no** despliega.
 
-#### LoginComponent
-- Formulario reactivo con validaciones
-- Manejo de errores de autenticación
-- Redirección automática después del login
-- Diseño responsivo con Material Design
-
-#### WelcomeComponent
-- Dashboard de bienvenida
-- Información del usuario autenticado
-- Navegación principal
-- Funcionalidad de logout
-
-### Guards de Routing
-
-- **AuthGuard**: Protege rutas que requieren autenticación
-- **NoAuthGuard**: Redirige usuarios autenticados (ej: página de login)
-
-### HTTP Interceptors
-
-- **AuthInterceptor**: Inyecta JWT token en headers
-- **ErrorInterceptor**: Manejo centralizado de errores HTTP
-- **HttpsInterceptor**: Fuerza HTTPS en producción
-
-## Build para Producción
-
-```bash
-# Build optimizado para producción
-npm run build
-
-# Build con análisis de bundle
-npm run build -- --stats-json
-npm run analyze
-
-# Los archivos se generan en dist/frc-efact-frontend/
-```
-
-### Optimizaciones de Build
-
-- **AOT Compilation**: Compilación ahead-of-time
-- **Tree Shaking**: Eliminación de código no usado
-- **Minification**: Minificación de JS y CSS
-- **Lazy Loading**: Carga diferida de módulos
-- **Service Worker**: PWA capabilities (opcional)
-
-## Deployment en Render
-
-El proyecto está configurado para deployment automático en Render:
-
-### Configuración de Render
-
-- **Build Command**: `npm ci && npm run build`
-- **Publish Directory**: `dist/frc-efact-frontend/browser`
-- **Node Version**: 18.x
-- **Auto-Deploy**: Habilitado desde rama main
-
-### Variables de Entorno en Render
-
-```bash
-NODE_ENV=production
-API_BASE_URL=https://frc-efact-backend.onrender.com
-```
-
-### Archivo _redirects
-
-El archivo `src/_redirects` configura el routing para SPA:
-
-```
-/*    /index.html   200
-```
-
-## Desarrollo de Componentes
-
-### Generar Nuevo Componente
-
-```bash
-# Componente standalone
-ng generate component components/mi-componente --standalone
-
-# Servicio
-ng generate service services/mi-servicio
-
-# Guard
-ng generate guard guards/mi-guard
-
-# Interceptor
-ng generate interceptor interceptors/mi-interceptor
-```
-
-### Convenciones de Código
-
-- **Componentes**: PascalCase (ej: `LoginComponent`)
-- **Archivos**: kebab-case (ej: `login.component.ts`)
-- **Servicios**: Sufijo `Service` (ej: `AuthService`)
-- **Guards**: Sufijo `Guard` (ej: `AuthGuard`)
-- **Interfaces**: PascalCase (ej: `User`, `LoginRequest`)
-
-## Testing
-
-### Tests Unitarios
-
-```bash
-# Ejecutar tests
-npm test
-
-# Tests con cobertura
-npm run test:coverage
-
-# Tests en modo CI (sin watch)
-npm run test:ci
-```
-
-### Estructura de Tests
-
-```typescript
-describe('AuthService', () => {
-  let service: AuthService;
-  let httpMock: HttpTestingController;
-
-  beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [AuthService]
-    });
-    service = TestBed.inject(AuthService);
-    httpMock = TestBed.inject(HttpTestingController);
-  });
-
-  it('should authenticate user', () => {
-    // Test implementation
-  });
-});
-```
+Runbook: [docs/deployment/hetzner/RUNBOOK_VM.md](../docs/deployment/hetzner/RUNBOOK_VM.md).
+Deployment legacy en Render: [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Seguridad
 
-### Mejores Prácticas Implementadas
+Ver [SECURITY.md](./SECURITY.md). En resumen: JWT en memoria (no `localStorage`),
+interceptor HTTPS, guards de routing, sanitización automática de Angular.
 
-- ✅ JWT tokens almacenados en memoria (no en localStorage)
-- ✅ HTTPS forzado en producción
-- ✅ Sanitización automática de HTML por Angular
-- ✅ CORS configurado correctamente
-- ✅ Headers de seguridad (CSP, X-Frame-Options)
-- ✅ Validación de formularios en cliente y servidor
-- ✅ Manejo seguro de errores sin exponer información sensible
+> **Deuda de seguridad conocida:** los security headers del frontend (X-Frame-Options, CSP,
+> etc.) **no están configurados** — ni en `render.yaml` (legacy) ni en el nginx de la VM.
+> Ver SECURITY.md.
 
-Ver [SECURITY.md](./SECURITY.md) para más detalles.
+## Convenciones de código
 
-## Troubleshooting
+- **Archivos:** kebab-case (`login.component.ts`).
+- **Clases:** PascalCase (`LoginComponent`).
+- **Servicios:** sufijo `Service`; **Guards:** sufijo `Guard`.
+- **Interfaces:** PascalCase, en `models/`.
+- **Componentes:** separar `*-list.component.ts` y `*-form.component.ts`.
+- **NgRx:** una rama por entidad principal (ver `core/state/`).
+- **URLs API:** siempre con `/api/`: `${environment.apiUrl}/clientes`.
+- **JWT:** en memoria, nunca `localStorage`.
+- **Idioma:** UI y dominio en español.
 
-### Error de CORS en Desarrollo
+## Issues conocidos
 
-Si encuentras errores de CORS, asegúrate de que el backend esté configurado para permitir `http://localhost:4200`:
+- **PermissionsService no lee `rolEmpresa`.** `core/services/permissions.service.ts`
+  solo mira `user.roles` (roles globales). Aunque el backend autorice a un usuario con
+  `rolEmpresa = ADMINISTRADOR`, el frontend le oculta menús/botones. Workaround: asignar
+  también el rol global correspondiente (`EMPRESA_ADMIN`). Ver `CLAUDE.md` (raíz).
+- **Validación de RUC deshabilitada + mock interceptor activo.** Ver
+  [docs/ESTADO_VALIDACION_RUC.md](./docs/ESTADO_VALIDACION_RUC.md).
+- **Security headers ausentes** en `render.yaml`. Ver [SECURITY.md](./SECURITY.md).
 
-```java
-// Backend: SecurityConfig.java
-configuration.setAllowedOrigins(Arrays.asList("http://localhost:4200"));
-```
+## Documentación relacionada
 
-### Error de Conexión al Backend
+- [DEPLOYMENT.md](./DEPLOYMENT.md) — Guía de deployment.
+- [SECURITY.md](./SECURITY.md) — Consideraciones de seguridad.
+- [docs/ESTADO_VALIDACION_RUC.md](./docs/ESTADO_VALIDACION_RUC.md) — Estado real de la validación RUC.
+- `CLAUDE.md` (raíz del repo) — Arquitectura general y issues de roles/permisos.
 
-Verifica que:
-1. El backend esté ejecutándose en `http://localhost:8080`
-2. La URL en `environment.ts` sea correcta
-3. No haya firewall bloqueando la conexión
+## Recursos
 
-### Build Falla por Memoria
-
-Si el build falla por falta de memoria:
-
-```bash
-# Aumentar memoria de Node.js
-export NODE_OPTIONS="--max-old-space-size=4096"
-npm run build
-```
-
-## Recursos Adicionales
-
-- [Angular Documentation](https://angular.io/docs)
-- [Angular Material](https://material.angular.io/)
-- [RxJS Documentation](https://rxjs.dev/)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-
-## Documentación Relacionada
-
-- [DEPLOYMENT.md](./DEPLOYMENT.md) - Guía de deployment
-- [SECURITY.md](./SECURITY.md) - Consideraciones de seguridad
-- [COMPONENT_TESTING.md](./COMPONENT_TESTING.md) - Guía de testing
-
-## Soporte
-
-Para problemas o preguntas, consultar la documentación del proyecto o crear un issue en el repositorio de GitHub.
+- [Angular](https://angular.io/docs) · [Angular Material](https://material.angular.io/)
+  · [NgRx](https://ngrx.io/) · [RxJS](https://rxjs.dev/) · [Auth0 Angular](https://github.com/auth0/auth0-angular)

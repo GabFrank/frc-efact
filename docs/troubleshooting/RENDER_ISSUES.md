@@ -1,5 +1,13 @@
 # Solución de Problemas en Render
 
+> ⚠️ **DOCUMENTO LEGACY — Render ya no es producción.**
+> Desde el **2026-07-07** producción corre en una **VM Hetzner**: `https://efact.frc-ecommerce.com`.
+> El deploy es **manual por SSH**, no por `git push`. Guía vigente:
+> [RUNBOOK_VM.md](../deployment/hetzner/RUNBOOK_VM.md).
+> El servicio de Render quedó **suspendido** como ventana de rollback (conserva `autoDeploy`
+> sobre `main`: reanudarlo lo vuelve a poner a auto-desplegar). Este documento se conserva
+> como referencia histórica hasta darlo de baja.
+
 Problemas comunes y sus soluciones al hacer deployment en Render.
 
 ## ❌ Error: "JAVA_HOME not found"
@@ -127,7 +135,7 @@ Timed Out after waiting for internal health check
 **Verificar**:
 - El servicio debe marcar "Live" una vez que el puerto esté abierto
 - No debe esperar por health check
-- Puedes verificar manualmente: `curl https://tu-backend.onrender.com/actuator/health`
+- Puedes verificar manualmente: `curl https://tu-backend.onrender.com/api/actuator/health`
 
 ---
 
