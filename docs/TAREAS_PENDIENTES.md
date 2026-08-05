@@ -197,20 +197,103 @@ GUILLERMO FRANCO AREVALOS, ver [deployment/hetzner/RUNBOOK_VM.md](deployment/het
 paso 5). Son PKCS12 legacy (RC2), crackeables offline. Y el runbook confirma que producción usa
 el `ENCRYPTION_KEY` **default**, que está en el repo.
 
-`.gitignore` no cubre `*.pfx` ni `client_secret*`.
+**Bloqueante para hacer el repo público.**
 
-**Bloqueante para hacer el repo público.** TODO, en orden:
-- [ ] Agregar `*.pfx`, `*.p12`, `client_secret*.json` a `.gitignore` y `git rm --cached`
-- [ ] Revocar el PAT de GitHub y el client secret de Google; rotar el app password de Gmail
-- [ ] Rotar `JWT_SECRET`
+### Hecho (2026-08-05)
+
+- [x] **`.gitignore`** cubre `*.pfx`, `*.p12`, `*.jks`, `*.keystore`, `client_secret*.json`,
+      `*service-account*.json`.
+- [x] **Destrackeados los 7 archivos** (`git rm --cached`, siguen en el working tree). Verificado
+      antes: el `Dockerfile` del backend **no** copia `certificates/` — solo hace
+      `mkdir -p /app/certificates`, y en producción los `.pfx` vienen del volumen Docker
+      `certificates` cargado a mano (`RUNBOOK_VM.md` paso 5). Estaban versionados por error, sin
+      que nada del build ni del runtime los usara.
+- [x] **Redactados los secretos en texto plano de `HEAD`** (12 ocurrencias): el PAT en
+      `AGREGAR_VARIABLES_RENDER.md` y `RENDER_DOCKER_BUILD_ARGS.md`, el app password de Gmail en
+      `CONFIGURACION_IDE.md`.
+- [x] Verificado que el `GITHUB_TOKEN` del `deploy/.env` de la VM **no es** el PAT filtrado, así
+      que revocarlo no rompe el build del backend.
+
+### Pendiente — requiere acción del usuario (no hay API)
+
+- [ ] **Revocar el PAT** en https://github.com/settings/tokens. Sigue vivo desde el 2026-07-07 y
+      ya no cumple ninguna función: el CI usa `GH_PACKAGES_TOKEN` y la VM tiene otro token.
+- [ ] **Revocar el client secret de Google** en la consola de Google Cloud.
+- [ ] **Rotar el app password de Gmail** de `frcsistemasinformaticos@gmail.com`.
+- [ ] Rotar `JWT_SECRET` (invalida las sesiones activas).
 - [ ] Rotar `ENCRYPTION_KEY` — implica **re-cifrar en la DB** los CSC y los passwords de
-      certificados, no es solo cambiar la env var
-- [ ] Re-emitir los `.pfx` ante la SET (el de FRANCO AREVALOS vence el 2026-08-20 igual)
-- [ ] Purgar el historial con `git-filter-repo` — reescribe los 132 commits, force-push a
-      todas las ramas, y hay que rehacer tags y releases de `semantic-release`
+      certificados, no es solo cambiar la env var.
+- [ ] Re-emitir los `.pfx` ante la SET (el de FRANCO AREVALOS vence el 2026-08-20 igual).
+- [ ] Purgar el historial con `git-filter-repo` — reescribe los 132 commits, force-push a todas
+      las ramas, y hay que rehacer tags y releases de `semantic-release`.
+
+> ⚠️ **Destrackear y redactar NO borra nada del historial.** Los `.pfx`, el `client_secret` y el
+> PAT siguen recuperables desde cualquier commit anterior. Lo hecho hasta acá evita que el
+> problema crezca; **no** habilita hacer el repo público. Para eso hacen falta la rotación y la
+> purga.
 
 ---
 
-## 10. Funcionalidades pendientes / mejoras
+## 10. ⚠️ Manejo del CSC — 3 problemas de diseño — Prioridad Media
+
+_(detectados 2026-08-05 al diagnosticar el error SIFEN 2501)_
+
+Ninguno rompe nada hoy, pero los tres invitan a un bug futuro.
+
+### 10.1 La condición "si el CSC cambió" es inútil
+`TimbradoService.actualizar()` compara el **plaintext entrante** contra el **ciphertext guardado**:
+
+```java
+&& !timbradoActualizado.getCscEncrypted().equals(timbradoExistente.getCscEncrypted())
+```
+
+Nunca son iguales, así que re-cifra en cada update. Inocuo pero engañoso: el `if` sugiere una
+optimización que no existe.
+
+### 10.2 El plaintext viaja en un campo llamado `cscEncrypted`
+`TimbradoMapper.toEntity()` asigna el CSC **sin cifrar** a `timbrado.cscEncrypted`, y recién
+`TimbradoService` lo cifra. Si algún día un path guarda un `Timbrado` sin pasar por ese servicio,
+el CSC queda en la DB en texto plano y nada lo detecta. El nombre del campo miente sobre su
+contenido en ese tramo.
+
+### 10.3 `csc_id` está NULL en los 3 timbrados
+Cae al default `"001"` de `SifenConfigFactory`, que jsifenlib pad-ea a `"0001"`. Hoy coincide con
+lo que espera la SET, así que funciona por casualidad. Si a alguna empresa le asignan otro ID de
+CSC, hay que cargarlo o el QR se firma con el ID equivocado.
+
+### 10.4 No hay validación de largo del CSC
+El CSC de SIFEN son **32 caracteres**. El form no valida largo (`csc: ['']`, sin `maxLength` ni
+`pattern`) y el backend tampoco, así que un CSC incompleto entra sin protestar y recién se
+descubre cuando la SET rechaza el DE con **2501** ("El hash del código QR ... es inválido") —
+que no dice nada sobre la causa. **Pasó en producción el 2026-08-05:** el CSC de LANGER MARIO se
+cargó con 31 caracteres. Agregar `Validators.pattern(/^[A-Za-z0-9]{32}$/)` en el form y una
+validación equivalente en el backend ahorra ese diagnóstico entero.
+
+---
+
+## 11. ⚠️ Descripciones de actividad económica: la SET compara texto exacto — Prioridad Media
+
+El error **1262** ("Descripción de la actividad económica no corresponde al código") confirma que
+el servidor de la SET **valida la descripción contra su catálogo**, no solo el código. El XSD no
+lo restringe (`tdDesActEco` es `noEmptyString` con `maxLength 300`, sin `pattern`), así que la
+validación es de negocio y solo se descubre al emitir.
+
+Hoy la descripción es **texto libre** tipeado en el form, sin catálogo que la respalde. Riesgos
+concretos:
+
+- **Mayúsculas/minúsculas.** Las descripciones secundarias de LANGER MARIO están en minúsculas
+  (`Cultivo de productos agrícolas…`) mientras las de ANATOLE, que aprueban, están en MAYÚSCULAS.
+  Si la comparación es sensible al caso, el próximo DE de LANGER falla por esto.
+- Cualquier typo, tilde faltante o espacio de más rompe la emisión.
+
+**Fix recomendado:** tabla de catálogo (`catalogo.actividad_economica`: `codigo`, `descripcion`)
+precargada con la lista oficial, y guardar en `empresa` **solo el código**. La descripción se
+resuelve por join al armar el `gActEco`. Elimina de raíz tanto este problema como el del
+separador (§7 del historial de este doc / migración `V36`), porque la lista deja de existir como
+texto.
+
+---
+
+## 12. Funcionalidades pendientes / mejoras
 
 _(Añadir nuevas funcionalidades pendientes o mejoras sugeridas aquí.)_

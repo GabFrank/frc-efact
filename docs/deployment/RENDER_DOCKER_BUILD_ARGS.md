@@ -23,7 +23,7 @@ Render requiere que las variables se pasen explícitamente como build arguments.
 3. Ir a **"Settings"** → **"Build & Deploy"**
 4. En la sección **"Docker Build Arguments"**, agregar:
    - `GITHUB_USERNAME=GabFrank`
-   - `GITHUB_TOKEN=<REDACTADO-PAT-GITHUB>`
+   - `GITHUB_TOKEN=<TOKEN_REVOCADO — ver docs/TAREAS_PENDIENTES.md §9>`
 
 5. Guardar cambios
 
@@ -84,7 +84,7 @@ El Dockerfile actual usa `ARG` para recibir las variables como build arguments. 
 3. Agregar build arguments:
    ```
    GITHUB_USERNAME=GabFrank
-   GITHUB_TOKEN=<REDACTADO-PAT-GITHUB>
+   GITHUB_TOKEN=<TOKEN_REVOCADO — ver docs/TAREAS_PENDIENTES.md §9>
    ```
 
 Si esta opción no está disponible en tu plan de Render, contacta con el soporte de Render o considera usar la Opción 2.

@@ -11,14 +11,14 @@ Si ejecutas la aplicación desde el IDE (IntelliJ IDEA, VS Code, etc.), necesita
 3. En la sección **Environment variables**, haz clic en el ícono de carpeta
 4. Agrega:
    - **Name**: `MAIL_PASSWORD`
-   - **Value**: `<REDACTADO-APP-PASSWORD-GMAIL>` (tu contraseña de aplicación sin espacios)
+   - **Value**: `<APP_PASSWORD — no versionar; ver docs/TAREAS_PENDIENTES.md §9>` (tu contraseña de aplicación sin espacios)
 5. Haz clic en **OK** y **Apply**
 
 ### Opción 2: Archivo `.env` (Recomendado)
 
 1. Crea un archivo `.env` en la raíz del proyecto `frc-efact-backend/`:
    ```bash
-   MAIL_PASSWORD=<REDACTADO-APP-PASSWORD-GMAIL>
+   MAIL_PASSWORD=<APP_PASSWORD — no versionar; ver docs/TAREAS_PENDIENTES.md §9>
    ```
 
 2. Instala el plugin **EnvFile** en IntelliJ:
@@ -36,7 +36,7 @@ Si ejecutas la aplicación desde el IDE (IntelliJ IDEA, VS Code, etc.), necesita
 
 En la configuración de ejecución, agrega en **VM options**:
 ```
--DMAIL_PASSWORD=<REDACTADO-APP-PASSWORD-GMAIL>
+-DMAIL_PASSWORD=<APP_PASSWORD — no versionar; ver docs/TAREAS_PENDIENTES.md §9>
 ```
 
 ## VS Code
@@ -46,7 +46,7 @@ En la configuración de ejecución, agrega en **VM options**:
 1. Instala la extensión **Java Extension Pack** si no la tienes
 2. Crea un archivo `.env` en la raíz del proyecto `frc-efact-backend/`:
    ```bash
-   MAIL_PASSWORD=<REDACTADO-APP-PASSWORD-GMAIL>
+   MAIL_PASSWORD=<APP_PASSWORD — no versionar; ver docs/TAREAS_PENDIENTES.md §9>
    ```
 
 3. En `.vscode/launch.json`, agrega:
@@ -57,7 +57,7 @@ En la configuración de ejecución, agrega en **VM options**:
      "request": "launch",
      "mainClass": "com.frcefact.FrcEfactBackendApplication",
      "env": {
-       "MAIL_PASSWORD": "<REDACTADO-APP-PASSWORD-GMAIL>"
+       "MAIL_PASSWORD": "<APP_PASSWORD — no versionar; ver docs/TAREAS_PENDIENTES.md §9>"
      }
    }
    ```
@@ -67,7 +67,7 @@ En la configuración de ejecución, agrega en **VM options**:
 1. Abre la terminal integrada en VS Code
 2. Ejecuta:
    ```bash
-   export MAIL_PASSWORD="<REDACTADO-APP-PASSWORD-GMAIL>"
+   export MAIL_PASSWORD="<APP_PASSWORD — no versionar; ver docs/TAREAS_PENDIENTES.md §9>"
    ```
 3. Luego ejecuta la aplicación desde la terminal
 
@@ -78,7 +78,7 @@ En la configuración de ejecución, agrega en **VM options**:
 3. Ve a la pestaña **Environment**
 4. Haz clic en **New**
 5. **Name**: `MAIL_PASSWORD`
-6. **Value**: `<REDACTADO-APP-PASSWORD-GMAIL>`
+6. **Value**: `<APP_PASSWORD — no versionar; ver docs/TAREAS_PENDIENTES.md §9>`
 7. **OK** y **Run**
 
 ## Verificación
