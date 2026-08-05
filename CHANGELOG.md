@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/GabFrank/frc-efact-legacy/compare/v1.1.2...v1.1.3) (2026-08-05)
+
+
+### Bug Fixes
+
+* **security:** quitar los defaults de JWT_SECRET y ENCRYPTION_KEY ([9905317](https://github.com/GabFrank/frc-efact-legacy/commit/9905317285a29070bd076a1c8d46aec80eae6a0c))
+
 ## [1.1.2](https://github.com/GabFrank/frc-efact/compare/v1.1.1...v1.1.2) (2026-08-05)
 
 
