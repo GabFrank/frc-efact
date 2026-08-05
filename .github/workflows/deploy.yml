@@ -82,7 +82,10 @@ jobs:
           docker compose -f docker-compose.prod.yml --env-file deploy/.env \
             up -d --build $TARGETS
 
-          docker compose -f docker-compose.prod.yml ps
+          # OJO: --env-file NO es opcional ni para `ps`. Sin él, compose falla al
+          # interpolar POSTGRES_PASSWORD (`${POSTGRES_PASSWORD:?}`) y con `set -e`
+          # mata el script — que es exactamente lo que pasó en el run #7.
+          docker compose -f docker-compose.prod.yml --env-file deploy/.env ps
           REMOTE
 
       - name: Health check
@@ -98,6 +101,14 @@ jobs:
           echo "::error::El backend no respondió 200 en /api/actuator/health tras 5 min."
           echo "Revisar: docker compose -f docker-compose.prod.yml logs backend"
           exit 1
+
+      - name: Logs del backend si algo falló
+        if: failure()
+        run: |
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes \
+            "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}" \
+            'cd ~/frc-efact && docker compose -f docker-compose.prod.yml --env-file deploy/.env logs --tail=120 backend' \
+            || echo "no se pudieron traer los logs"
 
       - name: Limpiar clave
         if: always()
