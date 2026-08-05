@@ -95,6 +95,22 @@ y hacer el job bloqueante.**
 **Por qué no se corre lint:** el target `lint` **no existe** en `angular.json` — falta
 `@angular-eslint/schematics`. El gate real del frontend es el build AOT de producción.
 
+### Branch protection: no está disponible
+
+Verificado el 2026-08-05: en repo privado con plan Free, tanto
+`/repos/{owner}/{repo}/branches/{branch}/protection` como `/repos/{owner}/{repo}/rulesets`
+devuelven `403 Upgrade to GitHub Pro or make this repository public`.
+
+Y **hacer el repo público quedó descartado** — el historial contiene certificados `.pfx` de firma
+SIFEN de producción que **no se pueden re-emitir**, así que un archivo olvidado en una purga sería
+una exposición permanente sin remedio. Detalle en
+[docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md) §9.
+
+**Consecuencia práctica: todo lo que sigue en este documento es una convención, no una regla que
+GitHub haga cumplir.** Nada impide hoy un `git push` directo a `main`. Las dos formas de cerrar
+eso son GitHub Pro (protección server-side real) o un hook `pre-push` local, que cubre el
+descuido propio pero no es server-side.
+
 ### Required status checks (cuando haya branch protection)
 
 Marcar como obligatorios **solo** estos dos:
