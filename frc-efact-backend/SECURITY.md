@@ -151,9 +151,10 @@ public PasswordEncoder passwordEncoder() {
 ### Rate Limiting
 
 Rate limiting implemented for authentication endpoints:
-- **Limit**: 5 login attempts per minute per IP
+- **Limit**: 100 login attempts per 15 minutes per IP (configurable vía `rate.limit.max-attempts` / `rate.limit.time-window-minutes`; verificado en `RateLimitingFilter` y `application-prod.yml`)
+- **Toggle**: `rate.limit.enabled` (default `true`)
 - **Implementation**: RateLimitingFilter
-- **Scope**: `/auth/login` endpoint
+- **Scope**: `POST /auth/login` endpoint
 
 ### Failed Login Tracking
 
