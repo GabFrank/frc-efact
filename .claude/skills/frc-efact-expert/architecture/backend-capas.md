@@ -32,10 +32,18 @@ DTOs de entrada/salida. Las entidades **nunca** se serializan crudas: los contro
 ⚠️ `UsuarioMapper.toDto()` es el punto de fix del bug RBAC-1: no inyecta los `rolEmpresa` mapeados al array `roles` → ver [auth-seguridad.md](auth-seguridad.md) y [known-bugs.md](../reference/known-bugs.md).
 
 ### `service/`
-Lógica de negocio, mayormente `@Transactional`. Servicios cross-cutting: `EncryptionService` (AES-256, CSC/passwords), `CertificadoService` (paths `.pfx`), `MailService` (envío KuDE). **SIFEN aislado en `service/sifen/`** → ver [sifen-integracion.md](sifen-integracion.md):
+Lógica de negocio, mayormente `@Transactional`. Servicios cross-cutting: `EncryptionService` (AES-256, CSC/passwords), `CertificadoService` (paths `.pfx`), `EmpresaSecurityService` (2ª capa de autorización multi-empresa, ver [auth-seguridad.md](auth-seguridad.md)) y el **email**:
+- **`EmailService`** — service genérico de envío (SMTP Gmail); **no existe `MailService`**. La config de correo vive en `config/MailConfig`.
+- **`EmailFacturaElectronicaService`** y **`EmailNotaRemisionService`** — especializados: arman el correo con el KuDE PDF adjunto de la factura/nota.
+
+⚠️ `service/UserService.java` existe pero es **código muerto** (sin referencias); el service real de usuarios es `UsuarioService`. Ver [known-bugs.md](../reference/known-bugs.md) (QA-6).
+
+Generación de DE: además de SIFEN, `XmlGeneratorService` produce un **XML simplificado** de la factura (más CDC de 44 chars con DV módulo 11, URL QR y código de seguridad). El XML **completo y firmado** que se envía a SIFEN lo arma `SifenService` con jsifenlib — `XmlGeneratorService` es un generador básico/preliminar, no el envío real.
+
+**SIFEN aislado en `service/sifen/`** → ver [sifen-integracion.md](sifen-integracion.md):
 - `SifenService` (3457 líneas / 176 KB) — armado del XML, envío, consulta.
 - `SifenEventoService` (844 líneas) — cancelación / inutilización / nominación.
-- `SifenSchedulerService` (101 líneas) — `@Scheduled`, polling de lotes/documentos.
+- `SifenSchedulerService` (101 líneas) — 3 jobs `@Scheduled`, polling de lotes/documentos/eventos.
 
 ### `controller/`
 22 controllers REST. Regla dura: `@RequestMapping` **sin** prefijo `/api/` (el context-path lo agrega). ⚠️ `GeografiaController`, `AuditLogController`, `ReporteController` la violan → resuelven a `/api/api/...`. Autorización por método con `@PreAuthorize` (`@EnableMethodSecurity` en `SecurityConfig`). Endpoints + roles: [reference/endpoints-index.md](../reference/endpoints-index.md).

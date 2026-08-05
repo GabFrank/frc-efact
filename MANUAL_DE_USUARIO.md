@@ -120,7 +120,7 @@ Al iniciar sesión, verá el dashboard principal que muestra:
 2. **Hacer clic en "Gestionar Usuarios"**
 3. **Asignar usuarios**:
    - Seleccionar usuario del sistema
-   - Asignar rol (ADMINISTRADOR o LECTOR)
+   - Asignar rol (ADMINISTRADOR, FACTURADOR o LECTOR)
    - Activar/desactivar acceso
 
 ### 4. Editar Empresa
@@ -198,9 +198,12 @@ Al iniciar sesión, verá el dashboard principal que muestra:
 - **Editar producto**: Hacer clic en el ícono de edición
 - **Activar/Desactivar**: Cambiar estado del producto
 
-### 4. Importar Productos (Funcionalidad Futura)
+### 4. Importar Productos desde Excel
 
-El sistema permitirá importar productos desde archivos Excel o CSV.
+El sistema **ya permite** importar productos de forma masiva desde un archivo Excel
+(endpoint backend `POST /productos/importar`, carga multipart; la lectura del Excel usa
+Apache POI). Desde la pantalla de Productos se selecciona el archivo y el sistema crea los
+productos a partir de sus filas.
 
 ---
 
@@ -398,6 +401,12 @@ Estos datos se seleccionan al momento de crear una Nota de Remisión.
 
 ## Reportes
 
+> ⚠️ **Estado actual:** en la versión actual la pantalla de **Reportes** carga un
+> *placeholder* (`TestPageComponent`); la funcionalidad descrita abajo **no está cableada
+> aún** en la interfaz. El backend expone endpoints JSON de reportes, pero la exportación a
+> Excel/PDF de reportes **no está implementada** (ver más abajo). Esta sección describe el
+> diseño previsto, no la funcionalidad operativa hoy.
+
 ### 1. Acceder a Reportes
 - En el menú lateral, hacer clic en **"Reportes"**
 
@@ -432,13 +441,23 @@ Estos datos se seleccionan al momento de crear una Nota de Remisión.
 
 ### 3. Exportar Reportes
 
-Algunos reportes y listados pueden exportarse a **Excel** (el backend usa Apache POI). La exportación multi-formato (PDF / CSV) de los reportes analíticos **no está disponible aún**.
+> ⚠️ **NO IMPLEMENTADO:** la exportación de reportes a **Excel** y **PDF** **no está
+> disponible**. En el backend, `ReporteExportService` está stubbeado y sus métodos
+> `exportar*Excel` / `exportar*Pdf` lanzan `UnsupportedOperationException`, por lo que los
+> endpoints `/api/reportes/{recurso}/excel` y `/api/reportes/{recurso}/pdf` fallan en
+> runtime. (Apache POI **sí** se usa en el sistema, pero para **importar productos** desde
+> Excel — ver "Gestión de Productos → Importar Productos" —, no para exportar reportes.)
 
 > Nota: la representación en **PDF** sí está disponible para los **documentos** (KuDE de facturas y notas), no como formato genérico de todos los reportes.
 
 ---
 
 ## Auditoría
+
+> ⚠️ **Estado actual:** en la versión actual la pantalla de **Auditoría** carga un
+> *placeholder* (`TestPageComponent`); la funcionalidad descrita abajo **no está cableada
+> aún** en la interfaz (el backend sí registra auditoría y expone endpoints, pero la
+> pantalla no los consume todavía). Esta sección describe el diseño previsto.
 
 ### 1. Acceder a Auditoría
 - En el menú lateral, hacer clic en **"Auditoría"**
@@ -596,4 +615,4 @@ Para soporte técnico o consultas:
 
 ---
 
-*Manual de Usuario FRC eFact v1.0 - Actualizado: Octubre 2025*
+*Manual de Usuario FRC eFact v1.0 - Última revisión: 2026-08-05*

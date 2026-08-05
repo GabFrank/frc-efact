@@ -49,5 +49,19 @@ También: usuario nuevo queda **sin rol** (ni `crearUsuario()` ni auto-registro 
 ### CORS (hardcodeado en `corsConfigurationSource()`)
 `allowedOriginPatterns`: `localhost:4200` (http/https), rangos LAN `192.168.*.*`, `10.*.*.*`, `172.*.*.*` (http/https, puerto 4200), y **`https://*.onrender.com`**. Métodos `GET/POST/PUT/DELETE/OPTIONS/PATCH`, `allowCredentials: true`, expone `Authorization` y `Content-Disposition`.
 
+## 2ª capa de autorización: `EmpresaSecurityService` (multi-empresa, programática)
+
+Los `@PreAuthorize` (1ª capa) solo verifican el **rol** (¿es FACTURADOR? ¿EMPRESA_ADMIN?), **no** a qué empresa pertenece el dato. La autorización por empresa la resuelve **`service/EmpresaSecurityService.java`**, una **segunda capa programática** que se invoca **dentro de los services** (no por anotación). Verificado 2026-08-05.
+
+**Consecuencia clave:** un usuario con el rol correcto (pasa el `@PreAuthorize`) puede **igual recibir un 403** si no tiene un vínculo activo (`UsuarioEmpresa`) con la empresa del recurso que intenta leer/escribir. Si ves un 403 pero el rol es el esperado, sospechá de esta capa antes que del `@PreAuthorize`.
+
+Cómo decide (resumen de `hasAccess(empresaId, tipo)`):
+- `ROLE_ADMIN` (rol de sistema) → acceso total a todas las empresas, sin vínculo.
+- Resto: exige `UsuarioEmpresa` **activo** para esa empresa. Con rol de sistema `EMPRESA_ADMIN`/`FACTURADOR` + vínculo activo → puede leer y escribir. Sin rol de sistema especial: `rolEmpresa=ADMINISTRADOR` escribe; `ADMINISTRADOR`/`FACTURADOR`/`LECTOR` leen.
+
+Métodos: `hasAccess`, `hasReadAccess`, `hasWriteAccess`, `isEmpresaAdmin`, `getCurrentUser`, y los que lanzan `AccessDeniedException`: `verificarAccesoLectura` / `verificarAccesoEscritura`.
+
+La usan **~11 services** (inyectada como `empresaSecurityService`): `ProductoService`, `ClienteService`, `FacturaLegalService`, `TimbradoService`, `TimbradoDetalleService`, `NotaCreditoService`, `NotaDebitoService`, `NotaRemisionService`, `VehiculoService`, `ChoferService`, `EmpresaService`. Detalle de la doble capa de roles en [../domains/usuarios-roles-permisos.md](../domains/usuarios-roles-permisos.md).
+
 ## Datos sensibles
 CSC y password de certificado se cifran con **AES-256** (`EncryptionService`, `ENCRYPTION_KEY` 32 chars). ⚠️ Si falta `ENCRYPTION_KEY` en prod se cifra con clave pública conocida (SEC-3). Ver [known-bugs.md](../reference/known-bugs.md).

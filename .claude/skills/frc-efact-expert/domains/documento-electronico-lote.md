@@ -42,13 +42,16 @@ FacturaLegal ──POST /facturas/{id}/generar-de──▶ DocumentoElectronico 
 POST /sifen/lotes/{loteId}/enviar ──▶ SIFEN recibe lote ──▶ DE pasa a EN_PROCESO
       │
       ▼
-Scheduler (SifenSchedulerService) hace polling:
-   consultarLotesEnProceso()      @Scheduled delay 300000ms  → sifenService.consultarLote()
-   consultarDocumentosPendientes() @Scheduled delay 600000ms  → sifenService.consultarDocumento(cdc)
+Scheduler (SifenSchedulerService) — 3 jobs @Scheduled:
+   consultarLotesEnProceso()      delay 300000ms  → sifenService.consultarLote()
+   consultarDocumentosPendientes() delay 600000ms  → sifenService.consultarDocumento(cdc)
+   procesarEventosPendientes()     delay 900000ms  → ⚠️ placeholder: solo loguea (envío de eventos a SIFEN NO implementado)
       │
       ▼
 DE ──▶ APROBADO (con protocolo) / RECHAZADO (con código de error)
 ```
+
+⚠️ El tercer job `procesarEventosPendientes()` hoy **no envía nada**: busca eventos de cancelación pendientes y, si hay, solo emite un `log.debug` ("envío a SIFEN pendiente de implementación"). El envío real de eventos sigue siendo manual vía `/sifen` (ver [eventos.md](eventos.md)).
 
 El **envío nunca ocurre en `generar-de`**: `generar-de` solo produce el DE en `PENDIENTE`. El polling automático evita tener que consultar manualmente, pero también existen endpoints de consulta on-demand.
 

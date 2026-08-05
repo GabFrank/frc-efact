@@ -181,7 +181,7 @@ POST /usuarios
   "username": "newuser",
   "email": "user@example.com", 
   "password": "SecurePass123",
-  "roles": ["USER"],
+  "roles": ["FACTURADOR"],
   "isActive": true
 }
 ```

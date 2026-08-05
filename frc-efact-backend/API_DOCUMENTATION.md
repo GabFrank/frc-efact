@@ -71,7 +71,7 @@ Endpoints **públicos** (sin `@PreAuthorize`).
 ```json
 {
   "username": "admin",
-  "password": "Admin123!"
+  "password": "admin123"
 }
 ```
 
@@ -441,12 +441,22 @@ Todos los endpoints: rol **todos**. Ruta efectiva actual con el prefijo duplicad
 
 Sin `@PreAuthorize` a nivel método (autenticado). Cada recurso tiene su variante `/excel` y `/pdf`.
 
-| Método | Ruta efectiva (bug) |
-|--------|---------------------|
-| GET | `/api/api/reportes/facturas` (+ `/facturas/excel`, `/facturas/pdf`) |
-| GET | `/api/api/reportes/clientes` (+ `/clientes/excel`, `/clientes/pdf`) |
-| GET | `/api/api/reportes/productos` (+ `/productos/excel`, `/productos/pdf`) |
-| GET | `/api/api/reportes/usuarios` (+ `/usuarios/excel`, `/usuarios/pdf`) |
+> ⚠️ **NO IMPLEMENTADO (exportación):** `ReporteExportService` está stubbeado — todos sus
+> métodos `exportar*Excel` / `exportar*Pdf` lanzan `UnsupportedOperationException("...no
+> implementada...")`. Por lo tanto los **8 endpoints** `/excel` y `/pdf` de la tabla
+> (`facturas`, `clientes`, `productos`, `usuarios`) **fallan en runtime**. Los endpoints
+> **JSON** de reportes (sin sufijo `/excel` ni `/pdf`) sí funcionan.
+
+| Método | Ruta efectiva (bug) | Estado |
+|--------|---------------------|--------|
+| GET | `/api/api/reportes/facturas` | ✅ JSON funciona |
+| GET | `/api/api/reportes/facturas/excel`, `/facturas/pdf` | ❌ `UnsupportedOperationException` |
+| GET | `/api/api/reportes/clientes` | ✅ JSON funciona |
+| GET | `/api/api/reportes/clientes/excel`, `/clientes/pdf` | ❌ `UnsupportedOperationException` |
+| GET | `/api/api/reportes/productos` | ✅ JSON funciona |
+| GET | `/api/api/reportes/productos/excel`, `/productos/pdf` | ❌ `UnsupportedOperationException` |
+| GET | `/api/api/reportes/usuarios` | ✅ JSON funciona |
+| GET | `/api/api/reportes/usuarios/excel`, `/usuarios/pdf` | ❌ `UnsupportedOperationException` |
 
 ---
 

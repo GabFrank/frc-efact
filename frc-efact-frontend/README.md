@@ -226,5 +226,3 @@ interceptor HTTPS, guards de routing, sanitización automática de Angular.
 
 - [Angular](https://angular.io/docs) · [Angular Material](https://material.angular.io/)
   · [NgRx](https://ngrx.io/) · [RxJS](https://rxjs.dev/) · [Auth0 Angular](https://github.com/auth0/auth0-angular)
-</content>
-</invoke>

@@ -33,10 +33,11 @@ Guarda el `token` de la respuesta.
 
 ### 2. Obtener Perfil
 
-> No existe `GET /api/auth/me`. El perfil del usuario autenticado está en `/api/perfil`.
+> No existe `GET /api/auth/me` ni `GET /api/perfil` a nivel raíz. El perfil del usuario
+> autenticado está en `/api/usuarios/perfil` (`UsuarioController`).
 
 ```
-GET {{baseUrl}}/api/perfil
+GET {{baseUrl}}/api/usuarios/perfil
 Authorization: Bearer {{token}}
 ```
 

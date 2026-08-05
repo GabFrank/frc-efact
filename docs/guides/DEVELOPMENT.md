@@ -100,4 +100,3 @@ npm test
 
 - **API Documentation**: `frc-efact-backend/API_DOCUMENTATION.md`
 - **Security**: `frc-efact-backend/SECURITY.md`
-- **Component Testing**: `frc-efact-frontend/COMPONENT_TESTING.md`

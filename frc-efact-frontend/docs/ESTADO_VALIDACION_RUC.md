@@ -73,8 +73,13 @@ desde la UI. El formulario solo comprueba el patrón `NNNNNNNN-N`. Cualquier res
    - En `validateRucFormat()`, descomentar `return this.validateRucCheckDigit(ruc);`.
    - En `validateRucLive()`, quitar el `of({ valid: true, ... })` temprano y descomentar
      el bloque HTTP real contra `${API_BASE_URL}/empresas/validate-ruc`.
-3. **Verificar el endpoint** `GET /api/empresas/validate-ruc` en el backend (existencia,
-   parámetros `ruc` / `excludeId`, forma de respuesta `{ valid, exists, razonSocial }`).
+3. **Crear el endpoint backend** `GET /api/empresas/validate-ruc` — **hoy NO existe**. El
+   interceptor mock lo *simula* en el frontend; no hay ningún método en `EmpresaController`
+   (ni en ningún controller) que responda a esa ruta. Reactivar la validación live **no es
+   solo trabajo de frontend**: hay que implementar el endpoint en el backend con los
+   parámetros `ruc` / `excludeId` y la forma de respuesta `{ valid, exists, razonSocial }`
+   que el servicio del frontend espera. Sin ese endpoint, descomentar el bloque HTTP del
+   frontend hará que la request falle (404) una vez removido el mock.
 4. **Probar** con casos reales: `80127721-3` (válido), `80127721-4` (DV inválido),
    y un RUC ya existente (debe reportar duplicado desde el backend, no desde el mock).
 5. **Interceptores muertos relacionados:** `interceptors/ruc-workaround.interceptor.ts`
@@ -91,4 +96,3 @@ desde la UI. El formulario solo comprueba el patrón `NNNNNNNN-N`. Cualquier res
 | `src/app/interceptors/ruc-workaround.interceptor.ts` | (workaround viejo) | ☠️ No registrado / muerto |
 | `src/app/app.config.ts` | Registra interceptores | Incluye `mockRucInterceptor` |
 | Backend `CalcularVerificadorRuc` / `RucValidator` | Validación oficial | ✅ Correcto |
-</content>

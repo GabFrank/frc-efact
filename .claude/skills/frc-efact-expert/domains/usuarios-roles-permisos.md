@@ -37,6 +37,21 @@ Dos vías conviven (Spring Security 6): JWT propio (jjwt, `AuthController /auth`
 
 ---
 
+## Capa 3 — Autorización por empresa: `EmpresaSecurityService`
+
+Además de los `@PreAuthorize` (que solo miran el **rol**), hay una **segunda capa de autorización programática** en `service/EmpresaSecurityService.java`, invocada **dentro de los services** (no por anotación). Verifica que el usuario tenga un vínculo (`UsuarioEmpresa`) **activo** con la empresa del recurso.
+
+**Consecuencia clave:** tener el rol correcto **no basta**. Un usuario que pasa el `@PreAuthorize` puede **igual recibir un 403** si no tiene acceso a esa empresa. Es la causa más común de un 403 "inexplicable" con el rol esperado.
+
+- `ROLE_ADMIN` de sistema → acceso total, sin vínculo.
+- Resto → exige `UsuarioEmpresa` activo. Rol de sistema `EMPRESA_ADMIN`/`FACTURADOR` + vínculo → lee y escribe. Sin rol de sistema especial: `rolEmpresa=ADMINISTRADOR` escribe; `ADMINISTRADOR`/`FACTURADOR`/`LECTOR` leen.
+
+Métodos: `hasAccess`, `hasReadAccess`, `hasWriteAccess`, `isEmpresaAdmin`, `getCurrentUser`, `verificarAccesoLectura`/`verificarAccesoEscritura` (estos dos lanzan `AccessDeniedException`).
+
+La usan **~11 services** (`empresaSecurityService`): `ProductoService`, `ClienteService`, `FacturaLegalService`, `TimbradoService`, `TimbradoDetalleService`, `NotaCreditoService`, `NotaDebitoService`, `NotaRemisionService`, `VehiculoService`, `ChoferService`, `EmpresaService`. Ver también [../architecture/auth-seguridad.md](../architecture/auth-seguridad.md).
+
+---
+
 ## Endpoints
 
 ### `UsuarioController` `/usuarios`

@@ -27,8 +27,8 @@ Leyenda severidad: 🔴 alta · 🟠 media · 🟡 baja
 
 ### SEC-4 · 🔴 Validación de RUC del frontend deshabilitada + mock en producción
 `ruc-validation.service.ts` no valida dígito verificador ni duplicados (retorna `valid:true`), y `mock-ruc.interceptor.ts` (registrado en `app.config.ts`, **sin guarda de entorno**) intercepta `/api/empresas/validate-ruc` devolviendo RUCs ficticios hardcodeados — también en prod. El backend RUC (`CalcularVerificadorRuc`, módulo-11) ya es correcto.
-**Acción:** quitar/guardar por entorno el mock, reactivar la validación real, borrar `ruc-workaround.interceptor.ts` (muerto).
-**Labels:** `security`, `frontend`, `priority:high`
+**Acción:** quitar/guardar por entorno el mock, reactivar la validación real, borrar `ruc-workaround.interceptor.ts` (muerto). **Addendum:** el endpoint backend `GET /empresas/validate-ruc` que el mock simula **no existe** — reactivar la validación live requiere **crearlo** primero (no es solo trabajo de frontend).
+**Labels:** `security`, `frontend`, `backend`, `priority:high`
 
 ### SEC-5 · 🟠 `ReporteController` sin `@PreAuthorize` a nivel método
 Todos los endpoints de `/api/reportes` (facturas/clientes/productos/usuarios en JSON/excel/pdf) quedan accesibles a cualquier usuario autenticado, sin distinción de rol (a diferencia del resto del sistema).
@@ -130,8 +130,8 @@ Solo opera desvinculada de `FacturaLegal`. Ver `inutilizar-numeros-dialog.compon
 **Labels:** `bug`, `sifen`
 
 ### QA-2 · 🟠 Features `reportes` y `auditoria` no cableadas a la navegación
-`app.routes.ts` (L65 `reportes`, L78 `auditoria`, y otra ruta ~L84) cargan `TestPageComponent` (placeholder) aunque los componentes de feature y sus `.routes.ts` existen completos.
-**Acción:** cablear las rutas reales.
+`app.routes.ts` (L65 `reportes`, L78 `auditoria`) cargan `TestPageComponent` (placeholder) aunque los componentes de feature y sus `.routes.ts` existen completos. (La ruta `test` ~L84 también usa `TestPageComponent`, pero es un placeholder **intencional**, no una feature rota.)
+**Acción:** cablear las rutas reales de `reportes` y `auditoria`.
 **Labels:** `bug`, `frontend`
 
 ### QA-3 · 🟡 Interceptores muertos / duplicados
@@ -139,8 +139,8 @@ Solo opera desvinculada de `FacturaLegal`. Ver `inutilizar-numeros-dialog.compon
 **Labels:** `tech-debt`, `frontend`
 
 ### QA-4 · 🟡 Logs de debug en producción
-`UserProfileController.actualizarDesdeAuth0()` (~L131-188) usa `System.out.println("DEBUG: ...")` y `e.printStackTrace()`.
-**Acción:** reemplazar por logger.
+`System.out.println("DEBUG: ...")` / `e.printStackTrace()` en 4 archivos: `controller/UserProfileController.java` (~L131-188), `service/sifen/SifenEventoService.java`, `config/DatabaseConfig.java` y `security/OAuth2TokenFilter.java`.
+**Acción:** reemplazar por logger (SLF4J).
 **Labels:** `tech-debt`, `backend`
 
 ### QA-5 · 🟡 Carpetas de referencia vacías enlazadas
@@ -153,11 +153,28 @@ Solo opera desvinculada de `FacturaLegal`. Ver `inutilizar-numeros-dialog.compon
 **Acción:** decidir el patrón oficial (trigger SQL vs JPA auditing) y alinear el estándar con la realidad.
 **Labels:** `tech-debt`, `docs`, `backend`
 
+### QA-7 · 🟡 TODOs de datos incompletos en KuDE / Dashboard / Email
+Varios datos quedan sin implementar (retornan vacío/placeholder): logo de empresa en KuDE (`KudePdfService.java:627`), nombre de distrito partida/llegada en remisión (`KudePdfService.java:682/688`), consulta directa de facturas (`DashboardService.java:152`), `xml_firmado` por separado (`EmailFacturaElectronicaService.java:138`).
+**Acción:** implementar o documentar como no soportado en la UI.
+**Labels:** `tech-debt`, `backend`
+
+### QA-8 · 🟡 `UserService.java` código muerto
+Existe `service/UserService.java` sin ninguna referencia en el código (gemelo confuso del real `UsuarioService`).
+**Acción:** eliminar o documentar su propósito.
+**Labels:** `tech-debt`, `backend`
+
+## 📊 Reportes
+
+### REP-1 · 🟠 Exportación de reportes a Excel/PDF no implementada (expuesta como funcional)
+`ReporteExportService.java` lanza `UnsupportedOperationException("...no implementada...")` en todos los `exportar*Excel/*Pdf`. Los 8 endpoints `/api/reportes/{facturas,clientes,productos,usuarios}/{excel,pdf}` **fallan en runtime**. Apache POI se usa solo para *importar* productos, no para exportar reportes.
+**Acción:** implementar la exportación o quitar/ocultar los endpoints y la UI hasta entonces.
+**Labels:** `bug`, `backend`, `reportes`
+
 ---
 
 ## Resumen por severidad
 - 🔴 **Alta (7):** SEC-1, SEC-2, SEC-3, SEC-4, RBAC-1, RBAC-2, CFG-1
-- 🟠 **Media (8):** SEC-5, SEC-6, API-1, SIFEN-1, SIFEN-2, RBAC-3, QA-1, QA-2
-- 🟡 **Baja (11):** RBAC-4, RBAC-5, RBAC-6, SIFEN-3, SIFEN-4, CFG-2, CFG-3, QA-3, QA-4, QA-5, QA-6
+- 🟠 **Media (9):** SEC-5, SEC-6, API-1, SIFEN-1, SIFEN-2, RBAC-3, QA-1, QA-2, REP-1
+- 🟡 **Baja (13):** RBAC-4, RBAC-5, RBAC-6, SIFEN-3, SIFEN-4, CFG-2, CFG-3, QA-3, QA-4, QA-5, QA-6, QA-7, QA-8
 
-_Total: 26 issues candidatos. Los SEC-1/SEC-2 (secrets) requieren acción del dueño (revocación) además del fix de repo._
+_Total: 29 issues candidatos. Los SEC-1/SEC-2 (secrets) requieren acción del dueño (revocación) además del fix de repo._
