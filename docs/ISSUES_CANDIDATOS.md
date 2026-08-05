@@ -148,11 +148,16 @@ Solo opera desvinculada de `FacturaLegal`. Ver `inutilizar-numeros-dialog.compon
 **Acción:** poblar, quitar el enlace, o documentar que son placeholders.
 **Labels:** `docs`
 
+### QA-6 · 🟡 Estándar de trigger de auditoría no seguido en migraciones nuevas
+`DATABASE_STANDARDS.md` exige el trigger `actualizar_timestamp_modificacion()` en toda tabla, pero las migraciones nuevas (p. ej. V35 Vehiculo/Chofer) **no lo crean**: los timestamps se manejan vía JPA (`AuditableEntity` con `@PrePersist`/`@PreUpdate`) + `DEFAULT CURRENT_TIMESTAMP` en el DDL. El estándar documentado y la práctica real divergen.
+**Acción:** decidir el patrón oficial (trigger SQL vs JPA auditing) y alinear el estándar con la realidad.
+**Labels:** `tech-debt`, `docs`, `backend`
+
 ---
 
 ## Resumen por severidad
 - 🔴 **Alta (7):** SEC-1, SEC-2, SEC-3, SEC-4, RBAC-1, RBAC-2, CFG-1
 - 🟠 **Media (8):** SEC-5, SEC-6, API-1, SIFEN-1, SIFEN-2, RBAC-3, QA-1, QA-2
-- 🟡 **Baja (10):** RBAC-4, RBAC-5, RBAC-6, SIFEN-3, SIFEN-4, CFG-2, CFG-3, QA-3, QA-4, QA-5
+- 🟡 **Baja (11):** RBAC-4, RBAC-5, RBAC-6, SIFEN-3, SIFEN-4, CFG-2, CFG-3, QA-3, QA-4, QA-5, QA-6
 
-_Total: 25 issues candidatos. Los SEC-1/SEC-2 (secrets) requieren acción del dueño (revocación) además del fix de repo._
+_Total: 26 issues candidatos. Los SEC-1/SEC-2 (secrets) requieren acción del dueño (revocación) además del fix de repo._

@@ -15,7 +15,7 @@ Sistema web full-stack para emitir y gestionar **Documentos Electrónicos (DE)**
 - **JasperReports 6.20.0** para PDFs (KuDE)
 - **ZXing** para QR
 - **Apache POI** para Excel
-- **AspectJ AOP** para auditoría automática
+- **AspectJ AOP** para auditoría (annotation-driven: `AuditAspect` intercepta métodos anotados con `@Auditable`, no todo write automáticamente)
 - **Lombok**, **springdoc-openapi 2.3.0** (Swagger en `/swagger-ui.html`)
 - SOAP (`spring-boot-starter-web-services` + `javax.xml.soap` + `saaj-impl`) requerido por jsifenlib
 

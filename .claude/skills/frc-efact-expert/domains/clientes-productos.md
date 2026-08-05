@@ -75,4 +75,4 @@ Enum `model/TipoTransaccionProducto.java`, constructor `(codigo, descripcion)`. 
 
 ---
 
-Índices generales: [../reference/entities-index.md](../reference/entities-index.md) · [../reference/endpoints-index.md](../reference/endpoints-index.md). Consumidos por facturación → ver [facturacion-de.md](facturacion-de.md) si existe.
+Índices generales: [../reference/entities-index.md](../reference/entities-index.md) · [../reference/endpoints-index.md](../reference/endpoints-index.md). Consumidos por facturación → ver [facturacion.md](facturacion.md) y [documento-electronico-lote.md](documento-electronico-lote.md).

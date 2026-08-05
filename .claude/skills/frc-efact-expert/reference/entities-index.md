@@ -13,7 +13,7 @@
 ## Empresa / Timbrado (esquema `empresa`)
 | Entidad | Notas |
 |---|---|
-| `Empresa` | Datos fiscales, certificado `.pfx` por empresa, branding, actividades económicas |
+| `Empresa` | Datos fiscales, certificado `.pfx` por empresa, actividades económicas. ⚠️ Conserva columnas CSC residuales (`csc_id`, `csc_encrypted`) pese a V14 — el CSC real vive en `Timbrado`. ⚠️ **No** tiene campo branding/logo (el logo del KuDE es un TODO que retorna `null`) |
 | `Timbrado` | Físico o electrónico (con CSC). Rangos opcionales para electrónicos (V17) |
 | `TimbradoDetalle` | Puntos de expedición (establecimiento + punto). Geografía (V15) |
 

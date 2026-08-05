@@ -15,9 +15,9 @@ Verificado directo del código 2026-08-05.
 `PENDIENTE`, `EN_PROCESO`, `APROBADO`, `RECHAZADO`, `ERROR`, `PROCESADO`, `ERROR_ENVIO`, `ERROR_PERMANENTE`
 
 ## `TipoClienteSifen`
-Constructor: `(iNatRec, iTiContRec, iTiOpe, descripcion, requiereRuc)`
+Constructor: `(iNatRec, iTiContRec, iTiOpe, descripcion, esContribuyente)`. El método `requiereRuc()` devuelve ese mismo flag `esContribuyente`.
 
-| Constante | iNatRec | iTiContRec | iTiOpe | requiereRuc |
+| Constante | iNatRec | iTiContRec | iTiOpe | esContribuyente / requiereRuc() |
 |---|---|---|---|---|
 | `PERSONA_FISICA` | 1 | 1 | 1 | true |
 | `PERSONA_JURIDICA` | 1 | 2 | 1 | true |
