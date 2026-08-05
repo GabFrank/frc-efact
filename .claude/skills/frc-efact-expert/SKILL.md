@@ -25,7 +25,7 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 - **Deploy:** producción corre en una **VM Hetzner** (`https://efact.frc-ecommerce.com`) desde el **2026-07-07**. El deploy es **manual por SSH** (`docker compose up -d --build`), **no** por git. Un push a `main` solo dispara `semantic-release` en GitHub Actions. **Render quedó suspendido** como ventana de rollback (conserva `autoDeploy` — no reanudarlo a ciegas).
 - **Comandos:**
   - Backend: `./dev.sh` (dev), `./mvnw compile` (**verificar compilación antes de commit**), `./mvnw spring-boot:run`, `./mvnw test`.
-  - Frontend: `npm start` (dev), `npm run build:dev` / `npm run build:prod`, `npm run lint`, `npm run test:ci`.
+  - Frontend: `npm start` (dev), `npm run build:dev` / `npm run build:prod`, `npm run test:ci`. ⚠️ `npm run lint` **no funciona** — el target no existe en `angular.json`.
   - Swagger: `http://localhost:8080/swagger-ui.html`. Health: `http://localhost:8080/api/actuator/health`.
 
 ---
@@ -78,7 +78,7 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 4. **Migraciones Flyway versionadas** (`V36__...`); **nunca** modificar una ya aplicada. `ddl-auto: validate`.
 5. **URLs API desde el frontend incluyen `/api/`**: `${environment.apiUrl}/clientes`.
 6. **JWT en memoria** (no `localStorage`). Una rama NgRx por entidad principal (pero **no todas la tienen** — ver ngrx-index).
-7. **Compilar antes de commit/push.** Backend: `./mvnw compile`. Frontend: `npm run build:dev` o `npm run lint`. Si falla, **no commitear**.
+7. **Compilar antes de commit/push.** Backend: `./mvnw compile`. Frontend: `npm run build:dev` (⚠️ `npm run lint` no existe). Si falla, **no commitear**.
 8. **⚠️ El deploy a prod es manual por SSH a la VM Hetzner** — `git push` no despliega. Preguntar SIEMPRE antes de `commit`+`push`, y con más razón antes de tocar la VM (es **compartida** con otros servicios productivos). Ver [workflows/deploy-hetzner.md](workflows/deploy-hetzner.md).
 9. **No commitear secretos** ni `.pfx`.
 10. **Antes de tocar `SifenService`:** leer [conventions/sifen-gotchas.md](conventions/sifen-gotchas.md) y los manuales de `docs/sifen/`. El XML SIFEN es estrictísimo — un campo de más/menos rompe la validación (E605b, E644a, etc.).

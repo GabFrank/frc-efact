@@ -139,6 +139,78 @@ Consideraciones de diseño relevadas:
 
 ---
 
-## 7. Funcionalidades pendientes / mejoras
+## 7. 🐛 `npm run lint` no existe — Prioridad Media
+
+**Estado:** ❌ No implementado · _(detectado 2026-08-05 al armar el CI)_
+
+`angular.json` solo declara los targets `build`, `serve`, `extract-i18n` y `test`. El script
+`lint` de `package.json` ejecuta `ng lint`, que falla con *"Cannot find lint target for the
+specified project"*. Falta `@angular-eslint/schematics`.
+
+La instrucción "correr `npm run lint` antes de commitear" figuraba en `CLAUDE.md`, en la skill
+y en varios docs — era imposible de cumplir. Ya corregida en la doc; falta el fix real.
+
+**TODO:** `ng add @angular-eslint/schematics`, revisar el ruido inicial, y recién entonces
+agregar el job de lint al CI.
+
+---
+
+## 8. ⚠️ CI: tests del backend no bloqueantes — Prioridad Media
+
+**Estado:** ⚠️ Parcial · _(anotado 2026-08-05)_
+
+El job `backend-tests` de `.github/workflows/ci.yml` tiene `continue-on-error: true` porque
+fallan **6 de 19 tests**, todos de validación de RUC:
+
+| Suite | Resultado |
+|---|---|
+| `RucCalculatorTest` | 4 tests, 3 fallan |
+| `RucValidatorTest` | 5 tests, 1 falla |
+| `ValidadoresParaguayosTest` | 8 tests, 2 fallan |
+
+Es el **mismo bug de la sección 4** (algoritmo de dígito verificador del backend). Los tests
+venían señalándolo correctamente.
+
+**TODO:** arreglar el algoritmo → los 6 tests pasan → sacar el `continue-on-error` y hacer el
+job bloqueante. Es un solo fix que destraba tres cosas: los tests, el CI y la validación de
+RUC del frontend.
+
+---
+
+## 9. 🔴 Secretos y certificados versionados en el repo — Prioridad Alta
+
+**Estado:** 🐛 Con errores · _(auditoría 2026-08-05)_
+
+Auditoría del historial completo (132 commits). Todo esto está **tracked en `HEAD`**, no solo
+en el historial:
+
+| Qué | Dónde |
+|---|---|
+| **6 certificados `.pfx` de firma digital SIFEN** | `frc-efact-backend/certificates/` |
+| `client_secret_…apps.googleusercontent.com.json` (OAuth Google) | raíz del repo |
+| PAT de GitHub `ghp_SUuAN9…` | `docs/deployment/AGREGAR_VARIABLES_RENDER.md`, `RENDER_DOCKER_BUILD_ARGS.md` |
+| App password de Gmail | `frc-efact-backend/CONFIGURACION_IDE.md` |
+| Defaults de `JWT_SECRET` y `ENCRYPTION_KEY` | `application.yml:81,86` |
+
+Dos de los `.pfx` son los certificados de firma **en producción** (ANATOLE DEINZER DUARTE y
+GUILLERMO FRANCO AREVALOS, ver [deployment/hetzner/RUNBOOK_VM.md](deployment/hetzner/RUNBOOK_VM.md)
+paso 5). Son PKCS12 legacy (RC2), crackeables offline. Y el runbook confirma que producción usa
+el `ENCRYPTION_KEY` **default**, que está en el repo.
+
+`.gitignore` no cubre `*.pfx` ni `client_secret*`.
+
+**Bloqueante para hacer el repo público.** TODO, en orden:
+- [ ] Agregar `*.pfx`, `*.p12`, `client_secret*.json` a `.gitignore` y `git rm --cached`
+- [ ] Revocar el PAT de GitHub y el client secret de Google; rotar el app password de Gmail
+- [ ] Rotar `JWT_SECRET`
+- [ ] Rotar `ENCRYPTION_KEY` — implica **re-cifrar en la DB** los CSC y los passwords de
+      certificados, no es solo cambiar la env var
+- [ ] Re-emitir los `.pfx` ante la SET (el de FRANCO AREVALOS vence el 2026-08-20 igual)
+- [ ] Purgar el historial con `git-filter-repo` — reescribe los 132 commits, force-push a
+      todas las ramas, y hay que rehacer tags y releases de `semantic-release`
+
+---
+
+## 10. Funcionalidades pendientes / mejoras
 
 _(Añadir nuevas funcionalidades pendientes o mejoras sugeridas aquí.)_

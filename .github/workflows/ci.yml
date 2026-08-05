@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+# Un PR que recibe varios pushes seguidos cancela los runs viejos.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · compile + package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      # jsifenlib vive en GitHub Packages de OTRO repo (GabFrank/rshk-jsifenlib),
+      # así que el GITHUB_TOKEN automático del job no alcanza: hace falta un PAT
+      # con scope read:packages en el secret GH_PACKAGES_TOKEN.
+      - name: Configurar Maven para GitHub Packages
+        env:
+          GH_PACKAGES_USER: ${{ secrets.GH_PACKAGES_USER }}
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml <<EOF
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+            <servers>
+              <server>
+                <id>github-jsifenlib</id>
+                <username>${GH_PACKAGES_USER}</username>
+                <password>${GH_PACKAGES_TOKEN}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: Build (sin tests)
+        working-directory: frc-efact-backend
+        run: ./mvnw -B -ntp clean package -DskipTests
+
+  backend-tests:
+    name: Backend · tests (no bloqueante)
+    runs-on: ubuntu-latest
+    # ⚠️ NO bloqueante a propósito: al 2026-08-05 fallan 6 tests de validación de
+    # RUC (RucCalculatorTest, RucValidatorTest, ValidadoresParaguayosTest). No son
+    # tests podridos — son la evidencia del bug conocido del algoritmo de dígito
+    # verificador (ver docs/TAREAS_PENDIENTES.md §4 y docs/ISSUES_CANDIDATOS.md).
+    # Cuando ese bug se arregle, borrar `continue-on-error` y hacerlo bloqueante.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: maven
+
+      - name: Configurar Maven para GitHub Packages
+        env:
+          GH_PACKAGES_USER: ${{ secrets.GH_PACKAGES_USER }}
+          GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml <<EOF
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+            <servers>
+              <server>
+                <id>github-jsifenlib</id>
+                <username>${GH_PACKAGES_USER}</username>
+                <password>${GH_PACKAGES_TOKEN}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: Tests
+        working-directory: frc-efact-backend
+        run: ./mvnw -B -ntp test
+
+      - name: Publicar reportes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: frc-efact-backend/target/surefire-reports/
+          if-no-files-found: ignore
+
+  frontend:
+    name: Frontend · build prod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frc-efact-frontend/package-lock.json
+
+      - name: Install
+        working-directory: frc-efact-frontend
+        run: npm ci
+
+      # NOTA: no se corre `npm run lint` — el target `lint` NO existe en
+      # angular.json (solo build/serve/extract-i18n/test). Agregar
+      # @angular-eslint/schematics es una tarea aparte; hasta entonces, el build
+      # de producción (AOT) es el gate real del frontend.
+      - name: Build producción
+        working-directory: frc-efact-frontend
+        run: npm run build:prod

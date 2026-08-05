@@ -110,7 +110,7 @@ export interface MiEntidad {
 
 ### ✅ Compilar frontend
 ```bash
-cd frc-efact-frontend && npm run build:dev   # o: npm run lint
+cd frc-efact-frontend && npm run build:dev   # (npm run lint NO existe)
 ```
 
 ---
@@ -123,6 +123,6 @@ cd frc-efact-frontend && npm run build:dev   # o: npm run lint
 - [ ] `./mvnw compile` OK.
 - [ ] API service front con `${environment.apiUrl}/...`.
 - [ ] Ruta **cableada real** en `app.routes.ts` (no `TestPageComponent`) + ítem de menú.
-- [ ] `npm run build:dev` / `npm run lint` OK.
+- [ ] `npm run build:dev` OK.
 - [ ] **No commitees sin preguntar.** El push a `main` no despliega (el deploy es manual por
       SSH a la VM), pero sí corre `semantic-release` — ver [deploy-hetzner.md](deploy-hetzner.md).

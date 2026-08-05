@@ -38,4 +38,4 @@ UI con **Angular Material 17 + SCSS**. No introducir Tailwind ni otro framework 
 UI y dominio en **español**.
 
 ## 8. Compilar antes de commit
-`cd frc-efact-frontend && npm run build:dev` o `npm run lint`. Si falla, **no** commitear. (El deploy a prod es manual por SSH a la VM Hetzner; ver [../workflows/deploy-hetzner.md](../workflows/deploy-hetzner.md).)
+`cd frc-efact-frontend && npm run build:dev`. Si falla, **no** commitear. (⚠️ `npm run lint` **no funciona**: falta el target `lint` en `angular.json`.) (El deploy a prod es manual por SSH a la VM Hetzner; ver [../workflows/deploy-hetzner.md](../workflows/deploy-hetzner.md).)

@@ -47,7 +47,7 @@ Puerto: **8080** — context-path: **`/api`** — Swagger: http://localhost:8080
 npm start                      # ng serve → http://localhost:4200
 npm run build:prod             # Build producción
 npm run test:ci                # Tests headless
-npm run lint                   # ESLint
+npm run lint                   # ⚠️ NO FUNCIONA: el target `lint` no existe en angular.json
 ```
 
 ### Credenciales por defecto (dev)
@@ -282,6 +282,22 @@ Esto funciona tanto para JWT local ([JwtAuthenticationFilter.java:50](frc-efact-
 
 ## Workflow / reglas de colaboración
 
+**Flujo de ramas, commits, CI y deploy: [CONTRIBUTING.md](CONTRIBUTING.md)** — leerlo antes
+de abrir un PR. Resumen:
+
+```
+feature/* --PR--> develop --PR--> main --(semantic-release)--> tag + CHANGELOG
+hotfix/*  --PR--> main    --PR--> develop  (obligatorio post-hotfix)
+```
+
+- `main` = rama de release · `develop` = integración · **sin canal de prerelease** (no hay
+  entorno alpha/beta donde desplegarlo).
+- **PR de `develop` a `main`: merge commit, NO squash** — el squash colapsa los
+  `feat:`/`fix:` y `semantic-release` calcula mal el bump.
+- CI (`.github/workflows/ci.yml`) corre en PRs a `main`/`develop`: build de backend y
+  frontend bloqueantes; los tests del backend **no** bloquean todavía (6 tests de RUC
+  fallan por un bug conocido — ver [docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md) §4).
+
 - **⚠️ El deploy a producción es MANUAL por SSH a la VM Hetzner.** Desde la migración
   del 2026-07-07, `git push` **ya no despliega**. El flujo real es entrar a la VM
   (`deploy@178.105.107.171`), `git pull` y `docker compose -f docker-compose.prod.yml
@@ -295,7 +311,8 @@ Esto funciona tanto para JWT local ([JwtAuthenticationFilter.java:50](frc-efact-
 - **Render está suspendido** (`srv-d61m4p4hg0os73fpbjm0`), no dado de baja — es la ventana
   de rollback. Conserva `autoDeploy: yes` sobre `main`, así que **si alguien lo reanuda
   vuelve a auto-desplegar**. No reanudarlo sin decisión explícita.
-- **Siempre compilar antes de commit/push.** Si tocaste backend Java: `cd frc-efact-backend && ./mvnw compile`. Si tocaste frontend: `cd frc-efact-frontend && npm run build:dev` o `npm run lint`. Si la compilación falla, **no commitear** — arreglar primero.
+- **Siempre compilar antes de commit/push.** Si tocaste backend Java: `cd frc-efact-backend && ./mvnw compile`. Si tocaste frontend: `cd frc-efact-frontend && npm run build:dev`. Si la compilación falla, **no commitear** — arreglar primero.
+  - ⚠️ **`npm run lint` no funciona** (verificado 2026-08-05): `angular.json` solo declara los targets `build`, `serve`, `extract-i18n` y `test` — falta `@angular-eslint/schematics`. El gate real del frontend es el build AOT.
 - Las tools de Render MCP (`mcp__render__list_deploys`, `get_deploy`, `get_service`, `list_logs`, etc.) **se pueden usar para inspeccionar/diagnosticar** estado, logs y env vars del Render suspendido — nunca para mutar estado de deploys ni para reanudar servicios.
 - Antes de marcar un fix como "resuelto" en este documento, **esperar validación del usuario** ejecutando/probando el cambio.
 

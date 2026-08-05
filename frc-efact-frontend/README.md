@@ -159,8 +159,8 @@ npm run watch             # build dev en watch mode
 npm test                  # tests unitarios (Karma)
 npm run test:ci           # tests headless (ChromeHeadless, sin watch)
 npm run test:coverage     # tests con cobertura
-npm run lint              # ESLint
-npm run lint:fix          # ESLint con --fix
+npm run lint              # ⚠️ NO FUNCIONA — falta el target `lint` en angular.json
+npm run lint:fix          # ⚠️ idem
 npm run analyze           # análisis de tamaño de bundle
 ```
 

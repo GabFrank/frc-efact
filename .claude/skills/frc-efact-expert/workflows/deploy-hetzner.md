@@ -73,7 +73,7 @@ docker compose -f docker-compose.prod.yml logs -f backend   # esperar "Started F
 ## Antes de deployar (checklist)
 
 1. **Compilar.** Backend: `cd frc-efact-backend && ./mvnw compile`. Frontend:
-   `cd frc-efact-frontend && npm run build:dev` (o `npm run lint`). Si falla → **no commitees**.
+   `cd frc-efact-frontend && npm run build:dev` (⚠️ `npm run lint` no existe). Si falla → **no commitees**.
 2. **No commitear secretos** ni `.pfx`. `deploy/.env` está gitignored — verificarlo.
 3. **Preguntar al usuario** antes de `commit` + `push` **y** antes de tocar la VM.
 4. Mensaje de commit **convencional** para que `semantic-release` versione bien.
