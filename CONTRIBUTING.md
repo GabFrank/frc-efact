@@ -38,6 +38,20 @@ Cuando `develop` está listo para salir: **PR de `develop` a `main`**. Al mergea
 `semantic-release` calcula la versión, crea el tag, actualiza `CHANGELOG.md` y bumpea
 `frc-efact-backend/pom.xml` + `frc-efact-frontend/package.json`.
 
+### ⚠️ Después de CADA release: PR `main` → `develop`
+
+`semantic-release` commitea el bump de versión **solo en `main`** (`chore(release): vX.Y.Z
+[skip ci]`). Si no se baja a `develop`, esa rama se queda con `pom.xml` y los `package.json` en
+la versión anterior, y la divergencia crece con cada release hasta que un PR `develop → main`
+empieza a mostrar historia cruzada.
+
+Es el mismo patrón que en `frc-comercial` obliga a un PR `master → develop` post-hotfix — acá
+aplica **después de cada release**, porque el bot siempre commitea en `main`.
+
+```bash
+gh pr create --base develop --head main --title "chore: sincronizar develop con main tras el release vX.Y.Z"
+```
+
 ## Mensajes de commit
 
 Conventional Commits. Lo que libera versión (ver `.releaserc.json`):
@@ -122,6 +136,23 @@ key read-only) — **no** `github.com`, que en esa máquina ya está tomado por 
 ⚠️ **La VM es compartida** con servicios productivos ajenos (nginx del host, PostgreSQL
 nativo, farmacia Next.js, headscale, mediamtx). El workflow está acotado a `~/frc-efact` y
 al stack de `docker-compose.prod.yml`: no hace `down`, no borra volúmenes, no toca nginx.
+
+⚠️ **`--env-file deploy/.env` no es opcional en NINGÚN comando de compose**, ni en un `ps`
+inocente. Sin él, compose falla al interpolar `${POSTGRES_PASSWORD:?}` y sale distinto de cero.
+Eso hizo fallar el primer run de `deploy.yml` (#7) **después** de haber desplegado bien, y se
+salteó el health check.
+
+### Antes de un deploy que incluya migración Flyway
+
+Flyway corre al arrancar el backend, así que una migración rota deja producción **caída**, no
+degradada. Y si la migración muta datos, revertir el código no alcanza — hay que revertir los
+datos también.
+
+```bash
+ssh deploy@178.105.107.171 'cd ~/frc-efact && ./deploy/backup-db.sh'
+```
+
+El backup automático es diario a las 03:30 UTC; antes de una migración conviene uno fresco.
 
 ## Migraciones Flyway
 
