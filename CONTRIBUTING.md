@@ -81,6 +81,16 @@ y hacer el job bloqueante.**
 **Por qué no se corre lint:** el target `lint` **no existe** en `angular.json` — falta
 `@angular-eslint/schematics`. El gate real del frontend es el build AOT de producción.
 
+### Required status checks (cuando haya branch protection)
+
+Marcar como obligatorios **solo** estos dos:
+
+- `Backend · compile + package`
+- `Frontend · build prod`
+
+**No** marcar `Backend · tests (no bloqueante)` mientras tenga `continue-on-error` — para eso
+está el flag, y hacerlo required lo volvería bloqueante por la puerta de atrás.
+
 ### Secrets que necesita el CI
 
 | Secret | Para qué |

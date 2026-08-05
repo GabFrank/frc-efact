@@ -33,6 +33,12 @@ jobs:
           GH_PACKAGES_USER: ${{ secrets.GH_PACKAGES_USER }}
           GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         run: |
+          if [ -z "${GH_PACKAGES_TOKEN}" ]; then
+            echo "::error::Falta el secret GH_PACKAGES_TOKEN (PAT con scope read:packages)."
+            echo "::error::Sin él, Maven no puede bajar jsifenlib de GitHub Packages y falla con 401."
+            echo "::error::Cargarlo en Settings -> Secrets and variables -> Actions. Ver CONTRIBUTING.md."
+            exit 1
+          fi
           mkdir -p ~/.m2
           cat > ~/.m2/settings.xml <<EOF
           <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
@@ -74,6 +80,12 @@ jobs:
           GH_PACKAGES_USER: ${{ secrets.GH_PACKAGES_USER }}
           GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         run: |
+          if [ -z "${GH_PACKAGES_TOKEN}" ]; then
+            echo "::error::Falta el secret GH_PACKAGES_TOKEN (PAT con scope read:packages)."
+            echo "::error::Sin él, Maven no puede bajar jsifenlib de GitHub Packages y falla con 401."
+            echo "::error::Cargarlo en Settings -> Secrets and variables -> Actions. Ver CONTRIBUTING.md."
+            exit 1
+          fi
           mkdir -p ~/.m2
           cat > ~/.m2/settings.xml <<EOF
           <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
