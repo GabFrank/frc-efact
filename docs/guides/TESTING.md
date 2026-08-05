@@ -7,8 +7,8 @@ Cómo probar la aplicación manualmente y con herramientas.
 ### 1. Verificar Backend
 
 ```bash
-# Health check
-curl http://localhost:8080/actuator/health
+# Health check (context-path /api)
+curl http://localhost:8080/api/actuator/health
 
 # Login
 curl -X POST http://localhost:8080/api/auth/login \
@@ -51,6 +51,13 @@ Para validar el deployment en Render:
   https://tu-backend.onrender.com \
   https://tu-frontend.onrender.com
 ```
+
+> El health de producción es `https://tu-backend.onrender.com/api/actuator/health`.
+
+**Antes de probar en producción**, verifica que el backend arrancó con las variables obligatorias configuradas en el Dashboard de Render:
+- `GITHUB_USERNAME` / `GITHUB_TOKEN` — sin ellas el build de Docker ni siquiera compila (`jsifenlib`).
+- `MAIL_PASSWORD` — sin valor por defecto; su ausencia puede impedir el arranque.
+- `ENCRYPTION_KEY` — 32 caracteres; si falta se usa un default inseguro.
 
 ## 🐛 Debugging
 

@@ -33,22 +33,26 @@ Guarda el `token` de la respuesta.
 
 ### 2. Obtener Perfil
 
+> No existe `GET /api/auth/me`. El perfil del usuario autenticado está en `/api/perfil`.
+
 ```
-GET {{baseUrl}}/api/auth/me
+GET {{baseUrl}}/api/perfil
 Authorization: Bearer {{token}}
 ```
 
 ### 3. Listar Usuarios (Admin)
 
+> El recurso es `usuarios` (en español), no `users`.
+
 ```
-GET {{baseUrl}}/api/users
+GET {{baseUrl}}/api/usuarios
 Authorization: Bearer {{token}}
 ```
 
 ### 4. Crear Usuario (Admin)
 
 ```
-POST {{baseUrl}}/api/users
+POST {{baseUrl}}/api/usuarios
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -56,9 +60,14 @@ Content-Type: application/json
   "username": "nuevo_usuario",
   "email": "usuario@example.com",
   "password": "password123",
-  "role": "USER"
+  "roles": ["FACTURADOR"],
+  "isActive": true,
+  "empresaId": 1,
+  "rolEmpresa": "FACTURADOR"
 }
 ```
+
+> Campos reales de `CreateUserRequest`: `username`, `email`, `password`, `roles` (arreglo de strings: `ADMIN` / `EMPRESA_ADMIN` / `FACTURADOR` / `LECTOR`), `isActive`, y opcionalmente `empresaId` + `rolEmpresa` (`ADMINISTRADOR` / `FACTURADOR` / `LECTOR`) para vincular a una empresa.
 
 ## 🔄 Automatizar el Token
 

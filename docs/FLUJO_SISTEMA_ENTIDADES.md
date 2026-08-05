@@ -1,358 +1,205 @@
-# Flujo del Sistema - Manejo de Entidades
+# Flujo del Sistema — Mapa de Entidades
 
-## Introducción
-
-Este documento describe el flujo completo para el manejo de entidades en el sistema FRC-eFact, desde la capa de datos en el backend hasta la presentación en el frontend. El sistema sigue una arquitectura en capas bien definida que separa las responsabilidades y facilita el mantenimiento.
-
-## Arquitectura General
-
-El sistema está dividido en dos aplicaciones principales:
-- **Backend**: Spring Boot con arquitectura en capas (Java)
-- **Frontend**: Angular con NgRx para manejo de estado
+Mapa real, entidad por entidad, del sistema FRC eFact: qué entidades existen, cómo se agrupan por
+dominio, cómo fluye la facturación electrónica hacia SIFEN, y el patrón de capas que usan backend
+y frontend. Todo lo de acá está verificado contra el código.
 
 ---
 
-## BACKEND - Spring Boot
+## 1. Entidades por dominio
 
-### 1. Entidad Java (Model Layer)
+Las entidades JPA viven en `frc-efact-backend/src/main/java/com/frcefact/model/`. Todas heredan de
+la clase base de auditoría en `model/base/` (`creadoEn / creadoPor / actualizadoEn / actualizadoPor`).
 
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/model/`
+### RBAC / usuarios
+- **Usuario** — cuenta de acceso (username, email, `password_hash` BCrypt, campos Auth0).
+- **Rol** — catálogo de roles globales: `ADMIN`, `EMPRESA_ADMIN`, `FACTURADOR`, `LECTOR`.
+- **UsuarioRol** — vincula `Usuario` ↔ `Rol` (roles **globales**).
+- **UsuarioEmpresa** — vincula `Usuario` ↔ `Empresa` con un `rolEmpresa` (string:
+  `ADMINISTRADOR` / `FACTURADOR` / `LECTOR`), es decir el rol **por empresa** (multi-empresa).
 
-**Propósito**: Representar las tablas de la base de datos como objetos Java.
+> ⚠️ Hay **dos capas de roles** (global y por empresa) mapeadas dinámicamente en
+> `CustomUserDetailsService`. Ver los bugs asociados en [TAREAS_PENDIENTES.md](TAREAS_PENDIENTES.md).
 
-**Estructura típica**:
-- Anotaciones JPA (`@Entity`, `@Table`, `@Id`, etc.)
-- Campos con anotaciones de validación
-- Relaciones entre entidades (`@OneToMany`, `@ManyToOne`, etc.)
-- Herencia de clase base para auditoría
+### Empresa y timbrados
+- **Empresa** — emisor (RUC, razón social, certificado `.pfx`, CSC, actividad económica).
+- **Timbrado** — timbrado SET (físico o electrónico) asociado a una empresa.
+- **TimbradoDetalle** — punto de expedición / establecimiento con su rango de numeración.
 
-**Ejemplos de referencia**:
-- `Usuario.java` - Entidad principal de usuarios
-- `Empresa.java` - Entidad de empresas
-- `Cliente.java` - Entidad de clientes
-- `Producto.java` - Entidad de productos
-- `FacturaLegal.java` - Entidad de facturas
+### Clientes y productos
+- **Cliente** — receptor del DE (PF/PJ/EG, contribuyente o no, campos SIFEN). Scoped por empresa.
+- **Producto** — ítem facturable (`tipoTransaccion`, unidad de medida, IVA 0/5/10).
 
-**Clase base**: `frc-efact-backend/src/main/java/com/frcefact/model/base/` (para auditoría)
+### Facturación
+- **FacturaLegal** — factura legal (autonumera por timbrado; soporta moneda extranjera con tipo de
+  cambio, totales en guaraníes).
+- **FacturaLegalItem** — línea de la factura.
 
-### 2. Repository (Data Access Layer)
+### Documento electrónico y lotes
+- **DocumentoElectronico** — el DE en sí: XML SIFEN, **CDC** de 44 caracteres, firma digital,
+  QR y estado (`EstadoDE`).
+- **LoteDE** — agrupación de DE para enviar a SIFEN (`EstadoLoteDE`).
 
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/repository/`
+### Eventos SIFEN
+- **EventoCancelacionDE** — cancelación de un DE aprobado.
+- **EventoInutilizacionDE** — inutilización de un rango de numeración.
+- **EventoNominacionDE** — nominación (asignar receptor) de un DE.
 
-**Propósito**: Interfaz para acceso a datos, extiende JpaRepository.
+### Notas
+- **NotaCredito** + **NotaCreditoItem**
+- **NotaDebito** + **NotaDebitoItem**
+- **NotaRemision** + **NotaRemisionItem**
 
-**Características**:
-- Métodos CRUD automáticos
-- Consultas personalizadas con `@Query`
-- Métodos de búsqueda por convención de nombres
+> Las notas heredan moneda/ítems de la factura referenciada y tienen su propia numeración y KuDE PDF.
 
-**Ejemplos de referencia**:
-- `UsuarioRepository.java`
-- `EmpresaRepository.java`
-- `ClienteRepository.java`
-- `ProductoRepository.java`
-- `FacturaLegalRepository.java`
+### Transporte (para Nota de Remisión)
+- **Vehiculo** — datos del vehículo transportador. Scoped por empresa.
+- **Chofer** — datos del chofer/transportista. Scoped por empresa.
 
-### 3. DTO (Data Transfer Objects)
+### Geografía (catálogo precargado)
+- **Pais**, **Departamento**, **Ciudad**, **Distrito**, **Barrio** — jerarquía territorial paraguaya
+  usada para direcciones de receptor y para la Nota de Remisión.
 
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/dto/`
+### Auditoría
+- **AuditLog** — registro de auditoría (esquema `auditoria`, JSONB con valores antes/después),
+  poblado automáticamente por `AuditAspect` (AOP).
 
-**Propósito**: Objetos para transferir datos entre capas, especialmente hacia el frontend.
-
-**Tipos de DTOs**:
-- DTOs de entidad principal (ej: `UsuarioDto.java`)
-- DTOs de request (ej: `CreateUserRequest.java`, `UpdateUserRequest.java`)
-- DTOs de response específicos (ej: `AuthResponse.java`)
-- DTOs para reportes (ej: `ClienteRankingDto.java`)
-
-**Mappers**: `frc-efact-backend/src/main/java/com/frcefact/dto/mapper/`
-
-### 4. Service (Business Logic Layer)
-
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/service/`
-
-**Propósito**: Contiene la lógica de negocio y orquesta las operaciones.
-
-**Responsabilidades**:
-- Validaciones de negocio
-- Transformación de datos (Entity ↔ DTO)
-- Coordinación entre múltiples repositorios
-- Manejo de transacciones
-
-**Ejemplos de referencia**:
-- `UsuarioService.java`
-- `EmpresaService.java`
-- `ClienteService.java`
-- `ProductoService.java`
-- `FacturaLegalService.java`
-
-### 5. Controller (Presentation Layer)
-
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/controller/`
-
-**Propósito**: Exponer endpoints REST y manejar requests HTTP.
-
-**Características**:
-- Anotaciones REST (`@RestController`, `@RequestMapping`)
-- Validación de entrada (`@Valid`)
-- Manejo de respuestas HTTP
-- Documentación OpenAPI/Swagger
-
-**Ejemplos de referencia**:
-- `UsuarioController.java`
-- `EmpresaController.java`
-- `ClienteController.java`
-- `ProductoController.java`
-- `FacturaLegalController.java`
-
-### 6. Componentes Adicionales del Backend
-
-#### Validadores Personalizados
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/validation/`
-- Validaciones específicas del dominio (RUC, CDC, etc.)
-
-#### Manejo de Excepciones
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/exception/`
-- `GlobalExceptionHandler.java` - Manejo centralizado de errores
-
-#### Seguridad
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/security/`
-- JWT, autenticación y autorización
-
-#### Auditoría
-**Ubicación**: `frc-efact-backend/src/main/java/com/frcefact/aspect/`
-- `AuditAspect.java` - Logging automático de operaciones
+### Enums de dominio (en `model/`)
+- **EstadoDE**: `PENDIENTE, EN_PROCESO, APROBADO, RECHAZADO, CANCELADO, ERROR`
+- **EstadoLoteDE**: `PENDIENTE, EN_PROCESO, APROBADO, RECHAZADO, ERROR, PROCESADO, ERROR_ENVIO, ERROR_PERMANENTE`
+- **EstadoEvento**: `PENDIENTE, APROBADO, RECHAZADO, ERROR_ENVIO`
+- **TipoClienteSifen**: `PERSONA_FISICA, PERSONA_JURIDICA, NO_CONTRIBUYENTE, EXTRANJERO, GUBERNAMENTAL`
+- **TipoTransaccionProducto**: 13 valores (`VENTA_MERCADERIA`(1) … `VENTA_CREDITO_FISCAL`(12), `MUESTRAS_MEDICAS`(13))
+- **AccionEnum**: `CREATE, UPDATE, DELETE, READ` (para auditoría)
 
 ---
 
-## FRONTEND - Angular
+## 2. Flujo de facturación electrónica (SIFEN)
 
-### 1. Modelo (TypeScript Interfaces)
-
-**Ubicación**: `frc-efact-frontend/src/app/models/`
-
-**Propósito**: Definir la estructura de datos que maneja el frontend.
-
-**Características**:
-- Interfaces TypeScript
-- Corresponden a los DTOs del backend
-- Tipado fuerte para desarrollo
-
-**Ejemplos de referencia**:
-- `user.model.ts`
-- `empresa.model.ts`
-- `cliente.model.ts`
-- `producto.model.ts`
-- `factura.model.ts`
-
-### 2. API Service (HTTP Client Layer)
-
-**Ubicación**: `frc-efact-frontend/src/app/core/api/`
-
-**Propósito**: Comunicación HTTP con el backend.
-
-**Características**:
-- Métodos para operaciones CRUD
-- Manejo de headers y autenticación
-- Transformación de datos
-- Manejo de errores HTTP
-
-**Ejemplos de referencia**:
-- `usuario-api.service.ts`
-- `empresa-api.service.ts`
-- `cliente-api.service.ts`
-- `producto-api.service.ts`
-- `factura-api.service.ts`
-
-### 3. NgRx State Management
-
-#### Actions
-**Ubicación**: `frc-efact-frontend/src/app/core/state/[entidad]/[entidad].actions.ts`
-
-**Propósito**: Definir las acciones que pueden ocurrir en el estado.
-
-**Tipos de acciones típicas**:
-- Load (cargar datos)
-- Load Success/Failure
-- Create, Update, Delete
-- Select (seleccionar item)
-
-**Ejemplos de referencia**:
-- `frc-efact-frontend/src/app/core/state/usuarios/usuarios.actions.ts`
-- `frc-efact-frontend/src/app/core/state/empresas/empresas.actions.ts`
-
-#### Effects
-**Ubicación**: `frc-efact-frontend/src/app/core/state/[entidad]/[entidad].effects.ts`
-
-**Propósito**: Manejar efectos secundarios (llamadas HTTP, navegación, etc.).
-
-**Responsabilidades**:
-- Llamadas a API services
-- Transformación de datos
-- Manejo de errores
-- Navegación automática
-
-**Ejemplos de referencia**:
-- `frc-efact-frontend/src/app/core/state/usuarios/usuarios.effects.ts`
-- `frc-efact-frontend/src/app/core/state/empresas/empresas.effects.ts`
-
-#### Reducers
-**Ubicación**: `frc-efact-frontend/src/app/core/state/[entidad]/[entidad].reducer.ts`
-
-**Propósito**: Manejar cambios de estado de forma inmutable.
-
-**Características**:
-- Estado inicial
-- Manejo de loading states
-- Actualización inmutable del estado
-
-**Ejemplos de referencia**:
-- `frc-efact-frontend/src/app/core/state/usuarios/usuarios.reducer.ts`
-- `frc-efact-frontend/src/app/core/state/empresas/empresas.reducer.ts`
-
-#### Selectors
-**Ubicación**: `frc-efact-frontend/src/app/core/state/[entidad]/[entidad].selectors.ts`
-
-**Propósito**: Seleccionar y derivar datos del estado.
-
-**Ejemplos de referencia**:
-- `frc-efact-frontend/src/app/core/state/usuarios/usuarios.selectors.ts`
-- `frc-efact-frontend/src/app/core/state/empresas/empresas.selectors.ts`
-
-### 4. Servicios de Negocio (Opcional)
-
-**Ubicación**: `frc-efact-frontend/src/app/services/`
-
-**Propósito**: Lógica de negocio específica del frontend.
-
-**Ejemplos**:
-- `auth.service.ts` - Manejo de autenticación
-- `dashboard.service.ts` - Lógica del dashboard
-- `ruc-validation.service.ts` - Validaciones específicas
-
-### 5. Componentes de Lista
-
-**Ubicación**: `frc-efact-frontend/src/app/features/[entidad]/[entidad]-list.component.ts`
-
-**Propósito**: Mostrar listados de entidades con funcionalidades de búsqueda, filtrado y paginación.
-
-**Características típicas**:
-- Tabla con datos
-- Búsqueda y filtros
-- Paginación
-- Acciones (editar, eliminar, ver)
-- Integración con NgRx store
-
-**Ejemplos de referencia**:
-- `frc-efact-frontend/src/app/features/usuarios/usuarios-list.component.ts`
-- `frc-efact-frontend/src/app/features/empresas/empresas-list.component.ts`
-- `frc-efact-frontend/src/app/features/clientes/clientes-list.component.ts`
-- `frc-efact-frontend/src/app/features/productos/productos-list.component.ts`
-
-### 6. Componentes de Formulario
-
-**Ubicación**: `frc-efact-frontend/src/app/features/[entidad]/[entidad]-form.component.ts`
-
-**Propósito**: Crear y editar entidades.
-
-**Características típicas**:
-- Reactive Forms
-- Validaciones
-- Manejo de estados (crear/editar)
-- Integración con NgRx store
-- Navegación después de guardar
-
-**Ejemplos de referencia**:
-- `frc-efact-frontend/src/app/features/usuarios/usuario-form.component.ts`
-- `frc-efact-frontend/src/app/features/empresas/empresa-form.component.ts`
-- `frc-efact-frontend/src/app/features/clientes/cliente-form.component.ts`
-- `frc-efact-frontend/src/app/features/productos/producto-form.component.ts`
-
-### 7. Routing
-
-**Ubicación**: `frc-efact-frontend/src/app/features/[entidad]/[entidad].routes.ts`
-
-**Propósito**: Definir las rutas para cada módulo de entidad.
-
-**Rutas típicas**:
-- Lista: `/entidades`
-- Crear: `/entidades/nuevo`
-- Editar: `/entidades/:id/editar`
-- Ver: `/entidades/:id`
-
-**Ejemplos de referencia**:
-- `frc-efact-frontend/src/app/features/usuarios/usuarios.routes.ts`
-- `frc-efact-frontend/src/app/features/empresas/empresas.routes.ts`
-
----
-
-## Flujo Completo de Datos
-
-### 1. Flujo de Lectura (GET)
 ```
-Frontend Component → NgRx Action → Effect → API Service → HTTP Request → 
-Backend Controller → Service → Repository → Database → 
-Entity → DTO → JSON Response → Frontend Model → NgRx State → Component View
+Empresa (+ certificado .pfx + CSC)
+   └─ Timbrado electrónico ─ TimbradoDetalle (punto de expedición)
+        └─ FacturaLegal (autonumera) + FacturaLegalItem
+             │  POST /facturas/{id}/generar-de
+             ▼
+        DocumentoElectronico  ── XML SIFEN + CDC(44) + firma digital + QR   [EstadoDE.PENDIENTE]
+             │  se agrupa en
+             ▼
+        LoteDE  ── POST /sifen/lotes/{loteId}/enviar ──►  SIFEN (SET)
+             │
+             │  SifenSchedulerService hace polling de estado
+             │  POST /sifen/lotes/{loteId}/consultar  ·  POST /documentos/{cdc}/consultar
+             ▼
+        EstadoDE = APROBADO  ó  RECHAZADO
+             │
+             ├─ KuDE PDF:  GET /facturas/{id}/kude-pdf
+             ├─ Email:     POST /facturas/{id}/reenviar-email
+             └─ Eventos:
+                  ├─ Cancelación:   POST /sifen/documentos/{cdc}/cancelar   → EventoCancelacionDE
+                  ├─ Inutilización: POST /sifen/timbrados/{id}/inutilizar   → EventoInutilizacionDE
+                  └─ Nominación:    POST /sifen/documentos/{cdc}/nominar    → EventoNominacionDE
 ```
 
-### 2. Flujo de Escritura (POST/PUT)
-```
-Frontend Form → NgRx Action → Effect → API Service → HTTP Request → 
-Backend Controller → Validation → Service → Business Logic → Repository → Database → 
-Entity → DTO → JSON Response → NgRx State Update → Component Navigation
-```
+Las **Notas** (crédito/débito/remisión) siguen el mismo patrón: se crean referenciando una factura,
+se genera su DE (`POST /notas-*/{id}/generar-de`) y se envían a SIFEN. La Nota de Remisión suma
+datos de **Vehiculo**/**Chofer** y geografía de origen/destino.
 
-### 3. Flujo de Eliminación (DELETE)
-```
-Frontend Component → Confirmation → NgRx Action → Effect → API Service → HTTP Request → 
-Backend Controller → Service → Repository → Database → 
-Success Response → NgRx State Update → Component Refresh
-```
+Lógica SIFEN aislada en `service/sifen/`: `SifenService`, `SifenEventoService`,
+`SifenSchedulerService`. Helpers en `sifen/util/` y configuración en `sifen/config/`.
 
 ---
 
-## Patrones y Convenciones
+## 3. Patrón de capas — Backend (Spring Boot)
 
-### Backend
-- **Naming**: Entidades en singular, repositorios con sufijo "Repository"
-- **DTOs**: Sufijo "Dto" para entidades, "Request" para inputs
-- **Services**: Lógica de negocio, transacciones con `@Transactional`
-- **Controllers**: Solo manejo HTTP, delegación a services
+Para cada entidad, el flujo es:
 
-### Frontend
-- **Naming**: Archivos kebab-case, clases PascalCase
-- **State**: Un store por entidad principal
-- **Components**: Separación clara entre lista y formulario
-- **Services**: Solo para lógica específica del frontend
+```
+model/                → Entidad JPA (hereda de model/base para auditoría)
+repository/           → Spring Data JPA (+ repository/specification/ para filtros dinámicos)
+dto/ + dto/mapper/    → DTOs de transporte y mappers Entity ↔ DTO
+service/              → Lógica de negocio, @Transactional, validaciones
+controller/           → REST controller con @RequestMapping y @PreAuthorize
+```
 
----
+Referencia por entidad (ejemplos reales): `Usuario` → `UsuarioRepository` → `UsuarioDto`/
+`UsuarioMapper` → `UsuarioService` → `UsuarioController`. El mismo esquema aplica a `Empresa`,
+`Cliente`, `Producto`, `FacturaLegal`, `Timbrado`, `DocumentoElectronico`, notas, etc.
 
-## Herramientas de Desarrollo
+**Componentes transversales:** `security/` (JWT + Auth0 + rate limiting), `aspect/AuditAspect`
+(auditoría automática), `validation/` (RUC, CDC), `exception/GlobalExceptionHandler`, `config/`.
 
-### Backend
-- **Base de datos**: PostgreSQL con Flyway para migraciones
-- **Documentación**: OpenAPI/Swagger automático
-- **Testing**: JUnit para pruebas unitarias
-
-### Frontend
-- **UI**: Angular Material para componentes
-- **State**: NgRx para manejo de estado
-- **HTTP**: Interceptors para autenticación y manejo de errores
+> ⚠️ Regla de routing: el `context-path` es `/api`, así que `@RequestMapping` NO debe llevar `/api/`.
+> Hoy 3 controllers la violan (`GeografiaController`, `AuditLogController`, `ReporteController`) y
+> resuelven a `/api/api/...`. Ver [TAREAS_PENDIENTES.md](TAREAS_PENDIENTES.md).
 
 ---
 
-## Consideraciones de Seguridad
+## 4. Patrón de capas — Frontend (Angular 17)
 
-### Backend
-- JWT para autenticación
-- Validación en múltiples capas
-- Auditoría automática de operaciones
+```
+models/            → Interfaces TS (espejo de los DTOs del backend)
+core/api/          → Servicios HTTP por entidad (*-api.service.ts)  [18 servicios]
+core/state/        → NgRx (actions/effects/reducer/selectors)       [solo 8 ramas]
+features/          → Páginas por dominio (*-list / *-form / dialogs) [13 features]
+```
 
-### Frontend
-- Guards para protección de rutas
-- Interceptors para manejo de tokens
-- Validación de formularios
+### ⚠️ La convención "un store NgRx por entidad" NO se cumple
+
+Solo **8 ramas** de NgRx existen en `core/state/`:
+
+```
+auth · empresas · facturacion · documentos · usuarios · timbrados · timbrado-detalles · notas
+```
+
+El resto de las features **no tiene store** y consume directamente el API service:
+
+| Feature      | Store NgRx | Acceso a datos |
+|--------------|:----------:|----------------|
+| facturacion  | ✅ | `factura-api.service` + store `facturacion` |
+| documentos   | ✅ | store `documentos` |
+| empresas     | ✅ | store `empresas` |
+| usuarios     | ✅ | store `usuarios` |
+| timbrados    | ✅ | store `timbrados` (+ `timbrado-detalles`) |
+| notas        | ✅ | store `notas` (crédito/débito/remisión) |
+| **clientes** | ❌ | `cliente-api.service` directo |
+| **productos**| ❌ | `producto-api.service` directo |
+| **transporte** (vehículos/choferes) | ❌ | `vehiculo-api.service` / `chofer-api.service` directos |
+| **reportes** | ❌ | `reporte-api.service` directo |
+| **dashboard**| ❌ | `dashboard-api.service` directo |
+| **auditoria**| ❌ | `audit-api.service` directo |
+
+> Al agregar una feature nueva, decidí explícitamente si necesita store; no asumas que ya existe.
+
+**Servicios cross-cutting** en `core/services/` y `services/` (ej. `auth.service`,
+`permissions.service`, `ruc-validation.service`). **Interceptors** en `core/interceptors/`
+(auth, errores). **Guards** en `guards/`.
 
 ---
 
-Este documento proporciona una guía completa para entender y trabajar con el flujo de entidades en el sistema FRC-eFact. Cada nueva entidad debe seguir estos patrones para mantener la consistencia y facilitar el mantenimiento del código.
+## 5. Flujo de datos de punta a punta
+
+```
+Lectura (GET):
+  Component → (NgRx Action → Effect →)? API Service → HTTP →
+  Controller → Service → Repository → DB → Entity → DTO → JSON →
+  Model TS → (NgRx State →)? Component
+
+Escritura (POST/PUT):
+  Form → (NgRx Action → Effect →)? API Service → HTTP →
+  Controller (@Valid, @PreAuthorize) → Service (validación + @Transactional) → Repository → DB →
+  Entity → DTO → JSON → (NgRx State →)? Navegación
+```
+
+El paso por NgRx es opcional y depende de si la feature tiene store (ver tabla de la sección 4).
+
+---
+
+## 6. Al agregar una entidad nueva
+
+1. **Backend**: `model` → `repository` (+ specification si hace falta filtro dinámico) →
+   `dto` + `mapper` → `service` → `controller` (sin `/api/` en `@RequestMapping`, con
+   `@PreAuthorize`). Cambios de esquema **solo por migración Flyway** nueva (`ddl-auto: validate`).
+2. **Frontend**: `models` → `core/api` service → (opcional) `core/state` NgRx → `features`
+   (`*-list.component` y `*-form.component`).
+3. Respetar estándares de DB ([../frc-efact-backend/DATABASE_STANDARDS.md](../frc-efact-backend/DATABASE_STANDARDS.md))
+   y la regla de routing ([../frc-efact-backend/CONTROLLER_ROUTING_RULE.md](../frc-efact-backend/CONTROLLER_ROUTING_RULE.md)).

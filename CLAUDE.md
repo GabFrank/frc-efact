@@ -51,12 +51,12 @@ npm run lint                   # ESLint
 ```
 
 ### Credenciales por defecto (dev)
-| Usuario | Password | Rol |
-|---------|----------|-----|
-| `admin` | `Admin123!` | ADMIN |
-| `empresa_admin` | `Empresa123!` | EMPRESA_ADMIN |
-| `facturador` | `Facturador123!` | FACTURADOR |
-| `lector` | `Lector123!` | LECTOR |
+> ⚠️ **Verificado contra migraciones Flyway (V3/V4):** solo existen **dos usuarios sembrados**. Los roles `EMPRESA_ADMIN` / `FACTURADOR` / `LECTOR` existen (V5) pero **no** como usuarios pre-cargados — se asignan vinculando usuarios a empresas (`rolEmpresa`).
+
+| Usuario | Password | Rol | Sembrado en |
+|---------|----------|-----|-------------|
+| `admin` | `admin123` | ADMIN | V4 |
+| `testuser` | `test123` | (sin rol global) | V3/V4 |
 
 ---
 
@@ -141,8 +141,9 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 
 ### Backend
 - **NUNCA** prefijar `@RequestMapping` con `/api/` — el `context-path: /api` ya lo agrega. Ver [frc-efact-backend/CONTROLLER_ROUTING_RULE.md](frc-efact-backend/CONTROLLER_ROUTING_RULE.md). Usar `@RequestMapping("/clientes")`, no `"/api/clientes"`.
+  - **🐛 Deuda vigente (verificado 2026-08-05):** `GeografiaController`, `AuditLogController` y `ReporteController` **todavía** usan `@RequestMapping("/api/...")` → resuelven a `/api/api/...`. El frontend los consume con ese doble prefijo; corregir requiere cambiar controller **y** el api-service del front en conjunto.
 - **Idioma de campos**: español para dominio (`razon_social`, `numero_factura`), inglés para genéricos (`id`, `username`, `is_active`, `password_hash`).
-- **Esquemas DB**: nada en `public`. Usar `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `catalogo`. Ver [frc-efact-backend/DATABASE_STANDARDS.md](frc-efact-backend/DATABASE_STANDARDS.md).
+- **Esquemas DB**: nada en `public`. Esquemas realmente creados por migraciones: `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte` (**no** existe `catalogo`). Ver [frc-efact-backend/DATABASE_STANDARDS.md](frc-efact-backend/DATABASE_STANDARDS.md).
 - **Auditoría obligatoria** en toda tabla: `id BIGSERIAL PK`, `creado_en`, `creado_por`, `actualizado_en`, `actualizado_por` + trigger `actualizar_timestamp_modificacion()`.
 - **Migraciones Flyway** versionadas (`V36__...`); **nunca** modificar una migración ya aplicada — crear una nueva.
 - **`ddl-auto: validate`** — Hibernate sólo valida; el esquema lo gestiona Flyway.
@@ -268,7 +269,7 @@ Esto funciona tanto para JWT local ([JwtAuthenticationFilter.java:50](frc-efact-
 
 ## Workflow / reglas de colaboración
 
-- **⚠️ Push = deploy a producción.** Render auto-despliega desde `main` cuando se hace push (`autoDeploy=yes`, `autoDeployTrigger=commit`, branch `main`). **Cada vez que termines una tarea, preguntar al usuario si querés hacer `commit` + `push`** — nunca asumir que se quiere pushear sin confirmación explícita, porque cualquier push lanza el cambio a producción.
+- **⚠️ Push = deploy a producción.** Render auto-despliega desde `main` al hacer push. **Nota de fidelidad:** este comportamiento funciona por el **default de Render** (auto-deploy activo sobre la branch conectada), **no** está pineado en `render.yaml` (no hay claves `autoDeploy`/`branch`/`autoDeployTrigger` en el blueprint). Además `.github/workflows/release.yml` corre semantic-release en push a `main`. **Cada vez que termines una tarea, preguntar al usuario si querés hacer `commit` + `push`** — nunca asumir que se quiere pushear sin confirmación explícita, porque cualquier push lanza el cambio a producción.
 - **Siempre compilar antes de commit/push.** Si tocaste backend Java: `cd frc-efact-backend && ./mvnw compile`. Si tocaste frontend: `cd frc-efact-frontend && npm run build:dev` o `npm run lint`. Si la compilación falla, **no commitear** — arreglar primero.
 - **Disparar deploys SIEMPRE vía `git push`** (auto-deploy). **No usar** `mcp__render__*` ni la API de Render ni el botón "Manual Deploy" del dashboard para lanzar deploys. Si hace falta forzar un redeploy del mismo commit, usar `git commit --allow-empty -m "chore: trigger redeploy"` y push. El mecanismo via API funciona técnicamente igual, pero rompe la trazabilidad commit↔deploy y la convención del proyecto.
 - Las tools de Render MCP (`mcp__render__list_deploys`, `get_deploy`, `get_service`, `list_logs`, etc.) **se pueden usar para inspeccionar/diagnosticar** estado, logs, env vars — no para mutar estado de deploys.

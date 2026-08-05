@@ -10,9 +10,11 @@
 7. [Gestión de Clientes](#gestión-de-clientes)
 8. [Facturación](#facturación)
 9. [Documentos Electrónicos](#documentos-electrónicos)
-10. [Reportes](#reportes)
-11. [Auditoría](#auditoría)
-12. [Configuración de Usuario](#configuración-de-usuario)
+10. [Notas de Crédito, Débito y Remisión](#notas-de-crédito-débito-y-remisión)
+11. [Transporte (Vehículos y Choferes)](#transporte-vehículos-y-choferes)
+12. [Reportes](#reportes)
+13. [Auditoría](#auditoría)
+14. [Configuración de Usuario](#configuración-de-usuario)
 
 ---
 
@@ -22,9 +24,14 @@ FRC eFact es un sistema integral de facturación electrónica diseñado para cum
 
 ### Características principales:
 - ✅ Facturación electrónica conforme a SIFEN
-- ✅ Gestión multi-empresa
+- ✅ Gestión multi-empresa (con certificado digital por empresa)
 - ✅ Control de timbrados fiscales
-- ✅ Generación de documentos electrónicos (DE)
+- ✅ Generación de documentos electrónicos (DE), envío en lotes y consulta de estado
+- ✅ Cancelación de DE y eventos de Inutilización / Nominación
+- ✅ Notas de Crédito, Débito y Remisión
+- ✅ Transporte: gestión de vehículos y choferes (para Nota de Remisión)
+- ✅ KuDE en PDF descargable y envío de documentos por email
+- ✅ Login local (usuario/contraseña) y login con Auth0 / Google
 - ✅ Reportes y dashboards
 - ✅ Sistema de auditoría completo
 - ✅ Validaciones paraguayas (RUC, CDC, Timbrados)
@@ -38,19 +45,21 @@ FRC eFact es un sistema integral de facturación electrónica diseñado para cum
 1. **Abrir el navegador** y navegar a la URL del sistema
 2. **Ingresar credenciales**:
    - **Usuario**: `admin`
-   - **Contraseña**: `Admin123!`
+   - **Contraseña**: `admin123`
 3. **Hacer clic en "Iniciar Sesión"**
+
+> También es posible iniciar sesión con **Auth0 / Google** (botón "Iniciar sesión con Google") si la empresa lo tiene habilitado.
 
 ### 2. Usuarios por Defecto
 
-El sistema viene con los siguientes usuarios preconfigurados:
+El sistema viene con los siguientes usuarios preconfigurados por Flyway (migración `V4`):
 
-| Usuario | Contraseña | Rol | Descripción |
-|---------|------------|-----|-------------|
-| `admin` | `Admin123!` | ADMIN | Administrador del sistema |
-| `empresa_admin` | `Empresa123!` | EMPRESA_ADMIN | Administrador de empresa |
-| `facturador` | `Facturador123!` | FACTURADOR | Usuario facturador |
-| `lector` | `Lector123!` | LECTOR | Usuario solo lectura |
+| Usuario | Contraseña | Descripción |
+|---------|------------|-------------|
+| `admin` | `admin123` | Administrador del sistema |
+| `testuser` | `test123` | Usuario de prueba |
+
+> **Nota:** No existen usuarios sembrados llamados `empresa_admin`, `facturador` ni `lector`. Los roles se asignan a cada usuario desde el panel de administración (rol global) o al vincularlo a una empresa (`rol_empresa`).
 
 ### 3. Recuperación de Contraseña
 
@@ -336,6 +345,55 @@ El sistema permitirá importar productos desde archivos Excel o CSV.
 - **🔴 Rechazado**: Rechazado por SIFEN
 - **⚫ Cancelado**: Cancelado por evento
 
+### 6. Eventos SIFEN adicionales
+
+Además de la cancelación, el sistema soporta:
+
+- **Inutilización de numeración**: registrar ante SIFEN rangos de numeración que no se usarán (por saltos o errores de emisión). *(Ver [docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md): esta función está implementada de forma parcial.)*
+- **Nominación**: asociar/actualizar los datos del receptor de un DE ya emitido.
+
+### 7. KuDE (PDF) y envío por email
+
+- **KuDE PDF**: cada DE (y las notas) puede descargarse como representación gráfica KuDE en PDF, con su código QR.
+- **Envío por email**: el documento puede enviarse por correo al cliente directamente desde el sistema (SMTP configurado en el backend).
+
+---
+
+## Notas de Crédito, Débito y Remisión
+
+El sistema permite emitir, además de facturas, otros documentos electrónicos:
+
+### Nota de Crédito
+- Se emite **referenciando una factura** existente.
+- **Hereda la moneda y los ítems** de la factura referenciada.
+- El **motivo** debe corresponder a los valores válidos de SIFEN.
+- Tiene **numeración propia** (por timbrado) e independiente de la factura.
+- Genera su propio DE, KuDE PDF y puede enviarse por email.
+
+### Nota de Débito
+- Documento electrónico para ajustes que **incrementan** el monto adeudado por el cliente.
+- También referencia el documento asociado y genera su DE.
+
+### Nota de Remisión
+- Documento de traslado de mercadería.
+- Requiere datos de **transporte**: vehículo, chofer y transportista (ver sección siguiente).
+
+Para cada tipo: seleccionar el documento en el menú lateral, completar los datos, guardar, generar el DE y enviarlo a SIFEN de la misma forma que una factura.
+
+---
+
+## Transporte (Vehículos y Choferes)
+
+Para poder emitir **Notas de Remisión** se administran los datos de transporte:
+
+### Vehículos
+- Registrar los vehículos (identificación / matrícula y datos requeridos por SIFEN).
+
+### Choferes
+- Registrar los choferes (nombre, documento) que realizan el traslado.
+
+Estos datos se seleccionan al momento de crear una Nota de Remisión.
+
 ---
 
 ## Reportes
@@ -361,29 +419,22 @@ El sistema permitirá importar productos desde archivos Excel o CSV.
 
 #### Reporte de Productos
 - **Productos más vendidos**
-- **Análisis de precios**
-- **Rotación de inventario**
+
+> ℹ️ Reportes analíticos avanzados como *rotación de inventario* o *análisis de precios* **no están disponibles aún**.
 
 #### Reporte de Clientes
 - **Ranking por monto facturado**
-- **Frecuencia de compras**
-- **Análisis de cartera**
+
+> ℹ️ Los análisis de *frecuencia de compras* y *cartera* **no están disponibles aún**.
 
 #### Reporte de Usuarios
-- **Actividad por usuario**
-- **Facturas emitidas**
-- **Accesos al sistema**
+- **Actividad por usuario** (a través de la auditoría)
 
 ### 3. Exportar Reportes
 
-1. **Configurar filtros** del reporte
-2. **Seleccionar formato**:
-   - PDF
-   - Excel
-   - CSV
+Algunos reportes y listados pueden exportarse a **Excel** (el backend usa Apache POI). La exportación multi-formato (PDF / CSV) de los reportes analíticos **no está disponible aún**.
 
-3. **Hacer clic en "Exportar"**
-4. **Descargar archivo** generado
+> Nota: la representación en **PDF** sí está disponible para los **documentos** (KuDE de facturas y notas), no como formato genérico de todos los reportes.
 
 ---
 
@@ -482,7 +533,8 @@ Si es administrador de empresa:
 ### RUC Paraguayo
 - Formato: 12345678-9
 - Validación de dígito verificador
-- Verificación de existencia en SET
+
+> ℹ️ La *verificación en línea del RUC contra los servicios de la SET* **no está disponible aún**; la validación es de formato y dígito verificador.
 
 ### CDC (Código de Control)
 - 44 caracteres alfanuméricos

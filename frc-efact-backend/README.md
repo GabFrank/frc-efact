@@ -1,6 +1,14 @@
 # FRC eFact Backend
 
-Backend component of the FRC eFact web application built with Spring Boot 3.2+ and PostgreSQL.
+Backend del sistema **FRC eFact** — facturación electrónica para Paraguay conforme a la
+normativa **SIFEN** (SET). Construido con Spring Boot 3.2+ y PostgreSQL. Gestiona empresas,
+timbrados, clientes, productos, facturas legales y su emisión como **Documentos Electrónicos
+(DE)**: generación de XML SIFEN, firma digital con certificado `.pfx`, envío en lotes a SIFEN,
+eventos (cancelación / inutilización / nominación), notas de crédito/débito/remisión, KuDE PDF
+y QR.
+
+> **API completa:** la lista real de los 20+ controllers, sus endpoints y roles está en
+> [API_DOCUMENTATION.md](./API_DOCUMENTATION.md). Este README cubre solo el arranque y stack.
 
 ## Technology Stack
 
@@ -25,7 +33,7 @@ src/
 │   │       ├── controller/      # REST Controllers
 │   │       ├── service/         # Servicios de negocio
 │   │       ├── repository/      # Repositorios JPA
-│   │       ├── entity/          # Entidades JPA
+│   │       ├── model/           # Entidades JPA (+ enums de dominio)
 │   │       ├── dto/             # Data Transfer Objects
 │   │       └── security/        # Configuración de seguridad
 │   └── resources/
@@ -83,8 +91,10 @@ jwt:
 ## Endpoints Principales
 
 - **Swagger UI**: http://localhost:8080/swagger-ui.html
-- **API Docs**: http://localhost:8080/v3/api-docs
-- **Health Check**: http://localhost:8080/actuator/health
+- **API Docs**: http://localhost:8080/api/v3/api-docs
+- **Health Check**: http://localhost:8080/api/actuator/health
+
+> Nota: el context-path es `/api`, así que **todas** las rutas (incluido Actuator) cuelgan de `/api`.
 
 ### Autenticación
 
@@ -94,9 +104,10 @@ jwt:
 
 ### Usuario
 
-- `GET /api/users/profile` - Obtener perfil del usuario autenticado
+- `GET /api/usuarios/perfil` - Obtener perfil del usuario autenticado
 
-Para documentación completa de la API, ver [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+Para la documentación completa de la API (todos los controllers, endpoints y roles),
+ver [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
 
 ## Testing
 
@@ -127,7 +138,7 @@ El proyecto incluye un `Dockerfile` optimizado para deployment en Render:
 - **Runtime**: Docker
 - **Dockerfile Path**: `frc-efact-backend/Dockerfile`
 - **Docker Context**: `frc-efact-backend`
-- **Health Check**: `/actuator/health`
+- **Health Check**: `/api/actuator/health`
 
 **Variables de Entorno en Render:**
 ```

@@ -1,3 +1,15 @@
+> # ⚠️ OBSOLETO (resuelto) — ver [ESTADO_VALIDACION_RUC.md](./ESTADO_VALIDACION_RUC.md)
+>
+> La "discrepancia" frontend/backend que motivó este documento **ya no existe**: el
+> backend usa el algoritmo oficial correcto y el frontend tiene el mismo algoritmo
+> disponible. Lo que persiste es una **deuda técnica en el frontend**: la validación real
+> quedó deshabilitada y un **mock interceptor** (`mock-ruc.interceptor.ts`) sigue activo
+> —incluso en producción— devolviendo RUCs ficticios. Los "algoritmos alternativos a
+> probar" de abajo ya no aplican. Contenido histórico preservado como referencia.
+
+<details>
+<summary>Contenido histórico (obsoleto)</summary>
+
 # Sincronización de Validación RUC Frontend/Backend
 
 ## 🚨 Problema Identificado
@@ -164,3 +176,5 @@ Una vez sincronizados:
 **Próximo Paso**: 🔧 Implementar algoritmo correcto en backend (ver BACKEND_RUC_VALIDATOR_CORRECTO.md)
 **Frontend**: ✅ Listo y sincronizado con algoritmo oficial
 **Backend**: ❌ Necesita actualización con código Java correcto
+
+</details>

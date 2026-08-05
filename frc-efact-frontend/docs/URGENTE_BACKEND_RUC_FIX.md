@@ -1,3 +1,15 @@
+> # ⚠️ OBSOLETO (resuelto) — ver [ESTADO_VALIDACION_RUC.md](./ESTADO_VALIDACION_RUC.md)
+>
+> Este documento presentaba como **crítico/abierto** un bug del validador de RUC del
+> backend que **ya está resuelto**. El backend usa el algoritmo oficial correcto
+> (`CalcularVerificadorRuc`, módulo 11 con cadena invertida) y acepta RUCs válidos como
+> `80127721-3`. **No hay acción pendiente en el backend.** La deuda real está hoy en el
+> **frontend** (validación deshabilitada + mock interceptor activo) — ver el documento de
+> estado. Contenido histórico preservado abajo solo como referencia.
+
+<details>
+<summary>Contenido histórico (obsoleto)</summary>
+
 # 🚨 URGENTE: Fix Validador RUC Backend
 
 ## ❌ Problema Crítico
@@ -167,3 +179,5 @@ curl -X PUT /api/empresas/1 \
 **BLOQUEA**: Actualizaciones de empresas
 **SOLUCIÓN**: Lista y probada
 **TIEMPO**: 15-30 minutos
+
+</details>
