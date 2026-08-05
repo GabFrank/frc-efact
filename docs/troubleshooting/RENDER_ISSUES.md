@@ -127,7 +127,7 @@ Timed Out after waiting for internal health check
 **Verificar**:
 - El servicio debe marcar "Live" una vez que el puerto esté abierto
 - No debe esperar por health check
-- Puedes verificar manualmente: `curl https://tu-backend.onrender.com/actuator/health`
+- Puedes verificar manualmente: `curl https://tu-backend.onrender.com/api/actuator/health`
 
 ---
 

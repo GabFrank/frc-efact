@@ -71,7 +71,7 @@ print_section "2. Verificación de Endpoints de Autenticación"
 # Test login con credenciales válidas
 LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_LOGIN}" \
     -H "Content-Type: application/json" \
-    -d '{"username":"admin","password":"Admin123!"}')
+    -d '{"username":"admin","password":"admin123"}')
 
 HTTP_CODE=$(echo "$LOGIN_RESPONSE" | tail -n1)
 RESPONSE_BODY=$(echo "$LOGIN_RESPONSE" | sed '$d')
