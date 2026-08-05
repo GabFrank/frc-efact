@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/GabFrank/frc-efact/compare/v1.1.1...v1.1.2) (2026-08-05)
+
+
+### Bug Fixes
+
+* **ci:** --env-file en el `ps` del deploy y logs del backend si falla ([8f187e0](https://github.com/GabFrank/frc-efact/commit/8f187e0231a359a6796924c39b4fbc7fd6d2f763)), closes [#7](https://github.com/GabFrank/frc-efact/issues/7)
+
 ## [1.1.1](https://github.com/GabFrank/frc-efact/compare/v1.1.0...v1.1.1) (2026-08-05)
 
 

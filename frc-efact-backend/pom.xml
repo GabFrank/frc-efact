@@ -11,7 +11,7 @@
     </parent>
     <groupId>com.frcefact</groupId>
     <artifactId>frc-efact-backend</artifactId>
-    <version>1.1.1</version><!-- project-version -->
+    <version>1.1.2</version><!-- project-version -->
     <name>frc-efact-backend</name>
     <description>FRC eFact Backend Application</description>
     <properties>
