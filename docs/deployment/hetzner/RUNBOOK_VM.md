@@ -78,7 +78,21 @@ Durante la migración la VM se sembró desde un **bundle local**
 (`/home/deploy/frc-efact.bundle`), así que `origin` no apuntaba a GitHub y solo conocía la
 rama de migración. Eso rompía cualquier `git fetch`/`checkout main`. Ya está resuelto:
 
-- `~/frc-efact` está en **`main`**, con `origin` = `git@github-frc-efact:GabFrank/frc-efact.git`.
+> ⚠️ **Actualizado 2026-08-06 tras la migración al repo público.** Lo de abajo describe el
+> estado vigente; el alias y el remoto cambiaron respecto de la versión original de esta sección.
+
+La VM tiene **dos remotos**:
+
+| Remoto | URL | Clave | Para qué |
+|---|---|---|---|
+| `origin` | `git@github-frc-efact-nuevo:GabFrank/frc-efact.git` | `~/.ssh/github_frc_efact_nuevo` | El repo público. De acá sale el deploy |
+| `legacy` | `git@github-frc-efact:GabFrank/frc-efact-legacy.git` | `~/.ssh/github_frc_efact` | Rollback pre-migración. `git checkout -B main legacy/main` + rebuild vuelve al estado anterior |
+
+⚠️ **`deploy.yml` hace `git fetch origin`, NO `--all`.** Con dos remotos cuyos tags comparten
+nombre apuntando a SHA distintos, `--all` es rechazado con *"would clobber existing tag"* y con
+`set -e` mata el deploy. Pasó en el primer deploy desde el repo público.
+
+- `~/frc-efact` está en **`main`** del repo público.
 - Autentica con un **deploy key de solo lectura** del repo (`VM Hetzner (read-only, deploy)`),
   cuya privada vive en la VM en `~/.ssh/github_frc_efact`.
 - ⚠️ **El host es el alias `github-frc-efact`, no `github.com`.** El `~/.ssh/config` de la VM
