@@ -74,7 +74,7 @@ frc-efact/
 │   ├── sifen/                 # Manuales y XML de ejemplo SIFEN v150
 │   └── deployment/hetzner/    # Plan y runbook de la migración a la VM
 ├── .kiro/specs/               # Specs (requirements/design/tasks) por feature
-└── render.yaml                # Blueprint Render (legacy — Render suspendido)
+└── render.yaml                # Blueprint Render (legacy — Render descartado)
 ```
 
 ### Backend — capas (paquete `com.frcefact`)
@@ -215,9 +215,8 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
   contexto y riesgos: [docs/deployment/hetzner/PLAN_MIGRACION_HETZNER.md](docs/deployment/hetzner/PLAN_MIGRACION_HETZNER.md)
 - URL prod única: `https://efact.frc-ecommerce.com` (`/` → SPA, `/api` → backend)
 - Stack: `docker-compose.prod.yml` + `deploy/` (nginx vhost del host, backup por systemd timer)
-- **Render: suspendido**, conservado como ventana de rollback. [docs/deployment/render/](docs/deployment/render/)
-  y [render.yaml](render.yaml) quedan como referencia histórica hasta darlo de baja
-  (ver [docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md) §5)
+- **Render: descartado** (2026-08-05). [docs/deployment/render/](docs/deployment/render/) y
+  [render.yaml](render.yaml) quedan solo como referencia histórica
 
 ---
 
@@ -225,7 +224,11 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 
 ### Backend
 - `DATABASE_URL` (PostgreSQL)
-- `JWT_SECRET` (mínimo 512 bits para HS512)
+- `JWT_SECRET` — ⚠️ **el sistema firma con HS256, no HS512.** `JwtTokenProvider` usa
+  `Keys.hmacShaKeyFor(secret.getBytes())`, y jjwt elige el algoritmo por el largo de la clave
+  (≥64 bytes → HS512, ≥48 → HS384, ≥32 → HS256). La clave de producción tiene 44 bytes → HS256.
+  No es una vulnerabilidad (HS256 es adecuado para JWT), pero la doc afirmaba HS512. Para pasar
+  a HS512 hace falta una clave de ≥64 caracteres, y rotarla invalida las sesiones activas.
 - `MAIL_PASSWORD` (Gmail SMTP `frcsistemasinformaticos@gmail.com`)
 - `ENCRYPTION_KEY` (AES-256, 32 chars) — para datos sensibles (CSC, password de certificado)
 - `SPRING_PROFILES_ACTIVE` (`dev` | `prod`)
@@ -298,22 +301,26 @@ hotfix/*  --PR--> main    --PR--> develop  (obligatorio post-hotfix)
   frontend bloqueantes; los tests del backend **no** bloquean todavía (6 tests de RUC
   fallan por un bug conocido — ver [docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md) §4).
 
-- **⚠️ El deploy a producción es MANUAL por SSH a la VM Hetzner.** Desde la migración
-  del 2026-07-07, `git push` **ya no despliega**. El flujo real es entrar a la VM
-  (`deploy@178.105.107.171`), `git pull` y `docker compose -f docker-compose.prod.yml
-  --env-file deploy/.env up -d --build` del servicio que corresponda. Procedimiento y
-  gotchas: [docs/deployment/hetzner/RUNBOOK_VM.md](docs/deployment/hetzner/RUNBOOK_VM.md).
-  **Nunca ejecutar ese deploy sin confirmación explícita del usuario.**
+- **⚠️ El deploy a producción NO es automático.** `git push` no despliega nada. Hay dos vías:
+  el workflow **`deploy.yml`** (`workflow_dispatch`, pide servicio + escribir `DEPLOY`), o SSH
+  manual a la VM (`deploy@178.105.107.171`) con `git pull` + `docker compose -f
+  docker-compose.prod.yml --env-file deploy/.env up -d --build`. Procedimiento y gotchas:
+  [docs/deployment/hetzner/RUNBOOK_VM.md](docs/deployment/hetzner/RUNBOOK_VM.md).
+  **Nunca desplegar sin confirmación explícita del usuario** — la VM es compartida con otros
+  servicios productivos.
 - **Qué sí dispara un `git push` a `main`:** `.github/workflows/release.yml` corre
   `semantic-release`. Con commits `feat`/`fix`/`perf` genera tag, `CHANGELOG.md` y bump de
   `pom.xml` + `package.json`; con `docs`/`chore`/`refactor` no libera nada. **Igual,
   preguntar siempre antes de `commit` + `push`.**
-- **Render está suspendido** (`srv-d61m4p4hg0os73fpbjm0`), no dado de baja — es la ventana
-  de rollback. Conserva `autoDeploy: yes` sobre `main`, así que **si alguien lo reanuda
-  vuelve a auto-desplegar**. No reanudarlo sin decisión explícita.
+- **Render fue descartado** (2026-08-05). El rollback hoy es el repo privado
+  `frc-efact-legacy`, que la VM tiene configurado como remoto `legacy`.
 - **Siempre compilar antes de commit/push.** Si tocaste backend Java: `cd frc-efact-backend && ./mvnw compile`. Si tocaste frontend: `cd frc-efact-frontend && npm run build:dev`. Si la compilación falla, **no commitear** — arreglar primero.
   - ⚠️ **`npm run lint` no funciona** (verificado 2026-08-05): `angular.json` solo declara los targets `build`, `serve`, `extract-i18n` y `test` — falta `@angular-eslint/schematics`. El gate real del frontend es el build AOT.
-- Las tools de Render MCP (`mcp__render__list_deploys`, `get_deploy`, `get_service`, `list_logs`, etc.) **se pueden usar para inspeccionar/diagnosticar** estado, logs y env vars del Render suspendido — nunca para mutar estado de deploys ni para reanudar servicios.
+- **El repo es público desde el 2026-08-06** (`GabFrank/frc-efact`), migrado a uno nuevo con
+  historial filtrado. Hay un ruleset activo que bloquea force-push y borrado de `main`/`develop`;
+  `require pull request` **no** está activo porque rompería `semantic-release` — detalle en
+  [CONTRIBUTING.md](CONTRIBUTING.md). **Nunca commitear secretos:** ahora cualquier cosa que entre
+  es pública de inmediato.
 - Antes de marcar un fix como "resuelto" en este documento, **esperar validación del usuario** ejecutando/probando el cambio.
 
 ---

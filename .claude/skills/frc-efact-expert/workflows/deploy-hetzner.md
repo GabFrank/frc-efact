@@ -55,7 +55,7 @@ docker compose -f docker-compose.prod.yml logs -f backend   # esperar "Started F
 | `PORT=8080` | **Obligatoria.** El `ENTRYPOINT` del Dockerfile es forma exec y pasa el literal `-Dserver.port=${PORT:-8080}` sin expandir; Spring lo resuelve como placeholder con default `-8080` | Tomcat arranca en puerto **-1** → conector HTTP deshabilitado (commit `4354836`) |
 | `ENCRYPTION_KEY` | AES-256 (32 chars) para cifrar CSC y password del `.pfx` | Error GCM / "Tag mismatch" al abrir un timbrado con CSC. **Debe ser idéntica a la que usaba Render** |
 | `MAIL_PASSWORD` | Gmail SMTP (`frcsistemasinformaticos@gmail.com`) | Rompe el envío de facturas por email |
-| `JWT_SECRET` | Firma HS512 (mín. 512 bits) | Tokens inválidos |
+| `JWT_SECRET` | Firma JWT. ⚠️ Con 44 bytes `Keys.hmacShaKeyFor` resuelve **HS256**, no HS512 | La app **no arranca** (sin default desde v1.1.3) |
 | `CORS_ALLOWED_ORIGINS` | Orígenes extra, coma-separados; se suman a los del código (`SecurityConfig`, commit `f58aac4`) | CORS bloqueado desde el dominio nuevo |
 | `BACKEND_PORT` / `FRONTEND_PORT` | Puertos loopback (default 8081 / 8082) | Choque con otro servicio del host |
 
@@ -63,12 +63,9 @@ docker compose -f docker-compose.prod.yml logs -f backend   # esperar "Started F
 
 - **Nunca deployar sin confirmación explícita del usuario.** La VM es compartida con
   servicios productivos ajenos.
-- **Render está suspendido, no dado de baja** (`srv-d61m4p4hg0os73fpbjm0`) — es la ventana
-  de rollback. **Conserva `autoDeploy: yes` sobre `main`**, así que reanudarlo lo vuelve a
-  poner a auto-desplegar. No reanudarlo sin decisión explícita, y **nunca dejar dos
-  schedulers SIFEN activos a la vez** (Render + VM emitirían/consultarían en paralelo).
-- Las tools de Render MCP (`list_deploys`, `get_deploy`, `get_service`, `list_logs`) siguen
-  sirviendo para **inspeccionar** el Render suspendido — nunca para mutar estado.
+- **Render fue descartado** (2026-08-05). Ya no existe ventana de rollback por ese lado: el
+  rollback es el repo `frc-efact-legacy`, que la VM tiene configurado como remoto `legacy`
+  (`git checkout -B main legacy/main` + rebuild vuelve al estado previo a la migración).
 
 ## Antes de deployar (checklist)
 

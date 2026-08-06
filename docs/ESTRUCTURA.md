@@ -42,7 +42,7 @@ docs/
 │   ├── RENDER_GITHUB_PACKAGES.md     # legacy
 │   ├── RENDER_MCP_SETUP.md           # legacy
 │   ├── STEP_BY_STEP_GUIDE.md         # legacy
-│   ├── render/                       # legacy — Render suspendido
+│   ├── render/                       # legacy — Render descartado
 │   │   ├── README.md
 │   │   └── MANUAL_SETUP.md
 │   └── scripts/
