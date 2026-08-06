@@ -74,7 +74,12 @@ jobs:
             "${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}" \
             "REF='$REF' TARGETS='$TARGETS' bash -seuo pipefail" <<'REMOTE'
           cd ~/frc-efact
-          git fetch --all --prune --tags
+          # `origin` explícito, NO --all: la VM tiene un segundo remoto `legacy` que apunta
+          # al repo previo a la migración, y sus tags comparten nombre con SHA distintos.
+          # `git fetch --all` intentaba traerlos, era rechazado con "would clobber existing
+          # tag", y con `set -e` mataba el deploy. --force tolera que un tag se mueva, que es
+          # lo que pasa después de reescribir historia.
+          git fetch origin --prune --tags --force
           git checkout "$REF"
           git pull --ff-only || echo "ref detachada o sin upstream — sigo con lo que hay"
           echo "→ commit desplegado: $(git rev-parse --short HEAD) $(git log -1 --pretty=%s)"
