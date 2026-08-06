@@ -99,17 +99,20 @@ y el servicio de geografía) para que no se rompan.
 **Estado:** ⚠️ Parcial (migración ejecutada el 2026-07-07; quedan tareas de cierre)
 
 Producción corre en la VM Hetzner (`https://efact.frc-ecommerce.com`) desde el
-2026-07-07. Render quedó **suspendido** como ventana de rollback, no dado de baja.
-Detalle completo en [deployment/hetzner/RUNBOOK_VM.md](deployment/hetzner/RUNBOOK_VM.md).
+2026-07-07. Detalle completo en [deployment/hetzner/RUNBOOK_VM.md](deployment/hetzner/RUNBOOK_VM.md).
 
-- [ ] Revocar el PAT de GitHub filtrado (sigue válido; Render suspendido ya no lo usa)
-- [ ] Copia off-site de backups (sección rclone/rsync de `deploy/backup-db.sh`)
+- [x] **Render descartado** (2026-08-05).
+- [x] **Deploy por GitHub Actions vía SSH**: `.github/workflows/deploy.yml`, `workflow_dispatch`
+      con confirmación. Validado end-to-end el 2026-08-06.
+- [x] **Copia off-site de certificados**: existen en la PC del desarrollador y en un Drive,
+      además del volumen Docker y los backups diarios de la VM.
+- [ ] Formalizar la copia off-site **de la base** en `deploy/backup-db.sh` (sección rclone/rsync).
+      Hoy los dumps viven solo en el disco de la VM.
 - [ ] Monitoreo externo a `https://efact.frc-ecommerce.com/api/actuator/health`
-- [ ] **Renovar certificado de FRANCO AREVALOS S.A. — vence `2026-08-20`** y
-      re-subirlo desde la UI
-- [ ] Tras 1-2 semanas estables: dar de baja Render (incl. DB), quitar
-      `*.onrender.com` del CORS, retirar `render.yaml`, y decidir si se arma
-      deploy por GitHub Actions via SSH a la VM
+- [ ] **Renovar certificado de FRANCO AREVALOS S.A. — vence `2026-08-20`** y re-subirlo desde la UI
+- [ ] Quitar `*.onrender.com` del CORS y del `connect-src` de la CSP en `SecurityConfig`, y
+      retirar `render.yaml` — ya no hay motivo para conservarlos
+- [ ] Sacar `RENDER_DATABASE_URL` de `deploy/.env` en la VM: apunta a una base que ya no existe
 
 ---
 
@@ -239,29 +242,46 @@ el `ENCRYPTION_KEY` **default**, que está en el repo.
 > PAT siguen recuperables desde cualquier commit anterior. Lo hecho hasta acá evita que el
 > problema crezca.
 
-### ❌ Hacer el repo público quedó DESCARTADO (decidido 2026-08-05)
+### ✅ RESUELTO: repo migrado y publicado (2026-08-06)
 
-**Re-emitir los `.pfx` ante la SET no es posible.** Eso cambia la naturaleza del riesgo: mientras
-los certificados fueran rotables, un archivo olvidado en la purga se remediaba rotando. Sin esa
-salida, un archivo olvidado significa **un certificado de firma de producción expuesto
-públicamente, de forma permanente y sin remedio**. Y GitHub conserva objetos inalcanzables un
-tiempo tras un force-push: siguen accesibles por SHA hasta que corre el GC, salvo que se pida a
-Support purgarlos o se borre y recree el repo.
+En vez de purgar el repo existente, se creó uno nuevo y se volcó el historial filtrado. Eso evita
+el problema de los objetos que GitHub conserva tras un force-push, porque el repo viejo se
+descarta entero.
 
-Un error reversible se vuelve irreversible. El repo **se queda privado**.
+**Procedimiento ejecutado:**
 
-Consecuencia para branch protection: no hay opción gratis. Verificado el 2026-08-05 que tanto
-`/branches/{branch}/protection` como `/rulesets` devuelven
-`403 Upgrade to GitHub Pro or make this repository public`. Las alternativas son **GitHub Pro**
-(~US$4/mes, protección server-side real) o un **hook `pre-push` versionado**, que cubre el push
-accidental propio pero no es server-side.
+1. El repo original se renombró a **`frc-efact-legacy`** (privado, conservado como rollback) y se
+   creó **`frc-efact`** público con el mismo nombre, así ninguna URL externa se rompió.
+2. `git filter-repo` sobre un clon fresco: eliminó **7 binarios** (6 `.pfx` + el `client_secret`
+   de Google) y reemplazó **4 cadenas** — dos PAT, el app password de Gmail y la `ENCRYPTION_KEY`
+   vieja.
+3. Verificación sobre **todos los blobs del object store** (25 MB, `git cat-file
+   --batch-all-objects`) contra 9 familias de patrones de credencial. Además: 0 objetos con path
+   sensible, y el tree hash de `HEAD` **idéntico** al del clon sin filtrar, o sea que el estado
+   del código no cambió — solo la historia.
+4. Push de `main`, `develop` y los 8 tags. 156 commits preservados: `blame` y `bisect` intactos.
 
-La rotación del resto de los secretos sigue valiendo por higiene, y es barata: el client secret de
-Google está muerto (cero referencias en código), el PAT ya no lo usa nadie, y el `ENCRYPTION_KEY`
-son 6 valores a re-cifrar (CSC de 3 timbrados + password de certificado de 3 empresas).
+**El segundo PAT lo encontró GitHub, no yo.** El primer push fue rechazado por su push
+protection: `informativo.md` —el documento de especificación original, borrado hace meses—
+contenía un PAT que el barrido inicial no detectó porque la salida se truncó con `head`. Por eso
+la verificación final se hizo sobre el object store completo y sin truncar. Defensa en
+profundidad que funcionó.
 
-La purga del historial también sigue valiendo como higiene, pero **sin la presión de habilitar
-nada** y sin exposición pública de por medio.
+**Lo que se pierde y no vuelve:** los PRs e issues del repo legacy, el historial de runs de
+Actions, y los objetos Release de GitHub (los tags sí migraron; las notas están en
+`CHANGELOG.md`). Los links a commits del `CHANGELOG` apuntan a SHA que ya no existen.
+
+**Re-emitir los `.pfx` sigue siendo imposible**, pero dejó de importar para esto: al no estar en
+la historia del repo nuevo, nunca se publicaron. Los certificados de producción viven en el
+volumen Docker de la VM, en los backups diarios, en la PC del desarrollador y en un Drive.
+
+Branch protection quedó disponible al ser público — detalle y el límite de `require pull request`
+en [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+**Pendiente de higiene, sin urgencia:** los dos PAT siguen vivos (ya no están en la historia
+pública), el client secret de Google está muerto en la práctica (cero referencias en código), y el
+app password de Gmail sigue en uso. Borrar `frc-efact-legacy` es el último paso: mientras exista
+es el rollback.
 
 ---
 

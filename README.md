@@ -69,7 +69,7 @@ como ventana de rollback, no dado de baja.
 - **[Runbook VM Hetzner](docs/deployment/hetzner/RUNBOOK_VM.md)** — Guía principal (producción actual)
 - **[Plan de migración a Hetzner](docs/deployment/hetzner/PLAN_MIGRACION_HETZNER.md)** — Contexto y riesgos
 - **[Scripts de Deployment](docs/deployment/scripts/README.md)** — Scripts útiles
-- _Legacy:_ [Deployment en Render](docs/deployment/render/README.md) · [Setup Manual](docs/deployment/render/MANUAL_SETUP.md) — Render suspendido
+- _Legacy:_ [Deployment en Render](docs/deployment/render/README.md) · [Setup Manual](docs/deployment/render/MANUAL_SETUP.md) — Render descartado
 
 ### 🔧 Solución de problemas
 - **[Errores Comunes](docs/troubleshooting/COMMON_ERRORS.md)**

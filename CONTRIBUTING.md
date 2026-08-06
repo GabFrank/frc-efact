@@ -95,25 +95,44 @@ y hacer el job bloqueante.**
 **Por qué no se corre lint:** el target `lint` **no existe** en `angular.json` — falta
 `@angular-eslint/schematics`. El gate real del frontend es el build AOT de producción.
 
-### Branch protection: no está disponible
+### Branch protection
 
-Verificado el 2026-08-05: en repo privado con plan Free, tanto
-`/repos/{owner}/{repo}/branches/{branch}/protection` como `/repos/{owner}/{repo}/rulesets`
-devuelven `403 Upgrade to GitHub Pro or make this repository public`.
+Este repo es **público** desde el 2026-08-06, así que los rulesets están disponibles sin plan
+pago. Hay uno activo:
 
-Y **hacer el repo público quedó descartado** — el historial contiene certificados `.pfx` de firma
-SIFEN de producción que **no se pueden re-emitir**, así que un archivo olvidado en una purga sería
-una exposición permanente sin remedio. Detalle en
-[docs/TAREAS_PENDIENTES.md](docs/TAREAS_PENDIENTES.md) §9.
+| Ruleset | Aplica a | Reglas |
+|---|---|---|
+| `main y develop: sin force-push ni borrado` | `refs/heads/main`, `refs/heads/develop` | `non_fast_forward`, `deletion` |
 
-**Consecuencia práctica: todo lo que sigue en este documento es una convención, no una regla que
-GitHub haga cumplir.** Nada impide hoy un `git push` directo a `main`. Las dos formas de cerrar
-eso son GitHub Pro (protección server-side real) o un hook `pre-push` local, que cubre el
-descuido propio pero no es server-side.
+#### ⚠️ Por qué NO está activada la regla "require pull request"
 
-### Required status checks (cuando haya branch protection)
+Porque rompería todos los releases. `@semantic-release/git` commitea `chore(release): vX.Y.Z`
+**directo a `main`** (bump de `CHANGELOG.md`, `pom.xml` y los `package.json`). Con `pull_request`
+activa, ese push del bot sería rechazado.
 
-Marcar como obligatorios **solo** estos dos:
+La salida normal es declarar a GitHub Actions como *bypass actor* del ruleset, pero la API lo
+rechaza en repos personales:
+
+```
+422 Actor GitHub Actions integration must be part of the ruleset source or owner organization
+```
+
+Es una capacidad **exclusiva de organizaciones**. Las opciones para cerrar el hueco, si algún día
+se quiere:
+
+1. Mover el repo a una organización → habilita el bypass y con eso `require pull request`.
+2. Quitar `@semantic-release/git` → nada commitea a `main`, pero se pierde el bump automático de
+   versión en `pom.xml`/`package.json` (el tag y el GitHub Release se siguen creando).
+3. Un deploy key con permiso de escritura como bypass actor, y que el workflow de release pushee
+   por SSH con esa clave.
+
+**Mientras tanto: el flujo `feature → develop → main` de este documento es una convención.**
+Nada impide un `git push` directo a `main`. Lo que sí está bloqueado por el servidor es el
+force-push y el borrado de las dos ramas principales.
+
+### Required status checks
+
+Cuando se active `require pull request` (ver arriba), marcar como obligatorios **solo** estos dos:
 
 - `Backend · compile + package`
 - `Frontend · build prod`
@@ -125,8 +144,31 @@ está el flag, y hacerlo required lo volvería bloqueante por la puerta de atrá
 
 | Secret | Para qué |
 |---|---|
-| `GH_PACKAGES_USER` | Usuario de GitHub Packages (típicamente `GabFrank`) |
+| `GH_PACKAGES_USER` | Usuario de GitHub Packages (`GabFrank`) |
 | `GH_PACKAGES_TOKEN` | PAT con `read:packages` — `jsifenlib` vive en `GabFrank/rshk-jsifenlib`, así que el `GITHUB_TOKEN` automático del job **no alcanza** |
+
+### Convención para nombrar PAT
+
+El nombre de un PAT tiene que decir **dónde está usado**, no qué permite — el scope ya se ve en
+la lista de GitHub. Sin eso, un token se vuelve imposible de borrar con confianza y queda vivo
+para siempre "por si acaso".
+
+```
+<proyecto> · <consumidor> · <identificador exacto en ese consumidor>
+```
+
+| Token | Vive en |
+|---|---|
+| `frc-efact · Actions · secret GH_PACKAGES_TOKEN` | Secret del repo, lo usa `ci.yml` |
+| `frc-efact · VM Hetzner · deploy/.env GITHUB_TOKEN` | La VM, para el build del backend |
+
+Evitar adjetivos temporales (`nuevo`, `temporal`, `test`): envejecen mal y en tres meses no
+distinguen nada. Aplica igual a claves SSH y deploy keys.
+
+**Por qué existe esta sección:** el 2026-08-05 había 8 PAT classic, cinco con el mismo scope
+`read:packages` y nombres que no decían dónde se usaban. Ninguno se podía borrar sin miedo a
+romper algo. Y dos estaban filtrados en el historial del repo — uno de ellos apareció solo
+porque el push protection de GitHub lo atajó al publicar.
 
 ## Deploy
 
@@ -144,6 +186,11 @@ Procedimiento y gotchas en
 | `VM_HOST` | `178.105.107.171` |
 | `VM_USER` | `deploy` |
 | `VM_SSH_KEY` | Clave privada SSH **dedicada al CI** (`github-actions-deploy@frc-efact`), no una personal |
+
+> ⚠️ `VM_USER` y `VM_HOST` **no son secretos** — la IP y el nombre de usuario están en este mismo
+> repo público. Tenerlos como secrets ensucia los logs: GitHub enmascara toda aparición de su
+> valor, y como `VM_USER=deploy`, cualquier log que diga "deploy" sale como `***`. Se vio en el
+> log de un fetch: `legacy/fix/***-workflow-env-file`. Convendría pasarlos a *Variables*.
 
 La VM necesita además `origin` apuntando a GitHub por el alias SSH `github-frc-efact` (deploy
 key read-only) — **no** `github.com`, que en esa máquina ya está tomado por otro proyecto. Ver

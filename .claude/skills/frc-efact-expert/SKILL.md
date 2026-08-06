@@ -22,7 +22,7 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 - **Dominio:** Empresa → Timbrado → Punto de expedición → **FacturaLegal** → **DocumentoElectronico** (CDC 44 chars, firma, QR) → **LoteDE** → envío SIFEN → polling scheduler → APROBADO/RECHAZADO → **Eventos** (cancelación / inutilización / nominación). Notas de Crédito/Débito/Remisión con numeración propia. Multi-empresa con certificado `.pfx` por empresa.
 - **Credenciales dev (verificado en Flyway V4):** `admin` / **`admin123`** y `testuser` / `test123`. Los roles EMPRESA_ADMIN/FACTURADOR/LECTOR **no** son usuarios sembrados — se asignan vía `rolEmpresa` al vincular usuario↔empresa.
 - **Esquemas DB reales:** `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte`. **Nada en `public`. No existe `catalogo`.**
-- **Deploy:** producción corre en una **VM Hetzner** (`https://efact.frc-ecommerce.com`) desde el **2026-07-07**. El deploy es **manual por SSH** (`docker compose up -d --build`), **no** por git. Un push a `main` solo dispara `semantic-release` en GitHub Actions. **Render quedó suspendido** como ventana de rollback (conserva `autoDeploy` — no reanudarlo a ciegas).
+- **Deploy:** producción corre en una **VM Hetzner** (`https://efact.frc-ecommerce.com`) desde el **2026-07-07**. El deploy es **manual por SSH** (`docker compose up -d --build`), **no** por git. Un push a `main` solo dispara `semantic-release` en GitHub Actions. **Render fue descartado** (2026-08-05). El rollback hoy es el repo `frc-efact-legacy`, que la VM tiene como remoto `legacy`.
 - **Comandos:**
   - Backend: `./dev.sh` (dev), `./mvnw compile` (**verificar compilación antes de commit**), `./mvnw spring-boot:run`, `./mvnw test`.
   - Frontend: `npm start` (dev), `npm run build:dev` / `npm run build:prod`, `npm run test:ci`. ⚠️ `npm run lint` **no funciona** — el target no existe en `angular.json`.
@@ -90,7 +90,7 @@ Soy el experto interno del sistema **FRC eFact**, la plataforma web de emisión 
 > Esta sección puede quedar desactualizada. Si preguntan por estado actual, revisar `git log` antes de responder.
 
 - **Rama de trabajo actual:** `docs/integracion-hetzner` (integra la auditoría de documentación sobre la rama de la migración a Hetzner). Rama de releases: **`main`**, último release **v1.0.3** — ⚠️ `main` **todavía no tiene** la migración a Hetzner ni esta auditoría; ambas están pendientes de merge.
-- **Infra:** producción en VM Hetzner desde el 2026-07-07 (`https://efact.frc-ecommerce.com`), deploy manual por SSH. Render suspendido como rollback. Ver [workflows/deploy-hetzner.md](workflows/deploy-hetzner.md) y `docs/deployment/hetzner/RUNBOOK_VM.md`.
+- **Infra:** producción en VM Hetzner desde el 2026-07-07 (`https://efact.frc-ecommerce.com`). Deploy por el workflow `deploy.yml` (`workflow_dispatch`) o SSH manual — nunca automático. Render descartado. Ver [workflows/deploy-hetzner.md](workflows/deploy-hetzner.md) y `docs/deployment/hetzner/RUNBOOK_VM.md`.
 - **`CLAUDE.md` es la fuente de verdad de más alto nivel** — actualizado y confiable. Esta skill lo complementa con detalle verificado por dominio.
 - **Feature más activa:** Notas de crédito/débito/remisión (heredan moneda/items de la factura referenciada, KuDE vía endpoint `kude-pdf`). Transporte (vehículo/chofer, V35) es lo más reciente.
 - **Deuda técnica conocida y verificada** (detalle en [reference/known-bugs.md](reference/known-bugs.md)):

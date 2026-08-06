@@ -13,12 +13,12 @@ frc-efact/
 ├── deploy/               Stack VM Hetzner: .env.example, nginx vhost, backup systemd
 ├── docker-compose.prod.yml  Stack de producción (VM Hetzner)
 ├── .kiro/specs/          Specs por feature
-└── render.yaml           Blueprint Render (legacy — Render suspendido)
+└── render.yaml           Blueprint Render (legacy — Render descartado, solo referencia)
 ```
 
 - **Backend**: REST API bajo `/api`. PostgreSQL + Flyway (`V1`–`V35`, `ddl-auto: validate`). Seguridad JWT local + Auth0. Librería SIFEN `jsifenlib` (fork `io.github.gabfrank`).
 - **Frontend**: SPA Angular Material. HTTP con interceptores; estado NgRx solo en 8 ramas (no todas las entidades). Auth0 + JWT local, JWT **en memoria**.
-- **Deploy**: producción en **VM Hetzner** (`https://efact.frc-ecommerce.com`) desde el 2026-07-07; el deploy es **manual por SSH** (`docker compose up -d --build`). Un push a `main` solo corre `semantic-release`. Render suspendido como rollback. Ver [../workflows/deploy-hetzner.md](../workflows/deploy-hetzner.md).
+- **Deploy**: producción en **VM Hetzner** (`https://efact.frc-ecommerce.com`) desde el 2026-07-07. Dos vías, ninguna automática: el workflow `deploy.yml` (`workflow_dispatch`) o SSH manual. Un push a `main` solo corre `semantic-release`. Render descartado. Ver [../workflows/deploy-hetzner.md](../workflows/deploy-hetzner.md).
 
 ## Cómo viaja un dato de punta a punta
 

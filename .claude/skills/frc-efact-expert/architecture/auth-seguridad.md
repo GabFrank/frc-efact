@@ -5,7 +5,7 @@ Spring Security 6, **STATELESS**, con **doble vía de autenticación**: JWT loca
 ## Doble vía
 
 ### 1. JWT local
-- `AuthController /auth/login` → `JwtTokenProvider` firma un token (HS512, `JWT_SECRET` ≥512 bits). `AuthResponse` real: `{ token, refreshToken, type, usuario }`.
+- `AuthController /auth/login` → `JwtTokenProvider` firma un token con **HS256** (verificado 2026-08-06). `Keys.hmacShaKeyFor` deriva el algoritmo del largo de la clave y la de producción tiene 44 bytes → HS256, no HS512 como decía esta doc. `AuthResponse` real: `{ token, refreshToken, type, usuario }`.
 - **`JwtAuthenticationFilter`** corre en cada request: si `tokenProvider.isLocalToken(jwt)` y `validateToken`, extrae el username y llama **`userDetailsService.loadUserByUsername(username)` EN CADA REQUEST** (`JwtAuthenticationFilter.java:50`). Esto es clave: las authorities se recalculan siempre, no viven en el token.
 
 ### 2. Auth0 (OAuth2 Resource Server)
