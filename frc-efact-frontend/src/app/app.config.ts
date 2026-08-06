@@ -12,7 +12,6 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { authInterceptor } from './interceptors/auth.interceptor';
 import { errorInterceptor } from './interceptors/error.interceptor';
 import { httpsInterceptor } from './interceptors/https.interceptor';
-import { mockRucInterceptor } from './interceptors/mock-ruc.interceptor';
 
 // Reducers
 import { authReducer } from './core/state/auth/auth.reducer';
@@ -56,7 +55,7 @@ export const appConfig: ApplicationConfig = {
       errorPath: '/login'
     }),
     provideHttpClient(
-      withInterceptors([httpsInterceptor, authInterceptor, errorInterceptor, mockRucInterceptor])
+      withInterceptors([httpsInterceptor, authInterceptor, errorInterceptor])
     ),
     provideStore({
       auth: authReducer,

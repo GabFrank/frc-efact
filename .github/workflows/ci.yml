@@ -57,14 +57,12 @@ jobs:
         run: ./mvnw -B -ntp clean package -DskipTests
 
   backend-tests:
-    name: Backend · tests (no bloqueante)
+    name: Backend · tests
     runs-on: ubuntu-latest
-    # ⚠️ NO bloqueante a propósito: al 2026-08-05 fallan 6 tests de validación de
-    # RUC (RucCalculatorTest, RucValidatorTest, ValidadoresParaguayosTest). No son
-    # tests podridos — son la evidencia del bug conocido del algoritmo de dígito
-    # verificador (ver docs/TAREAS_PENDIENTES.md §4 y docs/ISSUES_CANDIDATOS.md).
-    # Cuando ese bug se arregle, borrar `continue-on-error` y hacerlo bloqueante.
-    continue-on-error: true
+    # BLOQUEANTE desde el 2026-08-06. Antes tenía `continue-on-error` porque fallaban 6 tests
+    # de validación de RUC, atribuidos a un bug del algoritmo de dígito verificador. Resultó
+    # que el algoritmo era correcto y las expectativas de los tests estaban inventadas — ver
+    # el javadoc de RucCalculatorTest. Corregidos los tests, los 34 pasan y el job protege.
     steps:
       - uses: actions/checkout@v4
 
