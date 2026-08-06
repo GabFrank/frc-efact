@@ -1,3 +1,10 @@
+## [1.1.4](https://github.com/GabFrank/frc-efact/compare/v1.1.3...v1.1.4) (2026-08-06)
+
+
+### Bug Fixes
+
+* **ci:** fetch solo de origin en el deploy, no --all ([7d50b71](https://github.com/GabFrank/frc-efact/commit/7d50b7195868b0baab15e96470e79a1cee6c8464))
+
 ## [1.1.3](https://github.com/GabFrank/frc-efact-legacy/compare/v1.1.2...v1.1.3) (2026-08-05)
 
 
