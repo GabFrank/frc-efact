@@ -80,17 +80,78 @@ y el servicio de geografía) para que no se rompan.
 
 ---
 
-## 4. 🐛 Validación de RUC deshabilitada en el frontend — Prioridad Media
+## 4. 🐛 Validación de RUC — Prioridad Media
 
-`RucValidationService` tiene la validación real **deshabilitada** y devuelve resultados mock:
-- `validateRucFormat()` valida solo el **formato** (`\d{6,8}-\d`); el chequeo de dígito verificador
-  (`validateRucCheckDigit`) está comentado ("TEMPORALMENTE DESHABILITADO: Backend usa algoritmo incorrecto").
-- `validateRucLive()` retorna siempre `of({ valid: true, exists: false })` sin llamar al backend.
+**Estado:** ✅ Mayormente resuelto (2026-08-07). Queda solo el chequeo de unicidad.
 
-- **Archivo:** `frc-efact-frontend/src/app/services/ruc-validation.service.ts`
-- **Causa raíz:** el algoritmo de dígito verificador del backend rechaza RUCs válidos.
-- **TODO:** corregir el algoritmo en el backend y reactivar `validateRucCheckDigit()` +
-  la llamada real a `/empresas/validate-ruc`.
+El diagnóstico original era **falso**. Decía "el algoritmo de dígito verificador del backend
+rechaza RUCs válidos", y con eso se había comentado `validateRucCheckDigit()` y se había dejado
+`validateRucLive()` devolviendo `of({ valid: true, exists: false })` — más un interceptor
+(`mock-ruc.interceptor`) que servía respuestas falsas para esa URL **incluso en producción**.
+
+El algoritmo siempre estuvo bien. Lo que estaba mal eran las **expectativas de los tests**, que
+usaban dígitos verificadores inventados. Verificado contra los 12 RUCs de producción: todos
+validan. Ver el javadoc de `RucCalculatorTest`.
+
+Ya resuelto: validación de DV reactivada en front y back, parseo centralizado en `RucParaguayo`,
+invariante contribuyente⇒DV en `ReglaRucCliente` aplicándose en el validador del DTO **y** en
+`ClienteService`, interceptor mock eliminado, 35 tests bloqueantes en CI.
+
+**Pendiente:** el endpoint `GET /empresas/validate-ruc?ruc=&excludeId=` para el chequeo de
+**unicidad** ("este RUC ya pertenece a la empresa X") **no existe**. Hasta que exista,
+`validateRucLive()` valida formato y DV del lado del cliente y devuelve `exists: false` fijo.
+Falta también la cota de largo para el caso no-contribuyente (solo dígitos).
+
+---
+
+## 4bis. 🐛 Valores fiscales derivados en tiempo de lectura — Prioridad Alta
+
+**Estado:** ✅ El caso del IVA por ítem resuelto (2026-08-07, V37). El patrón sigue vivo en otros
+lugares.
+
+Hay una clase de bug que este proyecto ya pagó **cuatro veces**: un valor fiscal que se recalcula
+al leer, en vez de fijarse al emitir. El documento en SIFEN es inmutable; nuestra vista deriva.
+
+| Caso | Síntoma | Estado |
+|---|---|---|
+| `dCantProSer` redondeado a 0 decimales para productos sin `balanza` | DE emitido por USD 86.250 en vez de 86.279,25. Cliente tuvo que cancelar | 🔴 **abierto** |
+| IVA del ítem derivado de `producto.iva` | Facturas enteras mostradas como EXENTAS; guardar corrompía los totales | ✅ V37 |
+| `list_*_actividad_economica_secundaria` separado por comas | La SET rechazaba con `1262` | ✅ V36 |
+| `dDVEmi` vacío cuando el RUC no traía guion | DE rechazado sin explicación | ✅ `RucParaguayo` |
+
+**Aún abierto — `SifenService:1622` y `:2053`:**
+
+```java
+} else {
+    gCamItem.setcUniMed(TcUniMed.UNI);
+    cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);  // ← trunca
+}
+```
+
+`tdCantProSer` admite `fractionDigits=4` (`DE_Types_v150.xsd:1202`) y la columna es
+`DECIMAL(10,3)`: el truncado es autoinfligido. jsifenlib deriva `dTotBruOpeItem`, `dSub5`,
+`dIVA5` y `dTotalGs` de `dCantProSer × dPUniProSer` (`TgValorItem.java:31`), así que un campo
+truncado envenena todos los totales. **SIFEN aprobó igual un XML internamente inconsistente**
+(`dMonTiPag` = 86.279,25 sobre una operación de 86.250), o sea que no se puede contar con la SET
+para atajar esto.
+
+Además `Producto.unidadMedida` existe y el path de factura/NC **lo ignora**: solo mira el booleano
+`balanza`, que colapsa el mundo a kg o unidad. `TcUniMed.TN` (Tonelada, código 99) existe en
+jsifenlib. El path de nota de remisión (`SifenService:2353`) ya lo hace bien — factura y NC son
+las que quedaron con el código viejo.
+
+**TODO:** alinear factura y NC con el path de NRE (honrar `unidadMedida`, no redondear la
+cantidad, `balanza` solo como fallback) y medir cuántos DE aprobados en producción tienen
+cantidad fraccionaria sobre producto sin balanza.
+
+### Problemas del KuDE PDF (mismo reporte)
+
+| Síntoma | Causa |
+|---|---|
+| Tipo de cambio "5959" en vez de 5.959,05 | `KudePdfService.java:234` — `getCambio().setScale(0, HALF_UP).toString()` |
+| Cantidad "575.2" en vez de 575,195 | `factura-electronica-kude.jrxml:807` — `pattern="#,##0.##"` |
+| Separadores invertidos (`86,279.25`) | `JasperFillManager.fillReport` sin `REPORT_LOCALE` ⇒ locale de la JVM del contenedor. Falta pasar `es_PY` |
+| Riesgo de precisión | `<field name="cantidad" class="java.lang.Float"/>` — debería ser `BigDecimal` |
 
 ---
 
