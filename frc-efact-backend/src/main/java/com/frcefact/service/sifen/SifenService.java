@@ -1,5 +1,6 @@
 package com.frcefact.service.sifen;
 
+import com.frcefact.util.RucParaguayo;
 import com.frcefact.exception.BusinessException;
 import com.frcefact.model.Cliente;
 import com.frcefact.model.DocumentoElectronico;
@@ -1342,10 +1343,11 @@ public class SifenService {
         Empresa empresa = factura.getEmpresa();
         
         // RUC del emisor (desde empresa)
-        String rucCompleto = empresa.getRuc();
-        String[] rucPartes = rucCompleto.split("-");
-        gEmis.setdRucEm(rucPartes[0]);
-        gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
+        // El emisor siempre es contribuyente: si el RUC no trae DV, fallar acá con un mensaje
+        // claro es mucho mejor que emitir dDVEmi="" y que SIFEN rechace el DE sin explicar.
+        RucParaguayo rucEmisor = RucParaguayo.parse(empresa.getRuc());
+        gEmis.setdRucEm(rucEmisor.getBase());
+        gEmis.setdDVEmi(rucEmisor.getDvComoString());
         
         // Tipo de contribuyente emisor (por defecto PJ, puede ajustarse según configuración)
         gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
@@ -1447,15 +1449,13 @@ public class SifenService {
             }
             
             // RUC y DV
-            String rucCompleto = cliente.getRuc();
-            String[] rucPartes = rucCompleto.split("-");
-            gDatRec.setdRucRec(rucPartes[0]);
-            if (rucPartes.length > 1) {
-                gDatRec.setdDVRec(Short.parseShort(rucPartes[1]));
-            }
+            // Rama de contribuyente: el RUC debe traer DV. parse() valida formato y dígito.
+            RucParaguayo rucReceptor = RucParaguayo.parse(cliente.getRuc());
+            gDatRec.setdRucRec(rucReceptor.getBase());
+            gDatRec.setdDVRec(rucReceptor.getDvComoShort());
             
             gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
-            gDatRec.setdNumIDRec(rucPartes[0]);
+            gDatRec.setdNumIDRec(rucReceptor.getBase());
         } else {
             // No contribuyente
             gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
@@ -1873,10 +1873,11 @@ public class SifenService {
         Empresa empresa = notaCredito.getEmpresa();
         
         // RUC del emisor
-        String rucCompleto = empresa.getRuc();
-        String[] rucPartes = rucCompleto.split("-");
-        gEmis.setdRucEm(rucPartes[0]);
-        gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
+        // El emisor siempre es contribuyente: si el RUC no trae DV, fallar acá con un mensaje
+        // claro es mucho mejor que emitir dDVEmi="" y que SIFEN rechace el DE sin explicar.
+        RucParaguayo rucEmisor = RucParaguayo.parse(empresa.getRuc());
+        gEmis.setdRucEm(rucEmisor.getBase());
+        gEmis.setdDVEmi(rucEmisor.getDvComoString());
         
         gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
         gEmis.setdNomEmi(empresa.getRazonSocial());
@@ -1940,21 +1941,23 @@ public class SifenService {
         }
         
         // Determinar si es contribuyente
-        boolean esContribuyente = ruc != null && ruc.length() >= 6; // RUC tiene al menos 6 dígitos
+        // Contribuyente se decide por FORMATO, no por largo. Antes era `ruc.length() >= 6`, con lo
+        // cual la cédula de 7 dígitos de un no contribuyente quedaba clasificada como
+        // contribuyente y se emitía un receptor con dRucRec pero sin dDVRec → rechazo de SIFEN.
+        boolean esContribuyente = RucParaguayo.tieneFormatoContribuyente(ruc);
         
         if (esContribuyente) {
             gDatRec.setiNatRec(TiNatRec.CONTRIBUYENTE);
             gDatRec.setiTiOpe(TiTiOpe.B2B);
             gDatRec.setiTiContRec(TiTipCont.PERSONA_JURIDICA);
             
-            String[] rucPartes = ruc.split("-");
-            gDatRec.setdRucRec(rucPartes[0]);
-            if (rucPartes.length > 1) {
-                gDatRec.setdDVRec(Short.parseShort(rucPartes[1]));
-            }
+            // Dentro de esta rama el formato ya está garantizado por tieneFormatoContribuyente
+            RucParaguayo rucRec = RucParaguayo.parse(ruc);
+            gDatRec.setdRucRec(rucRec.getBase());
+            gDatRec.setdDVRec(rucRec.getDvComoShort());
             
             gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
-            gDatRec.setdNumIDRec(rucPartes[0]);
+            gDatRec.setdNumIDRec(rucRec.getBase());
         } else {
             gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
             gDatRec.setiTiOpe(TiTiOpe.B2C);
@@ -2636,19 +2639,18 @@ public class SifenService {
             
             // RUC y DV del transportista (desde empresa emisor)
             String rucCompleto = empresa.getRuc();
-            if (rucCompleto != null && rucCompleto.contains("-")) {
-                String[] rucPartes = rucCompleto.split("-");
-                gCamTrans.setdRucTrans(rucPartes[0]);
-                if (rucPartes.length > 1) {
-                    try {
-                        gCamTrans.setdDVTrans(Short.parseShort(rucPartes[1]));
-                    } catch (NumberFormatException e) {
-                        log.warn("⚠️ DV de empresa emisor no es numérico: {}", rucPartes[1]);
-                    }
-                }
-            } else if (rucCompleto != null) {
-                gCamTrans.setdRucTrans(rucCompleto);
-            }
+            // Acá el RUC es opcional y puede venir sin DV, así que tryParse en vez de parse.
+            RucParaguayo.tryParse(rucCompleto).ifPresentOrElse(
+                    r -> {
+                        gCamTrans.setdRucTrans(r.getBase());
+                        gCamTrans.setdDVTrans(r.getDvComoShort());
+                    },
+                    () -> {
+                        if (rucCompleto != null && !rucCompleto.isBlank()) {
+                            log.warn("⚠️ RUC del emisor sin formato de contribuyente, se envía sin DV: {}", rucCompleto);
+                            gCamTrans.setdRucTrans(rucCompleto);
+                        }
+                    });
             
             // E986 - Domicilio fiscal del transportista
             String direccion = empresa.getDomicilioFiscalDireccion() != null 
@@ -2666,17 +2668,15 @@ public class SifenService {
             
             if (notaRemision.getTransportistaRuc() != null && !notaRemision.getTransportistaRuc().isBlank()) {
                 String ruc = notaRemision.getTransportistaRuc();
-                if (ruc.contains("-")) {
-                    String[] partes = ruc.split("-");
-                    gCamTrans.setdRucTrans(partes[0]);
-                    try {
-                        gCamTrans.setdDVTrans(Short.parseShort(partes[1]));
-                    } catch (Exception e) {
-                        log.warn("⚠️ No se pudo parsear DV del transportista: {}", partes[1]);
-                    }
-                } else {
-                    gCamTrans.setdRucTrans(ruc);
-                }
+                RucParaguayo.tryParse(ruc).ifPresentOrElse(
+                        r -> {
+                            gCamTrans.setdRucTrans(r.getBase());
+                            gCamTrans.setdDVTrans(r.getDvComoShort());
+                        },
+                        () -> {
+                            log.warn("⚠️ RUC del transportista sin formato de contribuyente, se envía sin DV: {}", ruc);
+                            gCamTrans.setdRucTrans(ruc);
+                        });
             }
             
             if (notaRemision.getTransportistaDireccion() != null && !notaRemision.getTransportistaDireccion().isBlank()) {
@@ -2772,10 +2772,11 @@ public class SifenService {
         Empresa empresa = notaRemision.getEmpresa();
         
         // RUC del emisor
-        String rucCompleto = empresa.getRuc();
-        String[] rucPartes = rucCompleto.split("-");
-        gEmis.setdRucEm(rucPartes[0]);
-        gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
+        // El emisor siempre es contribuyente: si el RUC no trae DV, fallar acá con un mensaje
+        // claro es mucho mejor que emitir dDVEmi="" y que SIFEN rechace el DE sin explicar.
+        RucParaguayo rucEmisor = RucParaguayo.parse(empresa.getRuc());
+        gEmis.setdRucEm(rucEmisor.getBase());
+        gEmis.setdDVEmi(rucEmisor.getDvComoString());
         
         gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
         gEmis.setdNomEmi(empresa.getRazonSocial());
@@ -2844,21 +2845,23 @@ public class SifenService {
         }
         
         // Determinar si es contribuyente
-        boolean esContribuyente = ruc != null && ruc.length() >= 6; // RUC tiene al menos 6 dígitos
+        // Contribuyente se decide por FORMATO, no por largo. Antes era `ruc.length() >= 6`, con lo
+        // cual la cédula de 7 dígitos de un no contribuyente quedaba clasificada como
+        // contribuyente y se emitía un receptor con dRucRec pero sin dDVRec → rechazo de SIFEN.
+        boolean esContribuyente = RucParaguayo.tieneFormatoContribuyente(ruc);
         
         if (esContribuyente) {
             gDatRec.setiNatRec(TiNatRec.CONTRIBUYENTE);
             gDatRec.setiTiOpe(TiTiOpe.B2B);
             gDatRec.setiTiContRec(TiTipCont.PERSONA_JURIDICA);
             
-            String[] rucPartes = ruc.split("-");
-            gDatRec.setdRucRec(rucPartes[0]);
-            if (rucPartes.length > 1) {
-                gDatRec.setdDVRec(Short.parseShort(rucPartes[1]));
-            }
+            // Dentro de esta rama el formato ya está garantizado por tieneFormatoContribuyente
+            RucParaguayo rucRec = RucParaguayo.parse(ruc);
+            gDatRec.setdRucRec(rucRec.getBase());
+            gDatRec.setdDVRec(rucRec.getDvComoShort());
             
             gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
-            gDatRec.setdNumIDRec(rucPartes[0]);
+            gDatRec.setdNumIDRec(rucRec.getBase());
         } else {
             gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
             gDatRec.setiTiOpe(TiTiOpe.B2C);

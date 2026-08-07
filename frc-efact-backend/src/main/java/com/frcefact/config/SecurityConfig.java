@@ -183,16 +183,21 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Orígenes permitidos
+        // El dev server de frc-efact corre en 4400, no en 4200. Los puertos están repartidos
+        // entre los proyectos del monorepo: 4200 es de frc-comercial/desktop y 4300 de
+        // frc-comercial/mobile y mobile-pwa. Aceptar 4200 acá permitiría que el dev server de
+        // OTRO proyecto llame a este backend, así que se reemplazó en vez de sumarse.
+        // Para otros orígenes usar la env var CORS_ALLOWED_ORIGINS, que se suma a esta lista.
         List<String> allowedOrigins = new ArrayList<>(Arrays.asList(
-                "http://localhost:4200",
-                "https://localhost:4200",
-                "http://192.168.*.*:4200",  // IP local HTTP
-                "https://192.168.*.*:4200",  // IP local HTTPS
-                "http://10.*.*.*:4200",     // IP local HTTP (rango 10.x.x.x)
-                "https://10.*.*.*:4200",    // IP local HTTPS (rango 10.x.x.x)
-                "http://172.*.*.*:4200",   // IP local HTTP (rango 172.x.x.x)
-                "https://172.*.*.*:4200",  // IP local HTTPS (rango 172.x.x.x)
-                "https://*.onrender.com"
+                "http://localhost:4400",
+                "https://localhost:4400",
+                "http://192.168.*.*:4400",  // LAN HTTP
+                "https://192.168.*.*:4400", // LAN HTTPS
+                "http://10.*.*.*:4400",     // LAN HTTP (rango 10.x.x.x)
+                "https://10.*.*.*:4400",    // LAN HTTPS (rango 10.x.x.x)
+                "http://172.*.*.*:4400",    // LAN HTTP (rango 172.x.x.x)
+                "https://172.*.*.*:4400",   // LAN HTTPS (rango 172.x.x.x)
+                "https://*.onrender.com"    // legacy, a quitar al limpiar Render
         ));
         if (additionalAllowedOrigins != null) {
             additionalAllowedOrigins.stream()

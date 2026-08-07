@@ -12,7 +12,7 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { authInterceptor } from './interceptors/auth.interceptor';
 import { errorInterceptor } from './interceptors/error.interceptor';
 import { httpsInterceptor } from './interceptors/https.interceptor';
-import { mockRucInterceptor } from './interceptors/mock-ruc.interceptor';
+import { timeoutInterceptor } from './interceptors/timeout.interceptor';
 
 // Reducers
 import { authReducer } from './core/state/auth/auth.reducer';
@@ -48,7 +48,22 @@ export const appConfig: ApplicationConfig = {
       httpInterceptor: {
         allowedList: [
           {
-            uri: `${environment.apiUrl}/*`,
+            // Todo /api/** EXCEPTO /api/auth/**.
+            //
+            // Antes era `uri: `${apiUrl}/*``, que matcheaba también /api/auth/login. El
+            // interceptor de Auth0 llama a getTokenSilently() antes de dejar pasar la petición,
+            // y si el origen del front no está en los Allowed Web Origins del tenant, esa
+            // llamada NO resuelve: se queda esperando un iframe silencioso, tomando el
+            // browser-tabs-lock, y el login jamás sale del navegador. El formulario queda con el
+            // spinner para siempre y no se registra ni una petición HTTP.
+            //
+            // El login local con usuario y contraseña no necesita ningún token de Auth0 —el JWT
+            // lo adjunta nuestro authInterceptor—, así que hacerlo depender de Auth0 era acoplar
+            // el arranque de sesión a un servicio externo sin motivo. Con esta exclusión, que
+            // Auth0 esté lento o mal configurado ya no puede impedir entrar al sistema.
+            uriMatcher: (uri) =>
+              uri.startsWith(environment.apiUrl) &&
+              !uri.startsWith(`${environment.apiUrl}/auth/`),
             allowAnonymous: true
           }
         ]
@@ -56,7 +71,7 @@ export const appConfig: ApplicationConfig = {
       errorPath: '/login'
     }),
     provideHttpClient(
-      withInterceptors([httpsInterceptor, authInterceptor, errorInterceptor, mockRucInterceptor])
+      withInterceptors([timeoutInterceptor, httpsInterceptor, authInterceptor, errorInterceptor])
     ),
     provideStore({
       auth: authReducer,
