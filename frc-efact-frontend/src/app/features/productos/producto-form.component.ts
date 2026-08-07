@@ -100,7 +100,7 @@ import { ErrorMessageComponent } from '../../shared/components/error-message/err
               {{ unidad.label }}
             </mat-option>
           </mat-select>
-          <mat-hint>Ejemplos: UNI (unidad), KG (kilogramo), L (litro), H (hora), SERV (servicio)</mat-hint>
+          <mat-hint>Códigos oficiales de SIFEN. Se emiten tal cual en el documento electrónico.</mat-hint>
           <app-error-message [control]="form.get('unidadMedida')" />
         </mat-form-field>
 
@@ -169,21 +169,56 @@ export class ProductoFormComponent implements OnInit {
   tipoTransaccionDescripciones = TIPO_TRANSACCION_DESCRIPCIONES;
 
   // Unidades de medida comunes según SIFEN
+  /**
+   * Catálogo de unidades de medida de SIFEN (`cUniMed`), espejo de `TcUniMed` en jsifenlib.
+   *
+   * **Esta lista antes era inventada.** Ofrecía 14 opciones de las cuales solo cuatro existían en
+   * el catálogo de la SET (`UNI`, `ML`, `M2`, `M3`); las otras diez —`KG`, `G`, `L`, `M`, `H`,
+   * `SERV`, `PAR`, `CAJ`, `BOL`, `TUB`— no están en SIFEN y se terminaban emitiendo como `UNI`.
+   * Y `TN` (Tonelada), que es la unidad de venta de commodities agrícolas, ni figuraba: por eso
+   * una factura de 575,195 toneladas de maíz se emitió como unidades y con el monto truncado.
+   *
+   * ⚠️ **El `value` debe coincidir EXACTAMENTE con el nombre de la constante en `TcUniMed`,
+   * respetando mayúsculas y minúsculas.** `ML` (88) es Mililitros y `ml` (660) es Metro lineal:
+   * son unidades distintas. No aplicar `.toUpperCase()` a estos valores en ningún lado.
+   *
+   * Ordenadas por uso esperado: primero las habituales del rubro, después el resto.
+   */
   unidadesMedidaComunes = [
     { value: 'UNI', label: 'UNI - Unidad' },
-    { value: 'KG', label: 'KG - Kilogramo' },
-    { value: 'G', label: 'G - Gramo' },
-    { value: 'L', label: 'L - Litro' },
-    { value: 'ML', label: 'ML - Mililitro' },
-    { value: 'M', label: 'M - Metro' },
-    { value: 'M2', label: 'M² - Metro cuadrado' },
-    { value: 'M3', label: 'M³ - Metro cúbico' },
-    { value: 'H', label: 'H - Hora' },
-    { value: 'SERV', label: 'SERV - Servicio' },
-    { value: 'PAR', label: 'PAR - Par' },
-    { value: 'CAJ', label: 'CAJ - Caja' },
-    { value: 'BOL', label: 'BOL - Bolsa' },
-    { value: 'TUB', label: 'TUB - Tubo' }
+    { value: 'kg', label: 'kg - Kilogramos' },
+    { value: 'TN', label: 'TN - Tonelada' },
+    { value: 'LT', label: 'LT - Litros' },
+    { value: 'g', label: 'g - Gramos' },
+    { value: 'ha', label: 'ha - Hectáreas' },
+    { value: 'Hs', label: 'Hs - Hora' },
+    { value: 'Di', label: 'Di - Día' },
+    { value: 'ME', label: 'ME - Mes' },
+    { value: 'AA', label: 'AA - Año' },
+    { value: 'm', label: 'm - Metros' },
+    { value: 'M2', label: 'M2 - Metros cuadrados' },
+    { value: 'M3', label: 'M3 - Metros cúbicos' },
+    { value: 'ml', label: 'ml - Metro lineal' },
+    { value: 'Km', label: 'Km - Kilómetros' },
+    { value: 'CM', label: 'CM - Centímetros' },
+    { value: 'CM2', label: 'CM2 - Centímetros cuadrados' },
+    { value: 'CM3', label: 'CM3 - Centímetros cúbicos' },
+    { value: 'MM', label: 'MM - Milímetros' },
+    { value: 'MM2', label: 'MM2 - Milímetros cuadrados' },
+    { value: 'ML', label: 'ML - Mililitros' },
+    { value: 'MG', label: 'MG - Miligramos' },
+    { value: 'kg_m2', label: 'kg/m2 - Kilogramos sobre metro cuadrado' },
+    { value: 'PUL', label: 'PUL - Pulgadas' },
+    { value: 'Ya', label: 'Ya - Yardas' },
+    { value: 'MT', label: 'MT - Metros' },
+    { value: 'Mi', label: 'Mi - Minuto' },
+    { value: 'Se', label: 'Se - Segundo' },
+    { value: 'UI', label: 'UI - Unidad Internacional' },
+    { value: 'GL', label: 'GL - Unidad de Medida Global' },
+    { value: 'DET', label: 'DET - Determinación' },
+    { value: 'racion', label: 'ración - Ración' },
+    { value: 'CPM', label: 'CPM - Costo Por Mil' },
+    { value: 'pm', label: 'pm - Por Milaje' }
   ];
 
   constructor(
@@ -203,7 +238,9 @@ export class ProductoFormComponent implements OnInit {
     // Convertir valores existentes a mayúsculas si están presentes
     const codigoInicial = this.data.producto?.codigo ? this.data.producto.codigo.toUpperCase() : '';
     const descripcionInicial = this.data.producto?.descripcion ? this.data.producto.descripcion.toUpperCase() : '';
-    const unidadMedidaInicial = this.data.producto?.unidadMedida ? this.data.producto.unidadMedida.toUpperCase() : 'UNI';
+    // Sin .toUpperCase(): los códigos de SIFEN distinguen mayúsculas de minúsculas. Ver el
+    // comentario del valueChanges más abajo.
+    const unidadMedidaInicial = this.data.producto?.unidadMedida?.trim() || 'UNI';
 
     const productoId = this.data.producto?.id;
 
@@ -238,15 +275,18 @@ export class ProductoFormComponent implements OnInit {
       activo: [this.data.producto?.activo ?? true]
     });
 
-    // Asegurar que unidadMedida siempre esté en mayúsculas
-    this.form.get('unidadMedida')?.valueChanges.subscribe(value => {
-      if (value && typeof value === 'string') {
-        const upperValue = value.toUpperCase().trim();
-        if (value !== upperValue) {
-          this.form.get('unidadMedida')?.setValue(upperValue, { emitEvent: false });
-        }
-      }
-    });
+    // NO forzar mayúsculas en unidadMedida.
+    //
+    // Los códigos del catálogo de SIFEN distinguen mayúsculas de minúsculas, y el `.toUpperCase()`
+    // que había acá volvía INALCANZABLES a más de la mitad: kg, g, m, ml, ha, racion, pm, Hs, Km,
+    // Mi, Ya, Se y Di. Aunque el selector ofreciera "kg", se guardaba "KG" y el backend fallaba al
+    // mapearlo, emitiendo UNI.
+    //
+    // Peor todavía: ML (88) es Mililitros y ml (660) es Metro lineal. Pasar todo a mayúsculas
+    // convertía metros lineales en mililitros, en silencio y sin ningún error.
+    //
+    // El valor sale del selector, que ya ofrece solo códigos válidos, así que no hace falta
+    // normalizar nada.
 
     // Validación dinámica: si es promoción o donación, el precio puede ser 0
     this.form.get('tipoTransaccion')?.valueChanges.subscribe(tipo => {
