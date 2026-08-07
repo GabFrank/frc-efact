@@ -362,12 +362,11 @@ public class Cliente extends AuditableEntity {
         if (ruc == null || ruc.isEmpty()) {
             return null;
         }
-        // El RUC puede venir en formato "12345678-9" o solo "12345678"
-        if (ruc.contains("-")) {
-            String[] partes = ruc.split("-");
-            return partes.length > 1 ? partes[1] : null;
-        }
-        return null;
+        // El RUC puede venir en formato "12345678-9" (contribuyente) o solo "12345678"
+        // (no contribuyente, sin DV). Delega en RucParaguayo para no duplicar el parseo.
+        return com.frcefact.util.RucParaguayo.tryParse(ruc)
+                .map(com.frcefact.util.RucParaguayo::getDvComoString)
+                .orElse(null);
     }
 
     public String getNumeroCasa() {

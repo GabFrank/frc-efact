@@ -11,6 +11,7 @@ import com.frcefact.repository.EmpresaRepository;
 import com.frcefact.repository.UsuarioRepository;
 import com.frcefact.repository.UsuarioEmpresaRepository;
 import com.frcefact.util.CalcularVerificadorRuc;
+import com.frcefact.util.RucParaguayo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
@@ -37,7 +38,7 @@ public class EmpresaService {
 
     // Patrón para validar RUC paraguayo: formato XXXXXX-X, XXXXXXX-X o XXXXXXXX-X 
     // (6-8 dígitos, guión, 1 dígito verificador)
-    private static final Pattern RUC_PATTERN = Pattern.compile("^\\d{6,8}-\\d$");
+    private static final Pattern RUC_PATTERN = Pattern.compile(RucParaguayo.PATRON_CONTRIBUYENTE);
 
     private final EmpresaRepository empresaRepository;
     private final UsuarioRepository usuarioRepository;

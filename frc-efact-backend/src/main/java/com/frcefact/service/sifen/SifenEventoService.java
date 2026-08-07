@@ -9,7 +9,7 @@ import com.frcefact.service.EventoInutilizacionDEService;
 import com.frcefact.service.EventoNominacionDEService;
 import com.frcefact.service.FacturaLegalService;
 import com.frcefact.sifen.config.SifenConfigFactory;
-import com.frcefact.util.CalcularVerificadorRuc;
+import com.frcefact.util.RucParaguayo;
 import com.roshka.sifen.Sifen;
 import com.roshka.sifen.core.SifenConfig;
 import com.roshka.sifen.core.beans.EventosDE;
@@ -792,13 +792,20 @@ public class SifenEventoService {
             config.naturalezaReceptor = TiNatRec.CONTRIBUYENTE;
             // Extraer RUC sin DV
             String ruc = cliente.getRuc();
-            if (ruc.contains("-")) {
-                String[] partes = ruc.split("-");
-                config.numeroDocumento = partes[0].trim();
-                config.digitoVerificador = Short.parseShort(partes[1].trim());
+            var parsed = RucParaguayo.tryParse(ruc);
+            if (parsed.isPresent()) {
+                config.numeroDocumento = parsed.get().getBase();
+                config.digitoVerificador = parsed.get().getDvComoShort();
             } else {
+                // Sin DV declarado: se calcula. calcularDv devuelve null si la entrada es
+                // demasiado corta, en vez de colapsarla en 0 como hacía la variante vieja.
                 config.numeroDocumento = ruc.trim();
-                config.digitoVerificador = (short) CalcularVerificadorRuc.getDigitoVerificador(config.numeroDocumento);
+                Integer dv = RucParaguayo.calcularDv(config.numeroDocumento);
+                if (dv == null) {
+                    throw new IllegalArgumentException(
+                            "No se pudo derivar el dígito verificador del RUC del receptor: '" + ruc + "'");
+                }
+                config.digitoVerificador = dv.shortValue();
             }
         } else {
             config.naturalezaReceptor = TiNatRec.NO_CONTRIBUYENTE;

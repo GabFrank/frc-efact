@@ -68,6 +68,36 @@ class ClienteRucValidatorTest {
     }
 
     @Test
+    @DisplayName("Contribuyente con DV incorrecto: rechazado, no solo por el formato")
+    void contribuyenteConDvIncorrecto() {
+        // El DV correcto de 80099482 es 5. Antes esta clase solo verificaba que hubiera un guion,
+        // así que este RUC pasaba la validación y recién SIFEN lo rechazaba.
+        assertFalse(validator.isValid(cliente("PERSONA_FISICA", "80099482-1"), context),
+                "El dígito verificador tiene que verificarse, no solo la presencia del guion");
+    }
+
+    @Test
+    @DisplayName("DV incorrecto: el mensaje de error dice cuál es el DV correcto")
+    void mensajeIndicaElDvCorrecto() {
+        ReglaRucCliente.Resultado resultado = ReglaRucCliente.validar(true, "80099482-1");
+
+        assertFalse(resultado.valido());
+        assertTrue(resultado.mensaje().contains("5"),
+                "El mensaje debe indicar el DV correcto para que el error sea accionable: "
+                        + resultado.mensaje());
+    }
+
+    @Test
+    @DisplayName("DV incorrecto no lanza excepción: devuelve Resultado inválido")
+    void dvIncorrectoNoLanza() {
+        // Regresión: ReglaRucCliente.validar llamaba a RucParaguayo.parse sin try/catch. Dentro de
+        // un ConstraintValidator esa excepción escapa y se convierte en un 500 en vez del 400 con
+        // el mensaje de validación.
+        assertDoesNotThrow(() -> ReglaRucCliente.validar(true, "80099482-1"));
+        assertDoesNotThrow(() -> validator.isValid(cliente("PERSONA_FISICA", "80099482-1"), context));
+    }
+
+    @Test
     @DisplayName("Contribuyente sin RUC: rechazado")
     void contribuyenteSinRuc() {
         assertFalse(validator.isValid(cliente("PERSONA_FISICA", null), context));
