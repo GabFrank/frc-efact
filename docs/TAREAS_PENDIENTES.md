@@ -135,14 +135,58 @@ truncado envenena todos los totales. **SIFEN aprobó igual un XML internamente i
 (`dMonTiPag` = 86.279,25 sobre una operación de 86.250), o sea que no se puede contar con la SET
 para atajar esto.
 
-Además `Producto.unidadMedida` existe y el path de factura/NC **lo ignora**: solo mira el booleano
-`balanza`, que colapsa el mundo a kg o unidad. `TcUniMed.TN` (Tonelada, código 99) existe en
-jsifenlib. El path de nota de remisión (`SifenService:2353`) ya lo hace bien — factura y NC son
-las que quedaron con el código viejo.
+**Ojo con el diagnóstico fácil.** Marcar el producto como "balanza" habría evitado el truncado,
+pero por la otra rama emite `cUniMed = kg`: el DE habría declarado *«575,195 kilogramos de maíz a
+USD 150 cada uno»* — monto correcto y unidad mentida, con un precio unitario económicamente
+absurdo (el maíz vale ~USD 150 por **tonelada**). SIFEN lo aceptaría igual, porque 83 (kg) es un
+código válido de su catálogo. **Marcar balanza no es el fix.**
 
-**TODO:** alinear factura y NC con el path de NRE (honrar `unidadMedida`, no redondear la
-cantidad, `balanza` solo como fallback) y medir cuántos DE aprobados en producción tienen
-cantidad fraccionaria sobre producto sin balanza.
+### 4bis.1 🔴 La unidad de medida está desconectada del catálogo de SIFEN
+
+Verificado el 2026-08-07 contra `TcUniMed` de jsifenlib. El selector del formulario de producto
+(`producto-form.component.ts:172`) ofrece 14 opciones **inventadas**:
+
+| Opción del formulario | ¿Existe en `TcUniMed`? |
+|---|---|
+| `UNI` | ✓ 77 |
+| `ML` | ✓ 88 |
+| `M2` | ✓ 109 |
+| `M3` | ✓ 110 |
+| `KG` | ✗ el código real es `kg` (83), **minúscula** |
+| `G` | ✗ el real es `g` |
+| `L` | ✗ el real es `LT` |
+| `M` | ✗ el real es `m` |
+| `H` | ✗ el real es `Hs` |
+| `SERV` `PAR` `CAJ` `BOL` `TUB` | ✗ no existen en el catálogo de la SET |
+
+**4 de 14 son válidas.** Las otras 10 caen al `catch` y se emiten como `UNI`. Y **`TN` (Tonelada,
+código 99) no está en el selector**, que es justo la unidad de venta de commodities agrícolas.
+
+Cuatro puntos rotos que se refuerzan entre sí:
+
+1. El selector ofrece un catálogo que no es el de la SET.
+2. El formulario **fuerza mayúsculas** (`producto-form.component.ts:206,242`). Como `kg`, `g`, `m`,
+   `ml`, `ha`, `racion`, `pm`, `Hs`, `Km` son minúsculas o mixtas en el enum, esos códigos son
+   **estructuralmente inalcanzables**: aunque se agregue `kg` a la lista, se guarda `KG` y falla.
+3. Factura (`SifenService:1617`) y NC (`:2048`) **ignoran `unidadMedida`** y deciden con `balanza`.
+4. NRE (`:2353`) sí lo lee, pero con `valueOf(unidadMedida.toUpperCase())` — la misma trampa del
+   punto 2 para más de la mitad del catálogo. (Corrección: este path hace bien la *cantidad*, no
+   la *unidad*.)
+
+### 4bis.2 TODO del fix
+
+- Reemplazar el selector por el **catálogo real de SIFEN** (los 33 códigos de `TcUniMed` con su
+  descripción oficial), incluyendo `TN`.
+- **Quitar el `.toUpperCase()`** y mapear respetando el case exacto del enum.
+- Un solo helper de mapeo compartido por factura, NC y NRE. `balanza` degradado a fallback legacy
+  (para no cambiarle la unidad a productos que hoy emiten `kg`), `UNI` como último recurso.
+- Eliminar el `setScale(0)`: cap a 4 decimales, **cuidando que `stripTrailingZeros` no emita
+  notación científica** — `new BigDecimal("575.000").stripTrailingZeros()` da `5.75E+2`, y
+  jsifenlib serializa con `String.valueOf(...)`, así que eso iría tal cual al XML.
+- Migración para remapear los valores inválidos ya guardados: `KG→kg`, `G→g`, `L→LT`, `M→m`,
+  `H→Hs`. **Decisión pendiente del usuario:** `SERV`, `PAR`, `CAJ`, `BOL` y `TUB` no tienen
+  equivalente en SIFEN; la propuesta es mandarlos a `UNI` (que es lo que ya se emite hoy).
+- Medir cuántos DE aprobados en producción tienen cantidad fraccionaria sobre producto sin balanza.
 
 ### Problemas del KuDE PDF (mismo reporte)
 

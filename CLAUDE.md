@@ -183,6 +183,52 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - **Notas de crédito**: heredar moneda de la factura referenciada, motivos validados según SIFEN, fecha firma correcta, numeración propia — commits `1680341`, `21f4a89`, `7a8e215`
 - **Multi-empresa**: certificados por empresa, ver [.kiro/specs/electronic-invoicing-system/MULTI_EMPRESA_CERTIFICADOS.md](.kiro/specs/electronic-invoicing-system/MULTI_EMPRESA_CERTIFICADOS.md)
 
+### ⚠️ La regla que más caro salió: **los valores fiscales se fijan al emitir, no se derivan al leer**
+
+El proyecto pagó esta misma lección **cuatro veces**, siempre con la misma forma: un dato que se
+recalcula en tiempo de lectura a partir de una fuente que puede cambiar, en vez de guardarse en el
+documento cuando se emite. Como el DE es **inmutable en SIFEN**, cualquier deriva posterior hace
+que lo que muestra el sistema deje de coincidir con lo que la SET aprobó.
+
+| Caso | Consecuencia | Resuelto en |
+|---|---|---|
+| Actividades económicas separadas por `,` cuando las descripciones de la SET traen comas | La SET rechazaba con `1262` | `V36` |
+| `dDVEmi = ""` cuando el RUC no traía guion | DE rechazado sin explicación útil | `RucParaguayo` |
+| IVA del ítem derivado de `producto.iva` | Facturas mostradas como EXENTAS; guardar corrompía los totales | `V37` |
+| `dCantProSer` truncado con `setScale(0)` | DE emitido por USD 86.250 en vez de 86.279,25; el cliente tuvo que cancelarlo | **abierto** |
+
+**Antes de tocar cualquier campo del XML, preguntarse: ¿este valor está guardado en el documento,
+o se está reconstruyendo?** Si se reconstruye, es un bug esperando el momento.
+
+Corolario aprendido con el `1262` y repetido con el IVA: **un default silencioso en un campo fiscal
+es peor que un error**. `producto.getIva()` caía a `10`, `KudePdfService` caía a `0` (exento) y
+`dDVEmi` caía a `""`. Los tres producían documentos creíbles y equivocados. Cortar con excepción.
+
+### ⚠️ La unidad de medida NO está conectada al catálogo de SIFEN
+
+Verificado el 2026-08-07. El selector de `unidadMedida` en el formulario de producto ofrece **14
+opciones inventadas**, de las cuales **solo 4 existen en `TcUniMed`**: `UNI` (77), `ML` (88),
+`M2` (109) y `M3` (110). Las otras diez (`KG`, `G`, `L`, `M`, `H`, `SERV`, `PAR`, `CAJ`, `BOL`,
+`TUB`) no están en el catálogo de la SET y terminan emitiéndose como `UNI`.
+
+Tres trampas que se refuerzan entre sí:
+
+1. **Las constantes de `TcUniMed` no son todas mayúsculas**: `kg`, `g`, `m`, `ml`, `ha`, `racion`,
+   `pm`, `Hs`, `Km`, `Mi`, `Ya`, `Se`, `Di`. El formulario **fuerza mayúsculas**
+   (`producto-form.component.ts:206,242`), así que esos códigos son **estructuralmente
+   inalcanzables**: aunque se agregue `kg` a la lista, se guarda `KG` y `valueOf` falla.
+2. **Factura y NC ignoran `unidadMedida` por completo** (`SifenService:1617`, `:2048`): deciden con
+   el booleano `balanza`, que colapsa los 33 códigos del catálogo a kg-o-unidad.
+3. **NRE sí lo lee** (`SifenService:2353`) pero con `valueOf(unidadMedida.toUpperCase())`, que cae
+   en la trampa 1 para más de la mitad del catálogo.
+
+`TN` (Tonelada, código 99) **no figura en el selector**, y es la unidad de venta de commodities
+agrícolas — el rubro del 90% de los clientes.
+
+**No usar `balanza` para decidir la unidad ni la precisión decimal.** Ese booleano existe para
+integración con balanza física; que además defina `cUniMed` y el `setScale` es un accidente
+histórico que produjo los dos bugs de arriba.
+
 ---
 
 ## Documentación adicional
