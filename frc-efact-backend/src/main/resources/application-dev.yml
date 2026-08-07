@@ -4,7 +4,11 @@ spring:
     # Puerto 5551 para desarrollo local
     # Nota: La base de datos debe existir previamente. PostgreSQL no la crea automáticamente.
     # Para crearla, ejecuta: psql -h localhost -p 5551 -U postgres -c "CREATE DATABASE frc_efact_dev;"
-    url: jdbc:postgresql://172.25.0.36:5551/frc_efact_dev
+    # El default es la instancia de la LAN. Se puede sobreescribir con DATABASE_URL, que es lo
+    # que hace el CI para apuntar al contenedor de PostgreSQL del job: sin eso, esta IP privada
+    # no es ruteable desde un runner de GitHub y Flyway agota el connection-timeout tres veces
+    # antes de fallar.
+    url: ${DATABASE_URL:jdbc:postgresql://172.25.0.36:5551/frc_efact_dev}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver

@@ -62,7 +62,32 @@ jobs:
     # BLOQUEANTE desde el 2026-08-06. Antes tenía `continue-on-error` porque fallaban 6 tests
     # de validación de RUC, atribuidos a un bug del algoritmo de dígito verificador. Resultó
     # que el algoritmo era correcto y las expectativas de los tests estaban inventadas — ver
-    # el javadoc de RucCalculatorTest. Corregidos los tests, los 34 pasan y el job protege.
+    # el javadoc de RucCalculatorTest.
+    #
+    # El job necesita PostgreSQL porque `FrcEfactBackendApplicationTests` es un @SpringBootTest
+    # sin @ActiveProfiles, así que hereda `spring.profiles.active: dev` de application.yml y
+    # levanta el contexto completo contra una base real. Sin el servicio de abajo, ese test
+    # apuntaba a la IP de LAN del perfil dev, que no es ruteable desde un runner.
+    #
+    # Que corra contra PostgreSQL de verdad y no contra H2 es a propósito: H2 no soporta las
+    # funciones trigger PL/pgSQL ni los esquemas y JSONB que usan las migraciones. Así este job
+    # verifica de paso que las 36 migraciones Flyway aplican limpias desde cero y que
+    # `ddl-auto: validate` coincide con todas las entidades — el gate más valioso disponible
+    # para un proyecto donde una migración mal hecha es el riesgo número uno.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: frc_efact_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -99,6 +124,10 @@ jobs:
 
       - name: Tests
         working-directory: frc-efact-backend
+        env:
+          DATABASE_URL: jdbc:postgresql://localhost:5432/frc_efact_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
         run: ./mvnw -B -ntp test
 
       - name: Publicar reportes
