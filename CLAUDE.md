@@ -195,7 +195,7 @@ que lo que muestra el sistema deje de coincidir con lo que la SET aprobó.
 | Actividades económicas separadas por `,` cuando las descripciones de la SET traen comas | La SET rechazaba con `1262` | `V36` |
 | `dDVEmi = ""` cuando el RUC no traía guion | DE rechazado sin explicación útil | `RucParaguayo` |
 | IVA del ítem derivado de `producto.iva` | Facturas mostradas como EXENTAS; guardar corrompía los totales | `V37` |
-| `dCantProSer` truncado con `setScale(0)` | DE emitido por USD 86.250 en vez de 86.279,25; el cliente tuvo que cancelarlo | **abierto** |
+| `dCantProSer` truncado con `setScale(0)` | DE emitido por USD 86.250 en vez de 86.279,25; el cliente tuvo que cancelarlo | `CantidadSifen` |
 
 **Antes de tocar cualquier campo del XML, preguntarse: ¿este valor está guardado en el documento,
 o se está reconstruyendo?** Si se reconstruye, es un bug esperando el momento.
@@ -204,30 +204,26 @@ Corolario aprendido con el `1262` y repetido con el IVA: **un default silencioso
 es peor que un error**. `producto.getIva()` caía a `10`, `KudePdfService` caía a `0` (exento) y
 `dDVEmi` caía a `""`. Los tres producían documentos creíbles y equivocados. Cortar con excepción.
 
-### ⚠️ La unidad de medida NO está conectada al catálogo de SIFEN
+### ⚠️ Unidad de medida: usar siempre `UnidadMedidaSifen`, nunca `balanza`
 
-Verificado el 2026-08-07. El selector de `unidadMedida` en el formulario de producto ofrece **14
-opciones inventadas**, de las cuales **solo 4 existen en `TcUniMed`**: `UNI` (77), `ML` (88),
-`M2` (109) y `M3` (110). Las otras diez (`KG`, `G`, `L`, `M`, `H`, `SERV`, `PAR`, `CAJ`, `BOL`,
-`TUB`) no están en el catálogo de la SET y terminan emitiéndose como `UNI`.
+**El case de los códigos de SIFEN es significativo.** `ML` (88) es *Mililitros* y `ml` (660) es
+*Metro lineal*: unidades distintas que solo difieren en mayúsculas. **Nunca aplicar `.toUpperCase()`
+ni matcheo case-insensitive** a una unidad de medida — convierte metros lineales en mililitros en
+silencio. Además `kg_m2` vale `"kg/m2"` y `racion` vale `"ración"`, o sea que el nombre de la
+constante no siempre es el código.
 
-Tres trampas que se refuerzan entre sí:
+Toda resolución de `cUniMed` pasa por
+[`UnidadMedidaSifen`](frc-efact-backend/src/main/java/com/frcefact/sifen/util/UnidadMedidaSifen.java),
+y toda normalización de `dCantProSer` por
+[`CantidadSifen`](frc-efact-backend/src/main/java/com/frcefact/sifen/util/CantidadSifen.java).
+**No usar `Producto.balanza` para decidir la unidad ni la precisión decimal**: ese booleano existe
+para integración con balanza física, y que además definiera `cUniMed` y el `setScale` fue el
+accidente histórico que causó el DE mal emitido de la tabla de arriba. Sigue disponible solo como
+fallback dentro del helper, para no cambiarle la unidad a productos viejos sin `unidadMedida`.
 
-1. **Las constantes de `TcUniMed` no son todas mayúsculas**: `kg`, `g`, `m`, `ml`, `ha`, `racion`,
-   `pm`, `Hs`, `Km`, `Mi`, `Ya`, `Se`, `Di`. El formulario **fuerza mayúsculas**
-   (`producto-form.component.ts:206,242`), así que esos códigos son **estructuralmente
-   inalcanzables**: aunque se agregue `kg` a la lista, se guarda `KG` y `valueOf` falla.
-2. **Factura y NC ignoran `unidadMedida` por completo** (`SifenService:1617`, `:2048`): deciden con
-   el booleano `balanza`, que colapsa los 33 códigos del catálogo a kg-o-unidad.
-3. **NRE sí lo lee** (`SifenService:2353`) pero con `valueOf(unidadMedida.toUpperCase())`, que cae
-   en la trampa 1 para más de la mitad del catálogo.
-
-`TN` (Tonelada, código 99) **no figura en el selector**, y es la unidad de venta de commodities
-agrícolas — el rubro del 90% de los clientes.
-
-**No usar `balanza` para decidir la unidad ni la precisión decimal.** Ese booleano existe para
-integración con balanza física; que además defina `cUniMed` y el `setScale` es un accidente
-histórico que produjo los dos bugs de arriba.
+Corregido el 2026-08-07 (V38). Antes: el selector ofrecía 14 opciones inventadas de las cuales solo
+4 existían en el catálogo, el formulario forzaba mayúsculas volviendo inalcanzable la mitad de los
+códigos, factura y NC ignoraban `unidadMedida`, y NRE la leía con `valueOf(toUpperCase())`.
 
 ---
 

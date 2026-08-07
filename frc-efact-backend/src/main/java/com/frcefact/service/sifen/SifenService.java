@@ -28,8 +28,10 @@ import com.frcefact.sifen.util.SifenResponseParser;
 import com.frcefact.sifen.util.SifenResponseParser.DocumentResult;
 import com.frcefact.sifen.util.SifenResponseParser.EventResult;
 import com.frcefact.service.XmlGeneratorService;
+import com.frcefact.sifen.util.CantidadSifen;
 import com.frcefact.sifen.util.SifenDocumentoLogger;
 import com.frcefact.sifen.util.SifenTotalsHelper;
+import com.frcefact.sifen.util.UnidadMedidaSifen;
 import com.frcefact.model.FacturaLegalItem;
 import com.frcefact.model.NotaCreditoItem;
 import com.frcefact.model.NotaRemisionItem;
@@ -1610,19 +1612,17 @@ public class SifenService {
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
 
-            // Determinar unidad de medida y cantidad según producto
+            // Unidad de medida y cantidad. Antes esto se decidía con el booleano `balanza`, que
+            // colapsaba los 34 códigos del catálogo de la SET a kg-o-unidad e ignoraba
+            // `Producto.unidadMedida`, y de paso truncaba la cantidad a entero con setScale(0).
+            // Ver UnidadMedidaSifen y CantidadSifen para el detalle de lo que cada cosa rompía.
             Producto producto = item.getProducto();
-            BigDecimal cantidad;
-            
-            if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
-                gCamItem.setcUniMed(TcUniMed.kg);
-                cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP);
-            } else {
-                gCamItem.setcUniMed(TcUniMed.UNI);
-                cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);
-            }
-            gCamItem.setdCantProSer(cantidad);
-            
+
+            gCamItem.setcUniMed(UnidadMedidaSifen.resolver(
+                    producto != null ? producto.getUnidadMedida() : null,
+                    producto != null ? producto.getBalanza() : null));
+            gCamItem.setdCantProSer(CantidadSifen.normalizar(item.getCantidad()));
+
             TgValorItem gValorItem = new TgValorItem();
             
             // IMPORTANTE: Si la factura tiene moneda extranjera, los precios de los items están en guaraníes
@@ -2056,18 +2056,14 @@ public class SifenService {
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
 
+            // Misma resolución que en la factura: catálogo real de SIFEN y cantidad sin truncar.
             Producto producto = item.getProducto();
-            BigDecimal cantidad;
-            
-            if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
-                gCamItem.setcUniMed(TcUniMed.kg);
-                cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP);
-            } else {
-                gCamItem.setcUniMed(TcUniMed.UNI);
-                cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);
-            }
-            gCamItem.setdCantProSer(cantidad);
-            
+
+            gCamItem.setcUniMed(UnidadMedidaSifen.resolver(
+                    producto != null ? producto.getUnidadMedida() : null,
+                    producto != null ? producto.getBalanza() : null));
+            gCamItem.setdCantProSer(CantidadSifen.normalizar(item.getCantidad()));
+
             TgValorItem gValorItem = new TgValorItem();
             
             BigDecimal precioUnitario;
@@ -2360,31 +2356,22 @@ public class SifenService {
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
 
+            // La NRE guarda su propia unidad de medida en el ítem; si no la trae, se cae a la del
+            // producto. Antes esto usaba `TcUniMed.valueOf(unidadMedida.toUpperCase())`, que
+            // rompía para más de la mitad del catálogo: las constantes kg, g, m, ml, ha, racion,
+            // pm, Hs, Km, Mi, Ya, Se y Di son minúsculas o mixtas. Peor todavía, ML (88) es
+            // Mililitros y ml (660) es Metro lineal — el toUpperCase convertía metros lineales en
+            // mililitros en silencio.
             Producto producto = item.getProducto();
-            BigDecimal cantidad;
-            
-            // Determinar unidad de medida y cantidad
-            String unidadMedida = item.getUnidadMedida();
-            if (unidadMedida != null && !unidadMedida.isBlank()) {
-                try {
-                    // Intentar mapear a enum TcUniMed
-                    TcUniMed uniMed = TcUniMed.valueOf(unidadMedida.toUpperCase());
-                    gCamItem.setcUniMed(uniMed);
-                } catch (IllegalArgumentException e) {
-                    // Si no se puede mapear, usar UNI por defecto
-                    log.warn("⚠️ Unidad de medida '{}' no reconocida, usando UNI por defecto", unidadMedida);
-                    gCamItem.setcUniMed(TcUniMed.UNI);
-                }
-                cantidad = item.getCantidad();
-            } else if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
-                gCamItem.setcUniMed(TcUniMed.kg);
-                cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP);
-            } else {
-                gCamItem.setcUniMed(TcUniMed.UNI);
-                cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);
-            }
-            
-            gCamItem.setdCantProSer(cantidad);
+
+            String unidadMedida = item.getUnidadMedida() != null && !item.getUnidadMedida().isBlank()
+                    ? item.getUnidadMedida()
+                    : (producto != null ? producto.getUnidadMedida() : null);
+
+            gCamItem.setcUniMed(UnidadMedidaSifen.resolver(
+                    unidadMedida,
+                    producto != null ? producto.getBalanza() : null));
+            gCamItem.setdCantProSer(CantidadSifen.normalizar(item.getCantidad()));
 
             // CRÍTICO: NO incluir gValorItem (E720) - NRE no tiene precios
             // CRÍTICO: NO incluir gCamIVA (E730) - NRE no tiene IVA

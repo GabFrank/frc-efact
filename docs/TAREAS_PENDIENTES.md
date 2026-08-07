@@ -173,20 +173,28 @@ Cuatro puntos rotos que se refuerzan entre sí:
    punto 2 para más de la mitad del catálogo. (Corrección: este path hace bien la *cantidad*, no
    la *unidad*.)
 
-### 4bis.2 TODO del fix
+### 4bis.2 ✅ Resuelto (2026-08-07)
 
-- Reemplazar el selector por el **catálogo real de SIFEN** (los 33 códigos de `TcUniMed` con su
-  descripción oficial), incluyendo `TN`.
-- **Quitar el `.toUpperCase()`** y mapear respetando el case exacto del enum.
-- Un solo helper de mapeo compartido por factura, NC y NRE. `balanza` degradado a fallback legacy
-  (para no cambiarle la unidad a productos que hoy emiten `kg`), `UNI` como último recurso.
-- Eliminar el `setScale(0)`: cap a 4 decimales, **cuidando que `stripTrailingZeros` no emita
-  notación científica** — `new BigDecimal("575.000").stripTrailingZeros()` da `5.75E+2`, y
-  jsifenlib serializa con `String.valueOf(...)`, así que eso iría tal cual al XML.
-- Migración para remapear los valores inválidos ya guardados: `KG→kg`, `G→g`, `L→LT`, `M→m`,
-  `H→Hs`. **Decisión pendiente del usuario:** `SERV`, `PAR`, `CAJ`, `BOL` y `TUB` no tienen
-  equivalente en SIFEN; la propuesta es mandarlos a `UNI` (que es lo que ya se emite hoy).
-- Medir cuántos DE aprobados en producción tienen cantidad fraccionaria sobre producto sin balanza.
+- Selector reemplazado por el **catálogo real de SIFEN**: las 34 constantes de `TcUniMed` con su
+  descripción oficial, incluyendo `TN`. Verificado código por código contra el enum.
+- **`.toUpperCase()` eliminado** del formulario, y el mapeo respeta el case exacto.
+- Helper único `UnidadMedidaSifen` compartido por factura, NC y NRE. Resuelve por nombre de
+  constante, por abreviatura (`kg/m2`, `ración`), por alias legacy, y recién ahí cae a `balanza` y
+  a `UNI`. **Sin matcheo case-insensitive**, porque `ML` (88, Mililitros) y `ml` (660, Metro
+  lineal) son unidades distintas.
+- `setScale(0)` eliminado. `CantidadSifen` acota a los 4 decimales del XSD y evita la notación
+  científica de `stripTrailingZeros()`, que habría roto el XML.
+- `V38` remapea los valores guardados: `KG→kg`, `G→g`, `L→LT`, `M→m`, `H→Hs`, y
+  `SERV`/`PAR`/`CAJ`/`BOL`/`TUB` → `UNI` (que es lo que ya se emitía para ellos). Lo que queda
+  fuera del catálogo se reporta por log sin tocarlo.
+
+18 tests nuevos, incluido el caso exacto de producción (575,195 × 150 = 86.279,25).
+
+### 4bis.3 ⏳ Pendiente
+
+Medir cuántos DE **ya aprobados en producción** tienen cantidad fraccionaria sobre producto sin
+balanza. El fix corrige las emisiones futuras, pero no dice cuántos documentos viejos salieron con
+el monto truncado. Requiere consultar la base de producción.
 
 ### Problemas del KuDE PDF (mismo reporte)
 
