@@ -166,7 +166,7 @@ case $COMMAND in
     echo "  ./dev.sh build-prod   # Compilar para producción"
     echo ""
     echo "URLs útiles:"
-    echo "  Desarrollo: http://localhost:4200"
+    echo "  Desarrollo: http://localhost:4400"
     echo "  Backend API: http://localhost:8080/api"
     ;;
 esac

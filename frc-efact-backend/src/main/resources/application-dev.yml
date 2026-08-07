@@ -67,16 +67,23 @@ logging:
 # CORS Configuration for Development
 cors:
   allowed-origins:
-    - http://localhost:4200
-    - https://localhost:4200
+    - http://localhost:4400
+    - https://localhost:4400
 
 # Certificates Configuration for Development
 certificates:
   upload-dir: ${CERTIFICATES_DIR:./certificates}  # Directorio relativo para desarrollo
 
+# SIFEN en desarrollo: APAGADO y apuntando al ambiente de prueba.
+# Antes esto decía `enabled: true` / `ambiente: PROD`. Combinado con una base clonada de
+# producción y los .pfx en ./certificates, correr ./dev.sh podía emitir documentos fiscales
+# REALES contra SIFEN producción. El default de un perfil de desarrollo tiene que ser seguro.
+# Para probar contra el ambiente de prueba de la SET, subir `enabled` a true dejando
+# `ambiente: TEST`, y verificar que empresa.sifen_ambiente también sea TEST — SifenConfigFactory
+# resuelve el endpoint por empresa, no por esta propiedad.
 sifen:
-  enabled: true
-  ambiente: PROD
+  enabled: false
+  ambiente: TEST
   scheduler:
     enabled: false
 
