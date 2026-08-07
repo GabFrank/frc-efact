@@ -45,4 +45,14 @@ export interface FacturaLegalItem {
   descripcion: string;
   precioUnitario: number;
   total: number;
+  /**
+   * Tasa de IVA del ítem: 0, 5 o 10. Viene del backend, que la tiene persistida desde que se
+   * emitió la factura.
+   *
+   * NO resolverla contra el catálogo de productos. Se hacía así, y como el formulario solo carga
+   * los primeros 20 productos de la empresa, un ítem cuyo producto quedaba fuera de esa página se
+   * mostraba con IVA 0 y la factura entera aparecía como exenta — y guardar desde esa pantalla
+   * sobreescribía los totales correctos de la cabecera con ceros.
+   */
+  iva: number;
 }

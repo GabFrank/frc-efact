@@ -301,8 +301,18 @@ export class FacturaItemDialogComponent implements OnInit {
     if (descuento !== undefined && descuento !== null) {
       item.descuento = descuentoGs;
     }
+    // El IVA sale del selector cuando el diálogo lo muestra (notas de crédito/débito). Cuando no
+    // —el caso de la factura, que no pasa `showIva`— se toma del producto elegido.
+    //
+    // En los dos casos el ítem SIEMPRE se devuelve con `iva`. Antes, con `showIva` en false, el
+    // campo simplemente no viajaba y el formulario de factura lo reconstruía después buscando el
+    // producto en su lista cargada, que solo tiene la primera página del catálogo. De ahí venía
+    // que facturas enteras se mostraran como exentas.
     if (iva !== undefined && iva !== null) {
       item.iva = iva;
+    } else {
+      const producto = this.data.productos.find(p => p.id === productoId);
+      item.iva = producto?.iva ?? null;
     }
 
     this.dialogRef.close(item);
