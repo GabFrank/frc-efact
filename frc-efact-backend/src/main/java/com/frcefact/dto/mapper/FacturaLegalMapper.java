@@ -209,6 +209,7 @@ public class FacturaLegalMapper {
         dto.setDescripcion(item.getDescripcion());
         dto.setPrecioUnitario(item.getPrecioUnitario());
         dto.setTotal(item.getTotal());
+        dto.setIva(item.getIva());
 
         return dto;
     }
@@ -228,6 +229,9 @@ public class FacturaLegalMapper {
         item.setDescripcion(dto.getDescripcion());
         item.setPrecioUnitario(dto.getPrecioUnitario());
         item.setTotal(dto.getTotal());
+        // Si el cliente no lo manda, lo resuelve el servicio contra el producto: la entidad no
+        // puede quedar con el default silencioso de 10 sin que nadie lo haya decidido.
+        item.setIva(dto.getIva());
 
         if (dto.getProductoId() != null) {
             Producto producto = new Producto();

@@ -1649,7 +1649,21 @@ public class SifenService {
 
             // IVA
             TgCamIVA gCamIVA = new TgCamIVA();
-            Integer iva = (producto != null && producto.getIva() != null) ? producto.getIva() : 10;
+            // La tasa se lee del ÍTEM, no del producto. El ítem la tiene fijada desde que se creó
+            // la factura (ver V37), así que emitir un DE hoy y regenerar su KuDE el año que viene
+            // dan el mismo resultado aunque el catálogo haya cambiado de tasa en el medio.
+            //
+            // Antes esto decía `producto.getIva()` con un fallback silencioso a 10: si el producto
+            // venía null, el DE salía gravado al 10% sin que nada lo advirtiera. El path de nota de
+            // crédito (más abajo, en construirDEDesdeNotaCredito) siempre leyó el del ítem — la
+            // factura era la excepción.
+            Integer iva = item.getIva();
+            if (iva == null) {
+                throw new BusinessException(
+                        "El ítem '" + item.getDescripcion() + "' de la factura "
+                                + factura.getNumeroFacturaFormateado() + " no tiene tasa de IVA "
+                                + "registrada. No se puede emitir el DE sin ese dato.");
+            }
             
             switch (iva) {
                 case 5:

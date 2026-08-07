@@ -142,12 +142,14 @@ public class FacturaLegalService {
                         .orElseThrow(() -> new EntityNotFoundException(
                                 "Producto no encontrado con ID: " + item.getProducto().getId()));
                 item.setProducto(producto);
-                
+
                 // Usar descripción del producto si no se especificó
                 if (item.getDescripcion() == null || item.getDescripcion().isEmpty()) {
                     item.setDescripcion(producto.getDescripcion());
                 }
             }
+
+            resolverIva(item);
             
             // IMPORTANTE: NO recalcular el total del item si ya viene del DTO
             // El total del item ya debe estar en guaraníes desde el frontend
@@ -267,6 +269,8 @@ public class FacturaLegalService {
                 item.setDescripcion(producto.getDescripcion());
             }
         }
+
+        resolverIva(item);
 
         // Calcular total del item
         item.calcularTotal();
@@ -519,6 +523,36 @@ public class FacturaLegalService {
 
         logger.info("Factura desactivada: {} - Número: {}",
                 factura.getId(), factura.getNumeroFacturaFormateado());
+    }
+
+    /**
+     * Fija la tasa de IVA del ítem, tomándola del producto solo si el cliente no la declaró.
+     *
+     * <p>Este es el único momento en que la tasa se lee del catálogo: al crear el ítem. Después
+     * queda persistida y nadie más la deriva — ni el frontend al mostrar la factura ni
+     * {@code SifenService} al emitir el DE. La tasa pertenece al hecho imponible del día de la
+     * emisión, así que si el producto cambia de 5% a 10% el año que viene, esta factura tiene que
+     * seguir reflejando lo que SIFEN aprobó.
+     *
+     * <p>Cuando no hay ni tasa declarada ni producto del cual tomarla, se corta con un error en vez
+     * de dejar actuar el default de la entidad. Ese default silencioso de 10 es exactamente cómo
+     * {@code SifenService} venía emitiendo con la tasa equivocada sin que nadie se enterara.
+     */
+    private void resolverIva(FacturaLegalItem item) {
+        if (item.getIva() != null) {
+            return;
+        }
+
+        Producto producto = item.getProducto();
+        if (producto != null && producto.getIva() != null) {
+            item.setIva(producto.getIva());
+            return;
+        }
+
+        throw new IllegalArgumentException(
+                "No se puede determinar el IVA del ítem '" + item.getDescripcion() + "': no vino en "
+                        + "la petición y el ítem no tiene un producto del cual tomarlo. Declarar la "
+                        + "tasa explícitamente (0, 5 o 10).");
     }
 
     private void inicializarRelacionesFactura(FacturaLegal factura) {
