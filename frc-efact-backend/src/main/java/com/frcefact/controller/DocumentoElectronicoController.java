@@ -5,6 +5,10 @@ import com.frcefact.dto.mapper.DocumentoElectronicoMapper;
 import com.frcefact.model.DocumentoElectronico;
 import com.frcefact.model.EstadoDE;
 import com.frcefact.service.DocumentoElectronicoService;
+import com.frcefact.service.EmpresaSecurityService;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,12 +38,36 @@ public class DocumentoElectronicoController {
 
     private final DocumentoElectronicoService documentoElectronicoService;
     private final DocumentoElectronicoMapper documentoElectronicoMapper;
+    private final EmpresaSecurityService empresaSecurityService;
 
     public DocumentoElectronicoController(
             DocumentoElectronicoService documentoElectronicoService,
-            DocumentoElectronicoMapper documentoElectronicoMapper) {
+            DocumentoElectronicoMapper documentoElectronicoMapper,
+            EmpresaSecurityService empresaSecurityService) {
         this.documentoElectronicoService = documentoElectronicoService;
         this.documentoElectronicoMapper = documentoElectronicoMapper;
+        this.empresaSecurityService = empresaSecurityService;
+    }
+
+    /**
+     * Verifica que el usuario pueda leer los DE de la empresa dueña del documento.
+     *
+     * <p>Sin esto, cualquier usuario con rol LECTOR de una empresa leía el DE de otra con solo
+     * conocer el id o el CDC, y el CDC no es secreto: va impreso en el KuDE y en el QR.
+     * Un DE sin documento asociado no tiene empresa resoluble: solo lo ve ADMIN.
+     */
+    private void verificarAccesoLectura(DocumentoElectronico de) {
+        Long empresaId = documentoElectronicoService.obtenerEmpresaId(de.getId()).orElse(null);
+        if (empresaId != null) {
+            empresaSecurityService.verificarAccesoLectura(empresaId);
+            return;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean esAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        if (!esAdmin) {
+            throw new AccessDeniedException("No tiene permisos para ver este documento electrónico");
+        }
     }
 
     /**
@@ -82,6 +110,7 @@ public class DocumentoElectronicoController {
         log.debug("🔍 Obteniendo documento electrónico ID: {}", id);
         
         DocumentoElectronico de = documentoElectronicoService.findById(id);
+        verificarAccesoLectura(de);
         DocumentoElectronicoDto dto = documentoElectronicoMapper.toDto(de);
         
         return ResponseEntity.ok(dto);
@@ -102,6 +131,7 @@ public class DocumentoElectronicoController {
         log.debug("🔍 Obteniendo documento electrónico con CDC: {}", cdc);
         
         DocumentoElectronico de = documentoElectronicoService.findByCdc(cdc);
+        verificarAccesoLectura(de);
         DocumentoElectronicoDto dto = documentoElectronicoMapper.toDto(de);
         
         return ResponseEntity.ok(dto);
@@ -123,15 +153,17 @@ public class DocumentoElectronicoController {
             @RequestParam(defaultValue = "firmado") String tipo) {
         
         log.debug("📥 Descargando XML {} de DE ID: {}", tipo, id);
-        
+
+        DocumentoElectronico de = documentoElectronicoService.findById(id);
+        verificarAccesoLectura(de);
+
         String xml;
         if ("original".equalsIgnoreCase(tipo)) {
             xml = documentoElectronicoService.obtenerXmlOriginal(id);
         } else {
             xml = documentoElectronicoService.obtenerXmlFirmado(id);
         }
-        
-        DocumentoElectronico de = documentoElectronicoService.findById(id);
+
         String filename = String.format("DE_%s_%s.xml", de.getCdc(), tipo);
         
         HttpHeaders headers = new HttpHeaders();
@@ -155,7 +187,8 @@ public class DocumentoElectronicoController {
             @PathVariable Long id) {
         
         log.info("🔍 Consultando estado en SIFEN de DE ID: {}", id);
-        
+
+        verificarAccesoLectura(documentoElectronicoService.findById(id));
         DocumentoElectronico de = documentoElectronicoService.consultarYActualizarEstado(id);
         DocumentoElectronicoDto dto = documentoElectronicoMapper.toDto(de);
         

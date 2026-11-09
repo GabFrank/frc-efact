@@ -188,6 +188,12 @@ public class DocumentoElectronicoService {
                 .orElseThrow(() -> new BusinessException("Documento electrónico no encontrado: " + id));
     }
 
+    /** Empresa dueña del DE (vía su factura o nota). Vacío si el DE no tiene documento asociado. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<Long> obtenerEmpresaId(Long documentoElectronicoId) {
+        return documentoElectronicoRepository.findEmpresaIdByDocumentoId(documentoElectronicoId);
+    }
+
     /**
      * Busca un documento electrónico por CDC.
      * 
