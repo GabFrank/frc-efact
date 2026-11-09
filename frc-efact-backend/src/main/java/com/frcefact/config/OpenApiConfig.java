@@ -57,6 +57,12 @@ public class OpenApiConfig {
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
-                                        .description("Ingrese el token JWT obtenido del endpoint /auth/login")));
+                                        .description("Ingrese el token JWT obtenido del endpoint /auth/login"))
+                        .addSecuritySchemes("apiKey",
+                                new SecurityScheme()
+                                        .name("X-API-Key")
+                                        .type(SecurityScheme.Type.APIKEY)
+                                        .in(SecurityScheme.In.HEADER)
+                                        .description("API key de la cuenta de servicio (solo /v1/integracion/**)")));
     }
 }

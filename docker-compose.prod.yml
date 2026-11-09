@@ -66,6 +66,10 @@ services:
       SIFEN_ENABLED: ${SIFEN_ENABLED:-false}
       SIFEN_AMBIENTE: ${SIFEN_AMBIENTE:-TEST}
       SIFEN_SCHEDULER_ENABLED: ${SIFEN_SCHEDULER_ENABLED:-false}
+      # API de integración (/v1/integracion). Empresa cuyo certificado consulta SIFEN para
+      # cuentas de servicio sin empresa propia; vacío = el modo consultor responde 503.
+      INTEGRACION_EMPRESA_PLATAFORMA_ID: ${INTEGRACION_EMPRESA_PLATAFORMA_ID:-}
+      INTEGRACION_RATE_LIMIT_POR_MINUTO: ${INTEGRACION_RATE_LIMIT_POR_MINUTO:-60}
     volumes:
       - certificates:/app/certificates
       - backend_logs:/app/logs
