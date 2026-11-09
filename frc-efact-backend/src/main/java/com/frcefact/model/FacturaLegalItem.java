@@ -53,6 +53,22 @@ public class FacturaLegalItem {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal total;
 
+    /**
+     * Tasa de IVA del ítem, fijada al emitir la factura.
+     *
+     * <p><b>No derivar de {@code producto.getIva()}.</b> La tasa es un dato del hecho imponible en
+     * el momento de la emisión, no una propiedad viva del catálogo: si mañana el producto cambia de
+     * 5% a 10%, esta factura tiene que seguir reflejando lo que SIFEN aprobó. Es la misma razón por
+     * la que {@code descripcion} y {@code precioUnitario} ya se snapshotean acá.
+     *
+     * <p>Antes esta columna no existía y la tasa se resolvía leyendo el catálogo, lo que causó que
+     * facturas enteras se mostraran como exentas cuando el producto no estaba en la página de
+     * productos cargada por el formulario. Ver la V37 para el detalle y el backfill.
+     */
+    @NotNull(message = "IVA es requerido")
+    @Column(nullable = false)
+    private Integer iva = 10; // 0, 5, 10
+
     @Column(name = "creado_en", nullable = false, updatable = false)
     private LocalDateTime creadoEn;
 
@@ -169,6 +185,14 @@ public class FacturaLegalItem {
 
     public void setTotal(BigDecimal total) {
         this.total = total;
+    }
+
+    public Integer getIva() {
+        return iva;
+    }
+
+    public void setIva(Integer iva) {
+        this.iva = iva;
     }
 
     public LocalDateTime getCreadoEn() {

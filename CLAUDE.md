@@ -183,6 +183,48 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - **Notas de crédito**: heredar moneda de la factura referenciada, motivos validados según SIFEN, fecha firma correcta, numeración propia — commits `1680341`, `21f4a89`, `7a8e215`
 - **Multi-empresa**: certificados por empresa, ver [.kiro/specs/electronic-invoicing-system/MULTI_EMPRESA_CERTIFICADOS.md](.kiro/specs/electronic-invoicing-system/MULTI_EMPRESA_CERTIFICADOS.md)
 
+### ⚠️ La regla que más caro salió: **los valores fiscales se fijan al emitir, no se derivan al leer**
+
+El proyecto pagó esta misma lección **cuatro veces**, siempre con la misma forma: un dato que se
+recalcula en tiempo de lectura a partir de una fuente que puede cambiar, en vez de guardarse en el
+documento cuando se emite. Como el DE es **inmutable en SIFEN**, cualquier deriva posterior hace
+que lo que muestra el sistema deje de coincidir con lo que la SET aprobó.
+
+| Caso | Consecuencia | Resuelto en |
+|---|---|---|
+| Actividades económicas separadas por `,` cuando las descripciones de la SET traen comas | La SET rechazaba con `1262` | `V36` |
+| `dDVEmi = ""` cuando el RUC no traía guion | DE rechazado sin explicación útil | `RucParaguayo` |
+| IVA del ítem derivado de `producto.iva` | Facturas mostradas como EXENTAS; guardar corrompía los totales | `V37` |
+| `dCantProSer` truncado con `setScale(0)` | DE emitido por USD 86.250 en vez de 86.279,25; el cliente tuvo que cancelarlo | `CantidadSifen` |
+
+**Antes de tocar cualquier campo del XML, preguntarse: ¿este valor está guardado en el documento,
+o se está reconstruyendo?** Si se reconstruye, es un bug esperando el momento.
+
+Corolario aprendido con el `1262` y repetido con el IVA: **un default silencioso en un campo fiscal
+es peor que un error**. `producto.getIva()` caía a `10`, `KudePdfService` caía a `0` (exento) y
+`dDVEmi` caía a `""`. Los tres producían documentos creíbles y equivocados. Cortar con excepción.
+
+### ⚠️ Unidad de medida: usar siempre `UnidadMedidaSifen`, nunca `balanza`
+
+**El case de los códigos de SIFEN es significativo.** `ML` (88) es *Mililitros* y `ml` (660) es
+*Metro lineal*: unidades distintas que solo difieren en mayúsculas. **Nunca aplicar `.toUpperCase()`
+ni matcheo case-insensitive** a una unidad de medida — convierte metros lineales en mililitros en
+silencio. Además `kg_m2` vale `"kg/m2"` y `racion` vale `"ración"`, o sea que el nombre de la
+constante no siempre es el código.
+
+Toda resolución de `cUniMed` pasa por
+[`UnidadMedidaSifen`](frc-efact-backend/src/main/java/com/frcefact/sifen/util/UnidadMedidaSifen.java),
+y toda normalización de `dCantProSer` por
+[`CantidadSifen`](frc-efact-backend/src/main/java/com/frcefact/sifen/util/CantidadSifen.java).
+**No usar `Producto.balanza` para decidir la unidad ni la precisión decimal**: ese booleano existe
+para integración con balanza física, y que además definiera `cUniMed` y el `setScale` fue el
+accidente histórico que causó el DE mal emitido de la tabla de arriba. Sigue disponible solo como
+fallback dentro del helper, para no cambiarle la unidad a productos viejos sin `unidadMedida`.
+
+Corregido el 2026-08-07 (V38). Antes: el selector ofrecía 14 opciones inventadas de las cuales solo
+4 existían en el catálogo, el formulario forzaba mayúsculas volviendo inalcanzable la mitad de los
+códigos, factura y NC ignoraban `unidadMedida`, y NRE la leía con `valueOf(toUpperCase())`.
+
 ---
 
 ## Documentación adicional

@@ -341,15 +341,18 @@ public class KudePdfService {
             Map<String, Object> itemData = new HashMap<>();
             itemData.put("id", item.getId());
             
+            // La tasa sale del ítem, que la tiene fijada desde la emisión (ver V37). Antes se leía
+            // de `producto.getIva()` con fallback a 0: un producto borrado o no cargado hacía que el
+            // KuDE mostrara el ítem como EXENTO, contradiciendo el XML que SIFEN ya había aprobado.
+            itemData.put("iva", item.getIva());
+
             Producto producto = item.getProducto();
             if (producto != null) {
                 itemData.put("codigo", producto.getCodigo() != null ? producto.getCodigo() : "");
-                itemData.put("iva", producto.getIva() != null ? producto.getIva() : 0);
-                itemData.put("descripcionPresentacion", producto.getUnidadMedida() != null ? 
+                itemData.put("descripcionPresentacion", producto.getUnidadMedida() != null ?
                         producto.getUnidadMedida() : "");
             } else {
                 itemData.put("codigo", "");
-                itemData.put("iva", 0);
                 itemData.put("descripcionPresentacion", "");
             }
             

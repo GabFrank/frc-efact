@@ -27,18 +27,36 @@ public class FacturaLegalItemDto {
 
     private BigDecimal total;
 
+    /**
+     * Tasa de IVA del ítem: 0, 5 o 10.
+     *
+     * <p>Viaja en el DTO para que el frontend no tenga que resolverla contra el catálogo de
+     * productos. Antes lo hacía, y como el formulario solo carga los primeros 20 productos de la
+     * empresa, un ítem cuyo producto quedaba fuera de esa página se mostraba con IVA 0 y la factura
+     * entera aparecía como exenta.
+     */
+    @NotNull(message = "IVA es requerido")
+    private Integer iva;
+
     // Constructores
     public FacturaLegalItemDto() {
     }
 
-    public FacturaLegalItemDto(Long id, Long productoId, BigDecimal cantidad, 
+    public FacturaLegalItemDto(Long id, Long productoId, BigDecimal cantidad,
                               String descripcion, BigDecimal precioUnitario, BigDecimal total) {
+        this(id, productoId, cantidad, descripcion, precioUnitario, total, null);
+    }
+
+    public FacturaLegalItemDto(Long id, Long productoId, BigDecimal cantidad,
+                              String descripcion, BigDecimal precioUnitario, BigDecimal total,
+                              Integer iva) {
         this.id = id;
         this.productoId = productoId;
         this.cantidad = cantidad;
         this.descripcion = descripcion;
         this.precioUnitario = precioUnitario;
         this.total = total;
+        this.iva = iva;
     }
 
     // Getters y Setters
@@ -90,6 +108,14 @@ public class FacturaLegalItemDto {
         this.total = total;
     }
 
+    public Integer getIva() {
+        return iva;
+    }
+
+    public void setIva(Integer iva) {
+        this.iva = iva;
+    }
+
     @Override
     public String toString() {
         return "FacturaLegalItemDto{" +
@@ -99,6 +125,7 @@ public class FacturaLegalItemDto {
                 ", descripcion='" + descripcion + '\'' +
                 ", precioUnitario=" + precioUnitario +
                 ", total=" + total +
+                ", iva=" + iva +
                 '}';
     }
 }

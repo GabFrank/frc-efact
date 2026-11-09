@@ -42,9 +42,20 @@ interface FacturaItemView {
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
-  iva: number;
+  /** 0, 5 o 10. `null` significa que no se pudo resolver — se trata como error, no como exento. */
+  iva: number | null;
   total: number;
 }
+
+/**
+ * Cuántos productos trae el formulario para el autocomplete.
+ *
+ * No es paginación real: es "traer todo el catálogo de una empresa". Se deja explícito y con un
+ * aviso por consola si se queda corto, en vez de heredar en silencio el `size = 20` que trae por
+ * default `ProductoApiService.getByEmpresa`. Cuando alguna empresa se acerque a este número, el
+ * autocomplete tiene que pasar a búsqueda server-side.
+ */
+const PRODUCTOS_PAGE_SIZE = 2000;
 
 // Cliente especial para operaciones B2C sin nombre
 const CLIENTE_SIN_NOMBRE: Cliente = {
@@ -271,7 +282,13 @@ const CLIENTE_SIN_NOMBRE: Cliente = {
 
                 <ng-container matColumnDef="iva">
                   <th mat-header-cell *matHeaderCellDef>IVA</th>
-                  <td mat-cell *matCellDef="let item">{{ item.iva }}%</td>
+                  <td mat-cell *matCellDef="let item">
+                    @if (item.iva === null) {
+                      <span class="iva-faltante" title="Sin tasa de IVA definida">sin IVA</span>
+                    } @else {
+                      {{ item.iva }}%
+                    }
+                  </td>
                 </ng-container>
 
                 <ng-container matColumnDef="total">
@@ -407,6 +424,21 @@ const CLIENTE_SIN_NOMBRE: Cliente = {
           </mat-card-content>
         </mat-card>
 
+        <!--
+          Aviso bloqueante: hay ítems cuya tasa de IVA no se pudo resolver. Se muestra en vez de
+          dejarlos pasar como exentos, que es lo que hacía antes en silencio.
+        -->
+        @if (totales().itemsSinIva > 0) {
+          <div class="alerta-iva-faltante">
+            <mat-icon>error_outline</mat-icon>
+            <div>
+              <strong>{{ totales().itemsSinIva }} ítem(s) sin tasa de IVA.</strong>
+              No se puede guardar la factura así: un ítem sin IVA definido no es lo mismo que un
+              ítem exento. Editá cada ítem y elegí su producto para que tome la tasa.
+            </div>
+          </div>
+        }
+
         <!-- Acciones -->
         <div class="actions-container">
           <button mat-button type="button" (click)="onCancel()">
@@ -416,7 +448,7 @@ const CLIENTE_SIN_NOMBRE: Cliente = {
                   color="primary"
                   type="button"
                   (click)="onSubmit()"
-                  [disabled]="form.invalid || saving() || items.length === 0">
+                  [disabled]="form.invalid || saving() || items.length === 0 || totales().itemsSinIva > 0">
             {{ saving() ? 'Guardando...' : 'Guardar Factura' }}
           </button>
         </div>
@@ -614,6 +646,31 @@ const CLIENTE_SIN_NOMBRE: Cliente = {
 
     .iva-0 .badge {
       background: #9e9e9e;
+    }
+
+    .iva-faltante {
+      color: #c62828;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .alerta-iva-faltante {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin: 16px 0;
+      padding: 16px;
+      border-radius: 4px;
+      border-left: 4px solid #c62828;
+      background: rgba(198, 40, 40, 0.08);
+      color: #7f1d1d;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .alerta-iva-faltante mat-icon {
+      color: #c62828;
+      flex-shrink: 0;
     }
 
     .totales-resumen {
@@ -971,6 +1028,9 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
 
       // Actualizar itemsData para que los computed signals se actualicen (solo para visualización)
       this.actualizarItemsData();
+      // El descuento se ingresa en la moneda visible: si la moneda cambió, el mismo número del
+      // control equivale a otra cantidad de guaraníes.
+      this.sincronizarDescuentoFinal();
     });
 
     // Cuando cambia el tipo de cambio, actualizar el signal y itemsData
@@ -978,6 +1038,7 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       const cambioNumero = cambio && cambio > 0 ? cambio : 1;
       this.cambioSignal.set(cambioNumero);
       this.actualizarItemsData();
+      this.sincronizarDescuentoFinal();
     });
 
     // Inicializar estado del control de cambio
@@ -986,7 +1047,7 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       cambioControl?.disable();
     }
 
-    this.descuentoFinalSignal.set(this.form.get('descuentoFinal')?.value || 0);
+    this.sincronizarDescuentoFinal();
 
     this.form.get('descuentoFinal')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(value => {
       const parsed = Number(value) || 0;
@@ -994,8 +1055,26 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       if (sanitized !== value) {
         this.form.get('descuentoFinal')?.setValue(sanitized, { emitEvent: false });
       }
-      this.descuentoFinalSignal.set(sanitized);
+      this.sincronizarDescuentoFinal();
     });
+  }
+
+  /**
+   * Pasa el descuento del control (moneda visible) al signal (guaraníes).
+   *
+   * <p>El control `descuentoFinal` se ingresa y se muestra en la moneda seleccionada, igual que el
+   * precio unitario de los ítems. El signal, en cambio, guarda guaraníes, que es la unidad con la
+   * que `calcularTotales` trabaja y la que se persiste.
+   *
+   * <p>Antes el valor del control se metía crudo en el signal, así que se interpretaba como
+   * guaraníes mientras el prefijo del input mostraba el símbolo de la moneda extranjera. Facturando
+   * en dólares, escribir "100" con la intención de descontar USD 100 aplicaba un descuento de ₲100
+   * —o sea nada— y el resumen justo debajo mostraba "$ 0,02", porque ese sí dividía por el tipo de
+   * cambio. Los dos números salían del mismo campo y no coincidían.
+   */
+  private sincronizarDescuentoFinal(): void {
+    const enMonedaVisible = Number(this.form.get('descuentoFinal')?.value) || 0;
+    this.descuentoFinalSignal.set(enMonedaVisible * this.tipoCambio());
   }
 
   cargarEmpresa(empresaId: number): void {
@@ -1038,10 +1117,28 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Cargar productos
-    this.productoApi.getByEmpresa(empresaId).pipe(takeUntil(this.destroy$)).subscribe({
+    // Cargar productos.
+    //
+    // El tamaño de página va explícito. Antes se llamaba `getByEmpresa(empresaId)` a secas, y el
+    // default de la firma es `size = 20` ordenado por descripción: el formulario solo conocía los
+    // primeros 20 productos de la empresa. Cualquier producto alfabéticamente posterior no existía
+    // para el autocomplete ni para resolver el IVA de un ítem ya cargado.
+    //
+    // El IVA ya no depende de esta lista (viaja en el ítem, ver V37), así que un faltante acá
+    // degrada el autocomplete pero no puede volver a corromper los totales.
+    this.productoApi.getByEmpresa(empresaId, 0, PRODUCTOS_PAGE_SIZE).pipe(takeUntil(this.destroy$)).subscribe({
       next: (productos) => {
-        this.productos.set(productos.content.filter((p: Producto) => p.activo));
+        const activos = productos.content.filter((p: Producto) => p.activo);
+        this.productos.set(activos);
+
+        if (productos.totalElements != null && productos.totalElements > activos.length) {
+          console.warn(
+            `[factura-form] La empresa tiene ${productos.totalElements} productos y se cargaron ` +
+            `${activos.length}. Subir PRODUCTOS_PAGE_SIZE o pasar el autocomplete a búsqueda ` +
+            `server-side.`
+          );
+        }
+
         this.actualizarItemsData();
       },
       error: () => {
@@ -1080,8 +1177,12 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       nombre: factura.nombre,
       ruc: factura.ruc,
       direccion: factura.direccion,
-      descuentoFinal: factura.descuentoFinal
+      // El descuento se persiste en guaraníes pero el control lo muestra en la moneda visible.
+      descuentoFinal: (factura.descuentoFinal || 0) / (factura.cambio || 1)
     });
+    // Va DESPUÉS del patchValue a propósito: el patch dispara el valueChanges del control, que
+    // recalcula el signal multiplicando por el cambio. Fijar acá el valor persistido evita
+    // arrastrar el error de redondeo del ida y vuelta.
     this.descuentoFinalSignal.set(factura.descuentoFinal || 0);
 
     // Si hay clienteId, cargar información completa del cliente
@@ -1267,6 +1368,10 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       cantidad: [item?.cantidad || 1, [Validators.required, Validators.min(0.001)]],
       descripcion: [item?.descripcion || '', [Validators.required, Validators.maxLength(500)]],
       precioUnitario: [item?.precioUnitario || 0, [Validators.required, Validators.min(0)]],
+      // El IVA vive en el formulario, no se re-deriva del catálogo al renderizar. Sin este
+      // control, `getRawValue()` lo perdía y `actualizarItemsData()` lo reconstruía buscando el
+      // producto en `productos()` — que solo tiene la primera página del catálogo.
+      iva: [item?.iva ?? null, Validators.required],
       total: [{ value: item?.total || (item?.cantidad || 0) * (item?.precioUnitario || 0), disabled: true }]
     });
   }
@@ -1346,7 +1451,8 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       productoId: item.productoId,
       cantidad: item.cantidad,
       descripcion: item.descripcion,
-      precioUnitario: item.precioUnitario
+      precioUnitario: item.precioUnitario,
+      iva: item.iva
     }, { emitEvent: false });
 
     group.get('total')?.setValue(item.total ?? item.cantidad * item.precioUnitario, { emitEvent: false });
@@ -1368,6 +1474,16 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       const descripcion = value.descripcion || producto?.descripcion || '';
       const total = Number(value.total ?? cantidad * precioUnitario) || 0;
 
+      // El IVA sale del formulario, que lo trae del backend. Solo se cae al catálogo cuando el
+      // ítem todavía no tiene tasa asignada, que es el caso de un ítem recién agregado a mano.
+      //
+      // Antes esto era `iva: producto?.iva ?? 0` sin mirar el formulario, y ahí estaba el bug: el
+      // formulario carga los productos con `getByEmpresa(empresaId)`, cuyo default es size=20
+      // ordenado por descripción. Un ítem cuyo producto quedaba fuera de esa página resolvía
+      // `producto === undefined` y caía a 0, así que la factura entera se mostraba EXENTA. Guardar
+      // desde esa pantalla persistía los totales en cero, corrompiendo una factura correcta.
+      const iva = value.iva ?? producto?.iva ?? null;
+
       // Los valores ya están en guaraníes - no se necesita conversión
       return {
         id: value.id,
@@ -1375,7 +1491,7 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
         descripcion,
         cantidad,
         precioUnitario,
-        iva: producto?.iva ?? 0,
+        iva,
         total
       };
     });
@@ -1389,6 +1505,7 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
     let totalParcial10 = 0;
     let ivaParcial5 = 0;
     let ivaParcial10 = 0;
+    let itemsSinIva = 0;
 
     // Calcular totales por tasa de IVA
     // Nota: El total del item ya incluye el IVA, por lo que:
@@ -1406,7 +1523,15 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
         ivaParcial10 += item.total / 11;
         totalParcial10 += item.total;
       } else {
+        // Tasa desconocida. Antes acá había un `totalParcial0 += item.total`, o sea que el monto
+        // se clasificaba como EXENTO en silencio y los totales seguían cerrando — por eso la
+        // pantalla mostraba una factura completa y creíble con el IVA equivocado.
+        //
+        // Ahora se cuenta aparte y se bloquea el guardado. Un ítem sin tasa resoluble es un dato
+        // fiscal faltante, no un ítem exento: son cosas distintas y confundirlas hace emitir DE
+        // con el impuesto mal liquidado.
         totalParcial0 += item.total;
+        itemsSinIva++;
       }
     });
 
@@ -1428,7 +1553,8 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
       totalParcial10,
       totalParcial,
       ivaTotal,
-      totalFinal
+      totalFinal,
+      itemsSinIva
     };
   }
 
@@ -1457,7 +1583,9 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
     // Calcular totales en guaraníes
     const totalesGs = this.calcularTotales(itemsDataGs, descuentoFinalGs);
 
-    const { ivaTotal: _ivaTotal, ...totalesParaEnviar } = totalesGs;
+    // `ivaTotal` e `itemsSinIva` son derivados solo para la pantalla: el backend recalcula el
+    // primero y el segundo es un contador de validación de la UI. No van en el payload.
+    const { ivaTotal: _ivaTotal, itemsSinIva: _itemsSinIva, ...totalesParaEnviar } = totalesGs;
 
     // Obtener timbradoDetalleId correctamente incluso si el control está deshabilitado
     const timbradoControl = this.form.get('timbradoDetalleId');
@@ -1485,7 +1613,10 @@ export class FacturaFormComponent implements OnInit, OnDestroy {
         cantidad: item.cantidad,
         descripcion: item.descripcion,
         precioUnitario: item.precioUnitario,
-        total: item.total
+        total: item.total,
+        // La tasa viaja explícita para que el backend la persista en el ítem. Sin esto el backend
+        // la volvía a resolver contra el catálogo y el snapshot no servía de nada.
+        iva: item.iva as number
       })),
       descuentoFinal: descuentoFinalGs,
       ...totalesParaEnviar
