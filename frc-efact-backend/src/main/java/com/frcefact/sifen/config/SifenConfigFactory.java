@@ -177,8 +177,6 @@ public class SifenConfigFactory {
 
         log.debug("🔧 Construyendo configuración SIFEN para empresa {} (ambiente: {}, cscId: {})",
                 empresa.getId(), ambiente, cscId);
-        // TODO: Remover este log de info con el CSC explícito después de verificar
-        log.info("🔍 CSC Desencriptado para SIFEN: [{}]", csc);
 
         SifenConfig config = new SifenConfig(
                 ambiente,
