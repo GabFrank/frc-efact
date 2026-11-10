@@ -1,3 +1,24 @@
+# [1.2.0](https://github.com/GabFrank/frc-efact/compare/v1.1.4...v1.2.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **auth:** desacoplar el login local de Auth0 y aplicar el timeout de HTTP ([9e5b3dc](https://github.com/GabFrank/frc-efact/commit/9e5b3dc121acc4eb391707e99b894fc489d388d9))
+* **documentos:** verificar el acceso por empresa al leer un DE ([88e3550](https://github.com/GabFrank/frc-efact/commit/88e3550b3167ed608521d982ae8a85c76bec562d))
+* **facturacion:** corregir el IVA de los ítems de factura con el XML del DE ([11d5eb3](https://github.com/GabFrank/frc-efact/commit/11d5eb39d076ba90181b119dde1be624d8ca0c44))
+* **facturacion:** descuento final en la moneda visible y bloquear el guardado sin IVA ([b150e53](https://github.com/GabFrank/frc-efact/commit/b150e5371f83623e9fb44a6c34f2ec7e1419bbcd))
+* **facturacion:** persistir el IVA en el ítem en vez de derivarlo del catálogo ([7931992](https://github.com/GabFrank/frc-efact/commit/7931992a7e3ef7d885fae85758738465fb28fb4f))
+* **integracion:** consulta en ambiente PROD rechazada por CSC de desarrollo ([f33334f](https://github.com/GabFrank/frc-efact/commit/f33334fa5b796073426ca0352e7b885cf109ae7f))
+* **ruc:** centralizar el parseo del RUC y exigir el dígito verificador ([cdd1a2c](https://github.com/GabFrank/frc-efact/commit/cdd1a2ca377bafe0ba9a8352e052e0462c2abc40))
+* **ruc:** corregir los tests con DV inventados y reactivar la validación ([892370b](https://github.com/GabFrank/frc-efact/commit/892370b7744479751881fd4ab548111f44c03bff))
+* **sifen:** conectar la unidad de medida al catálogo de la SET y dejar de truncar la cantidad ([9916c8c](https://github.com/GabFrank/frc-efact/commit/9916c8c02986e10d1e32c7003d9e1965dd40d7d4))
+* **sifen:** dejar de loguear el CSC desencriptado ([73b5ea4](https://github.com/GabFrank/frc-efact/commit/73b5ea423499b9c2a501bf387cba06cb8ff6d92a))
+
+
+### Features
+
+* **integracion:** API key y consulta de DE por CDC en SIFEN para otros sistemas ([ae573f9](https://github.com/GabFrank/frc-efact/commit/ae573f96718e8564e0d4e650bac414b0bc913c50))
+
 ## [1.1.4](https://github.com/GabFrank/frc-efact/compare/v1.1.3...v1.1.4) (2026-08-06)
 
 
