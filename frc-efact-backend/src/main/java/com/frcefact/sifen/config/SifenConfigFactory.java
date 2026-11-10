@@ -124,12 +124,22 @@ public class SifenConfigFactory {
         }
         String certificadoPassword = decrypt(empresa.getCertificadoPasswordEncrypted(), "contraseña del certificado");
         Path certificadoPath = certificadoService.obtenerPathAbsoluto(empresa.getCertificadoPath());
+        // jsifenlib valida el CSC en toda operación, aunque siConsDE no lo use, y en PROD rechaza
+        // el CSC de desarrollo que el constructor de 4 argumentos deja por defecto
+        // ("El CSC establecido solo es utilizable en el ambiente de desarrollo"). Se pone un
+        // valor de relleno: nunca llega a SIFEN porque solo se usa para el QR al emitir.
         return new SifenConfig(
                 resolveAmbiente(empresa.getSifenAmbiente()),
+                CSC_ID_SOLO_CONSULTA,
+                CSC_SOLO_CONSULTA,
                 TipoCertificadoCliente.PFX,
                 certificadoPath.toString(),
                 certificadoPassword);
     }
+
+    /** CSC de relleno para configs de consulta: pasa la validación de jsifenlib y no se envía nunca. */
+    static final String CSC_ID_SOLO_CONSULTA = "0000";
+    static final String CSC_SOLO_CONSULTA = "SOLO-CONSULTA-NO-SE-USA-EN-QR";
 
     /** Si la empresa tiene certificado y contraseña cargados (no valida que el archivo sea usable). */
     public boolean tieneCertificado(Long empresaId) {
