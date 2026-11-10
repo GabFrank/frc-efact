@@ -158,6 +158,14 @@ SIFEN exige certificado digital (mTLS) para consultar. eFact usa, en este orden:
 El **ambiente** (test/producción) es el `sifen_ambiente` de esa empresa. Un CDC de producción no
 existe en el ambiente de test.
 
+En producción la empresa de plataforma es **FRANCO AREVALOS S.A.**: `INTEGRACION_EMPRESA_PLATAFORMA_ID`
+en `deploy/.env` lleva su `id` de la base de producción.
+
+**Validado contra SIFEN producción (2026-11-10):** `siConsDE` entrega el DE completo aunque quien
+consulta no sea ni emisor ni receptor. Con el certificado de FRANCO AREVALOS se obtuvo un NRE de
+ANATOLE DEINZER DUARTE a AGROFERTIL S.A. (`0422 CDC encontrado`, con `xContenDE`). Un CDC
+inexistente devuelve `0420`. Cada consulta tarda ~9-11 s.
+
 ### Rastro de uso
 
 Cada llamada autenticada queda en `integracion.solicitud_api` (key, operación, CDC, status HTTP,
@@ -165,10 +173,6 @@ código SIFEN, duración, IP). Base para auditoría y para medir/facturar el ser
 
 ### Pendientes conocidos
 
-- **Validar contra SIFEN real** qué devuelve `siConsDE` cuando quien consulta no es ni emisor ni
-  receptor del DE: si SIFEN no entrega el `xContenDE` a terceros, el modo consultor queda limitado a
-  los DE donde la cuenta (o la plataforma) es parte. Sin esa prueba no hay que prometerle a un
-  cliente consultas de DE ajenos.
 - Las consultas a SIFEN de toda la app pasan por un único lock global de jsifenlib
   (`SifenConfigFactory.executeWithConfig`): con mucho tráfico de consultas, compiten con la emisión.
 - El límite por minuto vive en memoria: se reinicia con la app y no se comparte entre réplicas

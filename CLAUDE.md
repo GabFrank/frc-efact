@@ -245,7 +245,10 @@ Desde V39, eFact expone `/api/v1/integracion/**` para **otros sistemas**, autent
 - Certificado para consultar: el de la empresa de la cuenta, o el de
   `INTEGRACION_EMPRESA_PLATAFORMA_ID`; sin ninguno → 503.
 - Administración (solo ADMIN): `/admin/integracion/cuentas`, `/cuentas/{id}/keys`, `/keys/{id}/revocar`.
-- ⚠️ **Sin validar contra SIFEN real** si `siConsDE` entrega el DE a quien no es emisor ni receptor.
+- Validado contra SIFEN producción (2026-11-10): `siConsDE` entrega el DE completo a un tercero
+  (ni emisor ni receptor). Empresa de plataforma en prod: FRANCO AREVALOS S.A.
+- ⚠️ `buildParaConsulta` pone un CSC de relleno a propósito: jsifenlib valida el CSC en **toda**
+  operación y en PROD rechaza el CSC de desarrollo que deja el constructor sin CSC. No quitarlo.
 
 ## Documentación adicional
 
