@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, timer } from 'rxjs';
-import { map, catchError, switchMap } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
 
 export interface RucValidationResult {
   valid: boolean;
@@ -19,20 +18,22 @@ export class RucValidationService {
   constructor(private http: HttpClient) {}
 
   /**
-   * Valida el formato del RUC paraguayo
+   * Valida formato Y dígito verificador del RUC paraguayo.
+   *
+   * El chequeo del DV estuvo deshabilitado con el comentario "Backend usa algoritmo
+   * incorrecto". Era falso: el algoritmo del backend (CalcularVerificadorRuc) es correcto y
+   * `calculateCheckDigit` de este servicio es idéntico línea por línea. La confusión vino de
+   * tests con dígitos verificadores inventados. Verificado el 2026-08-06 contra los 12 RUCs
+   * de producción: todos validan.
    */
   validateRucFormat(ruc: string): boolean {
     if (!ruc) return false;
-    
+
     // Formato: 12345678-9 (6-8 dígitos, guión, 1 dígito verificador)
     const rucPattern = /^\d{6,8}-\d$/;
     if (!rucPattern.test(ruc)) return false;
 
-    // TEMPORALMENTE DESHABILITADO: Backend usa algoritmo incorrecto
-    // return this.validateRucCheckDigit(ruc);
-    
-    // Solo validar formato hasta que backend se corrija
-    return true;
+    return this.validateRucCheckDigit(ruc);
   }
 
   /**
@@ -50,52 +51,39 @@ export class RucValidationService {
   }
 
   /**
-   * Valida RUC en tiempo real con el backend
+   * Valida el RUC: formato y dígito verificador.
+   *
+   * ⚠️ **No consulta al servidor.** El chequeo de unicidad ("este RUC ya pertenece a la
+   * empresa X") requiere el endpoint `GET /empresas/validate-ruc`, que **no existe** en el
+   * backend — verificado el 2026-08-06. Hasta que exista, `exists` es siempre `false`.
+   *
+   * Antes esta función devolvía `valid: true` sin validar nada, y un interceptor
+   * (`mock-ruc.interceptor`, ya eliminado) servía respuestas falsas para esa URL, incluso en
+   * producción. Ahora al menos el formato y el DV se validan de verdad, del lado del cliente.
+   *
+   * Pendiente registrado en docs/TAREAS_PENDIENTES.md §4.
    */
   validateRucLive(ruc: string, excludeId?: number): Observable<RucValidationResult> {
-    // Primero validar formato
     if (!this.validateRucFormat(ruc)) {
+      const correcto = this.getCorrectCheckDigit(ruc);
       return of({
         valid: false,
-        error: 'Formato de RUC inválido'
+        error: correcto
+          ? `Dígito verificador incorrecto. El correcto para ${ruc.split('-')[0]} es ${correcto}`
+          : 'Formato de RUC inválido. Use 6-8 dígitos, guión y dígito verificador'
       });
     }
 
-    // TEMPORALMENTE DESHABILITADO: Backend rechaza RUCs válidos
-    // Hasta que se corrija el algoritmo del backend, solo validamos formato
-    return of({
-      valid: true,
-      exists: false,
-      error: undefined
-    });
+    return of({ valid: true, exists: false, error: undefined });
+  }
 
-    // TODO: Reactivar cuando backend use algoritmo correcto
-    // return timer(500).pipe(
-    //   switchMap(() => {
-    //     const params: any = { ruc };
-    //     if (excludeId) {
-    //       params.excludeId = excludeId;
-    //     }
-
-    //     return this.http.get<RucValidationResult>(`${this.API_BASE_URL}/empresas/validate-ruc`, {
-    //       params
-    //     }).pipe(
-    //       map(result => ({
-    //         valid: result.valid,
-    //         exists: result.exists,
-    //         razonSocial: result.razonSocial,
-    //         error: result.error
-    //       })),
-    //       catchError(error => {
-    //         console.error('Error validating RUC:', error);
-    //         return of({
-    //           valid: false,
-    //           error: 'Error al validar RUC con el servidor'
-    //         });
-    //       })
-    //     );
-    //   })
-    // );
+  /**
+   * Devuelve el DV correcto si el formato es válido pero el dígito no coincide; null si el
+   * formato tampoco sirve. Se usa para dar un mensaje de error accionable.
+   */
+  private getCorrectCheckDigit(ruc: string): number | null {
+    if (!ruc || !/^\d{6,8}-\d$/.test(ruc)) return null;
+    return this.calculateCheckDigit(ruc.split('-')[0]);
   }
 
   /**

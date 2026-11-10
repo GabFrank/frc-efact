@@ -105,6 +105,54 @@ public class SifenConfigFactory {
     }
 
     /**
+     * Construye una configuración de SIFEN que solo sirve para consultas (siConsDE, siConsRUC).
+     *
+     * <p>A diferencia de {@link #buildForEmpresa(Long)}, no exige CSC: las consultas solo
+     * necesitan el certificado para el mTLS. El CSC se usa para el QR al emitir, así que una
+     * empresa que solo consulta (por ejemplo la empresa de plataforma de la API de integración)
+     * no tiene por qué tenerlo cargado.
+     *
+     * @param empresaId empresa cuyo certificado se usa
+     * @return configuración sin CSC, apta solo para consultas
+     * @throws BusinessException si la empresa no existe o no tiene certificado
+     */
+    public SifenConfig buildParaConsulta(Long empresaId) {
+        Empresa empresa = empresaRepository.findById(empresaId)
+                .orElseThrow(() -> new BusinessException("Empresa no encontrada: " + empresaId));
+        if (!tieneCertificado(empresa)) {
+            throw new BusinessException("La empresa no tiene certificado digital configurado");
+        }
+        String certificadoPassword = decrypt(empresa.getCertificadoPasswordEncrypted(), "contraseña del certificado");
+        Path certificadoPath = certificadoService.obtenerPathAbsoluto(empresa.getCertificadoPath());
+        // jsifenlib valida el CSC en toda operación, aunque siConsDE no lo use, y en PROD rechaza
+        // el CSC de desarrollo que el constructor de 4 argumentos deja por defecto
+        // ("El CSC establecido solo es utilizable en el ambiente de desarrollo"). Se pone un
+        // valor de relleno: nunca llega a SIFEN porque solo se usa para el QR al emitir.
+        return new SifenConfig(
+                resolveAmbiente(empresa.getSifenAmbiente()),
+                CSC_ID_SOLO_CONSULTA,
+                CSC_SOLO_CONSULTA,
+                TipoCertificadoCliente.PFX,
+                certificadoPath.toString(),
+                certificadoPassword);
+    }
+
+    /** CSC de relleno para configs de consulta: pasa la validación de jsifenlib y no se envía nunca. */
+    static final String CSC_ID_SOLO_CONSULTA = "0000";
+    static final String CSC_SOLO_CONSULTA = "SOLO-CONSULTA-NO-SE-USA-EN-QR";
+
+    /** Si la empresa tiene certificado y contraseña cargados (no valida que el archivo sea usable). */
+    public boolean tieneCertificado(Long empresaId) {
+        return empresaRepository.findById(empresaId).map(this::tieneCertificado).orElse(false);
+    }
+
+    private boolean tieneCertificado(Empresa empresa) {
+        return empresa.getCertificadoPath() != null && !empresa.getCertificadoPath().isBlank()
+                && empresa.getCertificadoPasswordEncrypted() != null
+                && !empresa.getCertificadoPasswordEncrypted().isBlank();
+    }
+
+    /**
      * Ejecuta de forma segura una operación con jsifenlib configurando el contexto global.
      * 
      * IMPORTANTE - Thread Safety:
@@ -177,8 +225,6 @@ public class SifenConfigFactory {
 
         log.debug("🔧 Construyendo configuración SIFEN para empresa {} (ambiente: {}, cscId: {})",
                 empresa.getId(), ambiente, cscId);
-        // TODO: Remover este log de info con el CSC explícito después de verificar
-        log.info("🔍 CSC Desencriptado para SIFEN: [{}]", csc);
 
         SifenConfig config = new SifenConfig(
                 ambiente,

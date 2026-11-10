@@ -1,13 +1,21 @@
 package com.frcefact.validation;
 
 import com.frcefact.dto.ClienteDto;
-import com.frcefact.model.TipoClienteSifen;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 /**
- * Validador que verifica que el RUC sea requerido según el tipo de cliente SIFEN.
- * Prioriza tipoClienteSifen sobre el campo legacy tributa.
+ * Valida el RUC del {@link ClienteDto} según el tipo de cliente SIFEN.
+ *
+ * <p>La regla vive en {@link ReglaRucCliente}, compartida con
+ * {@code ClienteService.validarRucSegunTipoCliente}. Este validador solo la aplica y traduce el
+ * resultado al formato de Bean Validation.
+ *
+ * <p><b>Qué cambió.</b> Antes esta clase tenía la regla escrita a mano y solo verificaba la
+ * <i>presencia del guion</i> ({@code ruc.contains("-")}), no que el dígito verificador fuese el
+ * correcto: un contribuyente cargado como {@code 80099482-1} pasaba la validación y recién SIFEN
+ * lo rechazaba, sin decir cuál era el problema. Ahora se verifica el DV por módulo 11 y el mensaje
+ * de error indica el dígito correcto.
  */
 public class ClienteRucValidator implements ConstraintValidator<ValidClienteRuc, ClienteDto> {
 
@@ -19,61 +27,23 @@ public class ClienteRucValidator implements ConstraintValidator<ValidClienteRuc,
     @Override
     public boolean isValid(ClienteDto clienteDto, ConstraintValidatorContext context) {
         if (clienteDto == null) {
-            return true; // Null values are handled by @NotNull
+            return true; // Los null los maneja @NotNull
         }
 
-        boolean requiereRuc = false;
+        boolean requiereRuc = ReglaRucCliente.requiereRuc(
+                clienteDto.getTipoClienteSifen(), clienteDto.getTributa());
 
-        // Priorizar tipoClienteSifen sobre tributa
-        if (clienteDto.getTipoClienteSifen() != null && !clienteDto.getTipoClienteSifen().isEmpty()) {
-            try {
-                TipoClienteSifen tipoCliente = TipoClienteSifen.valueOf(clienteDto.getTipoClienteSifen());
-                requiereRuc = tipoCliente.requiereRuc();
-            } catch (IllegalArgumentException e) {
-                // Si el valor del enum no es válido, usar fallback a tributa
-                requiereRuc = Boolean.TRUE.equals(clienteDto.getTributa());
-            }
-        } else {
-            // Fallback a campo legacy tributa
-            requiereRuc = Boolean.TRUE.equals(clienteDto.getTributa());
+        ReglaRucCliente.Resultado resultado =
+                ReglaRucCliente.validar(requiereRuc, clienteDto.getRuc());
+
+        if (resultado.valido()) {
+            return true;
         }
 
-        String ruc = clienteDto.getRuc();
-        
-        // Si requiere RUC, validar que esté presente
-        if (requiereRuc) {
-            if (ruc == null || ruc.trim().isEmpty()) {
-                context.disableDefaultConstraintViolation();
-                context.buildConstraintViolationWithTemplate("El RUC es requerido para este tipo de cliente")
-                        .addPropertyNode("ruc")
-                        .addConstraintViolation();
-                return false;
-            }
-            
-            // Si requiere RUC, debe tener formato con guion y dígito verificador
-            // Formato: XXXXXXX-X o XXXXXXXX-X
-            if (!ruc.contains("-")) {
-                context.disableDefaultConstraintViolation();
-                context.buildConstraintViolationWithTemplate("Los contribuyentes deben tener RUC con formato: XXXXXXX-X (con dígito verificador)")
-                        .addPropertyNode("ruc")
-                        .addConstraintViolation();
-                return false;
-            }
-        } else {
-            // Si NO requiere RUC (NO_CONTRIBUYENTE o EXTRANJERO)
-            // Puede no tener RUC o tener RUC sin guion (solo números)
-            if (ruc != null && !ruc.trim().isEmpty()) {
-                // Si proporciona RUC, no debe tener guion ni dígito verificador
-                if (ruc.contains("-")) {
-                    context.disableDefaultConstraintViolation();
-                    context.buildConstraintViolationWithTemplate("Los no contribuyentes no deben tener RUC con formato de contribuyente. Use solo números o deje vacío")
-                            .addPropertyNode("ruc")
-                            .addConstraintViolation();
-                    return false;
-                }
-            }
-        }
-
-        return true;
+        context.disableDefaultConstraintViolation();
+        context.buildConstraintViolationWithTemplate(resultado.mensaje())
+                .addPropertyNode("ruc")
+                .addConstraintViolation();
+        return false;
     }
 }

@@ -91,3 +91,13 @@ encryption:
   # backups previos a esa fecha siguen cifrados con él.
   # Los valores de desarrollo viven en application-dev.yml.
   secret-key: ${ENCRYPTION_KEY}
+
+# API de integración para sistemas externos (/v1/integracion/**, autenticación por API key)
+integracion:
+  # Empresa cuyo certificado se usa para consultar SIFEN cuando la cuenta de servicio no tiene
+  # empresa propia con certificado (modo consultor). Su sifen_ambiente define si se consulta
+  # SIFEN test o producción. Vacío = el modo consultor sin empresa responde 503.
+  empresa-plataforma-id: ${INTEGRACION_EMPRESA_PLATAFORMA_ID:}
+  rate-limit:
+    # Solicitudes por minuto por API key (en memoria, se reinicia con la app).
+    por-minuto: ${INTEGRACION_RATE_LIMIT_POR_MINUTO:60}

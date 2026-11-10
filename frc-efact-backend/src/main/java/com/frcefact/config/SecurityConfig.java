@@ -4,6 +4,7 @@ import com.frcefact.security.CustomJwtAuthenticationConverter;
 import com.frcefact.security.JwtAuthenticationFilter;
 import com.frcefact.security.OAuth2TokenFilter;
 import com.frcefact.security.RateLimitingFilter;
+import com.frcefact.security.apikey.ApiKeyAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private final RateLimitingFilter rateLimitingFilter;
     private final OAuth2TokenFilter oauth2TokenFilter;
     private final CustomJwtAuthenticationConverter customJwtAuthenticationConverter;
+    private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
 
     /**
      * Orígenes adicionales permitidos por CORS, configurables por entorno
@@ -53,12 +55,14 @@ public class SecurityConfig {
                          JwtAuthenticationFilter jwtAuthenticationFilter,
                          RateLimitingFilter rateLimitingFilter,
                          OAuth2TokenFilter oauth2TokenFilter,
-                         CustomJwtAuthenticationConverter customJwtAuthenticationConverter) {
+                         CustomJwtAuthenticationConverter customJwtAuthenticationConverter,
+                         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
         this.oauth2TokenFilter = oauth2TokenFilter;
         this.customJwtAuthenticationConverter = customJwtAuthenticationConverter;
+        this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
     }
 
     /**
@@ -102,6 +106,11 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/info").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         
+                        // API de integración para sistemas externos: solo API key (X-API-Key).
+                        // El ApiKeyAuthenticationFilter corta con 401 cualquier request sin key válida
+                        // antes de llegar acá; los scopes se exigen con @PreAuthorize en el controller.
+                        .requestMatchers("/v1/integracion/**").authenticated()
+
                         // Endpoints de administración del sistema - solo ADMIN
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/usuarios/admin/**").hasRole("ADMIN")
@@ -140,6 +149,7 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(oauth2TokenFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -183,16 +193,21 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Orígenes permitidos
+        // El dev server de frc-efact corre en 4400, no en 4200. Los puertos están repartidos
+        // entre los proyectos del monorepo: 4200 es de frc-comercial/desktop y 4300 de
+        // frc-comercial/mobile y mobile-pwa. Aceptar 4200 acá permitiría que el dev server de
+        // OTRO proyecto llame a este backend, así que se reemplazó en vez de sumarse.
+        // Para otros orígenes usar la env var CORS_ALLOWED_ORIGINS, que se suma a esta lista.
         List<String> allowedOrigins = new ArrayList<>(Arrays.asList(
-                "http://localhost:4200",
-                "https://localhost:4200",
-                "http://192.168.*.*:4200",  // IP local HTTP
-                "https://192.168.*.*:4200",  // IP local HTTPS
-                "http://10.*.*.*:4200",     // IP local HTTP (rango 10.x.x.x)
-                "https://10.*.*.*:4200",    // IP local HTTPS (rango 10.x.x.x)
-                "http://172.*.*.*:4200",   // IP local HTTP (rango 172.x.x.x)
-                "https://172.*.*.*:4200",  // IP local HTTPS (rango 172.x.x.x)
-                "https://*.onrender.com"
+                "http://localhost:4400",
+                "https://localhost:4400",
+                "http://192.168.*.*:4400",  // LAN HTTP
+                "https://192.168.*.*:4400", // LAN HTTPS
+                "http://10.*.*.*:4400",     // LAN HTTP (rango 10.x.x.x)
+                "https://10.*.*.*:4400",    // LAN HTTPS (rango 10.x.x.x)
+                "http://172.*.*.*:4400",    // LAN HTTP (rango 172.x.x.x)
+                "https://172.*.*.*:4400",   // LAN HTTPS (rango 172.x.x.x)
+                "https://*.onrender.com"    // legacy, a quitar al limpiar Render
         ));
         if (additionalAllowedOrigins != null) {
             additionalAllowedOrigins.stream()

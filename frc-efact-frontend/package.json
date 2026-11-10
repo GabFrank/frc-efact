@@ -20,7 +20,7 @@
     "analyze": "ng build --configuration production --stats-json && webpack-bundle-analyzer dist/frc-efact-frontend/stats.json",
     "clean": "rm -rf dist node_modules/.cache .angular/cache",
     "clean:install": "npm run clean && npm install",
-    "serve:dist": "npx http-server dist/frc-efact-frontend/browser -p 4200 -c-1"
+    "serve:dist": "npx http-server dist/frc-efact-frontend/browser -p 4400 -c-1"
   },
   "private": true,
   "dependencies": {

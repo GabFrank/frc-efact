@@ -149,7 +149,7 @@ Ambos incluyen la config de Auth0 (`domain`, `clientId`, `audience`).
 ## Scripts npm
 
 ```bash
-npm start                 # ng serve → http://localhost:4200
+npm start                 # ng serve → http://localhost:4400
 npm run start:network     # ng serve accesible por IP de red local
 npm run start:prod        # ng serve con configuración production
 npm run build             # ng build (config por defecto)

@@ -9,6 +9,7 @@ import com.frcefact.repository.CiudadRepository;
 import com.frcefact.repository.ClienteRepository;
 import com.frcefact.repository.EmpresaRepository;
 import com.frcefact.repository.PaisRepository;
+import com.frcefact.validation.ReglaRucCliente;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -341,23 +342,23 @@ public class ClienteService {
     }
 
     /**
-     * Valida que el RUC sea requerido según el tipo de cliente SIFEN.
-     * Prioriza tipoClienteSifen sobre el campo legacy tributa.
+     * Valida el RUC según el tipo de cliente SIFEN, delegando en {@link ReglaRucCliente}.
+     *
+     * <p>Antes este método chequeaba <b>solo presencia</b> del RUC, mientras que
+     * {@code ClienteRucValidator} —que corre sobre el DTO y solo en el borde HTTP— además exigía
+     * el guion. Con eso, cualquier camino que creara un {@code Cliente} sin pasar por el controller
+     * (un import, otro servicio, un seed) podía grabar un contribuyente sin dígito verificador, y
+     * después {@code SifenService} emitía un {@code dDVRec} vacío que SIFEN rechaza sin explicar
+     * por qué. Ahora los dos puntos de entrada comparten la misma regla, que además verifica que
+     * el DV sea el correcto.
      */
     private void validarRucSegunTipoCliente(Cliente cliente) {
-        boolean requiereRuc = false;
-        
-        if (cliente.getTipoClienteSifen() != null) {
-            requiereRuc = cliente.getTipoClienteSifen().requiereRuc();
-        } else if (cliente.getTributa() != null) {
-            // Fallback a campo legacy
-            requiereRuc = cliente.getTributa();
-        }
-        
-        if (requiereRuc) {
-            if (cliente.getRuc() == null || cliente.getRuc().trim().isEmpty()) {
-                throw new IllegalArgumentException("El RUC es requerido para este tipo de cliente");
-            }
+        boolean requiereRuc = ReglaRucCliente.requiereRuc(
+                cliente.getTipoClienteSifen(), cliente.getTributa());
+
+        ReglaRucCliente.Resultado resultado = ReglaRucCliente.validar(requiereRuc, cliente.getRuc());
+        if (!resultado.valido()) {
+            throw new IllegalArgumentException(resultado.mensaje());
         }
     }
 

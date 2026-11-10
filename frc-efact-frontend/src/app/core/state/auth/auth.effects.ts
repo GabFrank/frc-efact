@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
-import { map, catchError, exhaustMap, tap } from 'rxjs/operators';
+import { map, catchError, exhaustMap, switchMap, tap } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth.service';
 import { User } from '../../../models/user.model';
 import * as AuthActions from './auth.actions';
@@ -38,7 +38,12 @@ export class AuthEffects {
   login$ = createEffect(() =>
     this.actions$.pipe(
       ofType(AuthActions.login),
-      exhaustMap(({ username, password }) =>
+      // switchMap, NO exhaustMap. `exhaustMap` descarta todo intento nuevo mientras el
+      // anterior siga activo, así que un request que no completa —backend caído, red
+      // colgada— deja el login muerto: cada clic posterior se ignora en silencio con
+      // `loading` en true, y solo se recupera recargando la página. Pasó en dev el
+      // 2026-08-06. `switchMap` cancela el intento previo y usa el último.
+      switchMap(({ username, password }) =>
         this.authService.login({ username, password }).pipe(
           map((response) =>
             AuthActions.loginSuccess({

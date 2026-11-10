@@ -224,7 +224,10 @@ public class ProductoController {
     @Operation(summary = "Importar productos desde Excel",
                description = "Importa productos masivamente desde un archivo Excel. " +
                            "Formato esperado: Código | Descripción | Precio | IVA | Tipo Transacción | Unidad Medida | Balanza. " +
-                           "Columnas opcionales: Código, Tipo Transacción (default: VENTA_MERCADERIA), Unidad Medida (default: UNI), Balanza (default: false)")
+                           "Columnas opcionales: Código, Tipo Transacción (default: VENTA_MERCADERIA), Unidad Medida (default: UNI), Balanza (default: false). " +
+                           "La Unidad de Medida debe ser un código del catálogo de SIFEN respetando mayúsculas y minúsculas " +
+                           "(UNI, kg, TN, LT, g, ha, Hs, m, M2, M3...). Ojo: ML es Mililitros y ml es Metro lineal. " +
+                           "Un código desconocido se importa igual pero se emite como UNI.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Importación completada",
                     content = @Content(schema = @Schema(implementation = Map.class))),

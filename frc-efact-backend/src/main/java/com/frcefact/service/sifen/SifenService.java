@@ -1,5 +1,6 @@
 package com.frcefact.service.sifen;
 
+import com.frcefact.util.RucParaguayo;
 import com.frcefact.exception.BusinessException;
 import com.frcefact.model.Cliente;
 import com.frcefact.model.DocumentoElectronico;
@@ -27,8 +28,10 @@ import com.frcefact.sifen.util.SifenResponseParser;
 import com.frcefact.sifen.util.SifenResponseParser.DocumentResult;
 import com.frcefact.sifen.util.SifenResponseParser.EventResult;
 import com.frcefact.service.XmlGeneratorService;
+import com.frcefact.sifen.util.CantidadSifen;
 import com.frcefact.sifen.util.SifenDocumentoLogger;
 import com.frcefact.sifen.util.SifenTotalsHelper;
+import com.frcefact.sifen.util.UnidadMedidaSifen;
 import com.frcefact.model.FacturaLegalItem;
 import com.frcefact.model.NotaCreditoItem;
 import com.frcefact.model.NotaRemisionItem;
@@ -1342,10 +1345,11 @@ public class SifenService {
         Empresa empresa = factura.getEmpresa();
         
         // RUC del emisor (desde empresa)
-        String rucCompleto = empresa.getRuc();
-        String[] rucPartes = rucCompleto.split("-");
-        gEmis.setdRucEm(rucPartes[0]);
-        gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
+        // El emisor siempre es contribuyente: si el RUC no trae DV, fallar acá con un mensaje
+        // claro es mucho mejor que emitir dDVEmi="" y que SIFEN rechace el DE sin explicar.
+        RucParaguayo rucEmisor = RucParaguayo.parse(empresa.getRuc());
+        gEmis.setdRucEm(rucEmisor.getBase());
+        gEmis.setdDVEmi(rucEmisor.getDvComoString());
         
         // Tipo de contribuyente emisor (por defecto PJ, puede ajustarse según configuración)
         gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
@@ -1447,15 +1451,13 @@ public class SifenService {
             }
             
             // RUC y DV
-            String rucCompleto = cliente.getRuc();
-            String[] rucPartes = rucCompleto.split("-");
-            gDatRec.setdRucRec(rucPartes[0]);
-            if (rucPartes.length > 1) {
-                gDatRec.setdDVRec(Short.parseShort(rucPartes[1]));
-            }
+            // Rama de contribuyente: el RUC debe traer DV. parse() valida formato y dígito.
+            RucParaguayo rucReceptor = RucParaguayo.parse(cliente.getRuc());
+            gDatRec.setdRucRec(rucReceptor.getBase());
+            gDatRec.setdDVRec(rucReceptor.getDvComoShort());
             
             gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
-            gDatRec.setdNumIDRec(rucPartes[0]);
+            gDatRec.setdNumIDRec(rucReceptor.getBase());
         } else {
             // No contribuyente
             gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
@@ -1610,19 +1612,17 @@ public class SifenService {
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
 
-            // Determinar unidad de medida y cantidad según producto
+            // Unidad de medida y cantidad. Antes esto se decidía con el booleano `balanza`, que
+            // colapsaba los 34 códigos del catálogo de la SET a kg-o-unidad e ignoraba
+            // `Producto.unidadMedida`, y de paso truncaba la cantidad a entero con setScale(0).
+            // Ver UnidadMedidaSifen y CantidadSifen para el detalle de lo que cada cosa rompía.
             Producto producto = item.getProducto();
-            BigDecimal cantidad;
-            
-            if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
-                gCamItem.setcUniMed(TcUniMed.kg);
-                cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP);
-            } else {
-                gCamItem.setcUniMed(TcUniMed.UNI);
-                cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);
-            }
-            gCamItem.setdCantProSer(cantidad);
-            
+
+            gCamItem.setcUniMed(UnidadMedidaSifen.resolver(
+                    producto != null ? producto.getUnidadMedida() : null,
+                    producto != null ? producto.getBalanza() : null));
+            gCamItem.setdCantProSer(CantidadSifen.normalizar(item.getCantidad()));
+
             TgValorItem gValorItem = new TgValorItem();
             
             // IMPORTANTE: Si la factura tiene moneda extranjera, los precios de los items están en guaraníes
@@ -1649,7 +1649,21 @@ public class SifenService {
 
             // IVA
             TgCamIVA gCamIVA = new TgCamIVA();
-            Integer iva = (producto != null && producto.getIva() != null) ? producto.getIva() : 10;
+            // La tasa se lee del ÍTEM, no del producto. El ítem la tiene fijada desde que se creó
+            // la factura (ver V37), así que emitir un DE hoy y regenerar su KuDE el año que viene
+            // dan el mismo resultado aunque el catálogo haya cambiado de tasa en el medio.
+            //
+            // Antes esto decía `producto.getIva()` con un fallback silencioso a 10: si el producto
+            // venía null, el DE salía gravado al 10% sin que nada lo advirtiera. El path de nota de
+            // crédito (más abajo, en construirDEDesdeNotaCredito) siempre leyó el del ítem — la
+            // factura era la excepción.
+            Integer iva = item.getIva();
+            if (iva == null) {
+                throw new BusinessException(
+                        "El ítem '" + item.getDescripcion() + "' de la factura "
+                                + factura.getNumeroFacturaFormateado() + " no tiene tasa de IVA "
+                                + "registrada. No se puede emitir el DE sin ese dato.");
+            }
             
             switch (iva) {
                 case 5:
@@ -1873,10 +1887,11 @@ public class SifenService {
         Empresa empresa = notaCredito.getEmpresa();
         
         // RUC del emisor
-        String rucCompleto = empresa.getRuc();
-        String[] rucPartes = rucCompleto.split("-");
-        gEmis.setdRucEm(rucPartes[0]);
-        gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
+        // El emisor siempre es contribuyente: si el RUC no trae DV, fallar acá con un mensaje
+        // claro es mucho mejor que emitir dDVEmi="" y que SIFEN rechace el DE sin explicar.
+        RucParaguayo rucEmisor = RucParaguayo.parse(empresa.getRuc());
+        gEmis.setdRucEm(rucEmisor.getBase());
+        gEmis.setdDVEmi(rucEmisor.getDvComoString());
         
         gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
         gEmis.setdNomEmi(empresa.getRazonSocial());
@@ -1940,21 +1955,23 @@ public class SifenService {
         }
         
         // Determinar si es contribuyente
-        boolean esContribuyente = ruc != null && ruc.length() >= 6; // RUC tiene al menos 6 dígitos
+        // Contribuyente se decide por FORMATO, no por largo. Antes era `ruc.length() >= 6`, con lo
+        // cual la cédula de 7 dígitos de un no contribuyente quedaba clasificada como
+        // contribuyente y se emitía un receptor con dRucRec pero sin dDVRec → rechazo de SIFEN.
+        boolean esContribuyente = RucParaguayo.tieneFormatoContribuyente(ruc);
         
         if (esContribuyente) {
             gDatRec.setiNatRec(TiNatRec.CONTRIBUYENTE);
             gDatRec.setiTiOpe(TiTiOpe.B2B);
             gDatRec.setiTiContRec(TiTipCont.PERSONA_JURIDICA);
             
-            String[] rucPartes = ruc.split("-");
-            gDatRec.setdRucRec(rucPartes[0]);
-            if (rucPartes.length > 1) {
-                gDatRec.setdDVRec(Short.parseShort(rucPartes[1]));
-            }
+            // Dentro de esta rama el formato ya está garantizado por tieneFormatoContribuyente
+            RucParaguayo rucRec = RucParaguayo.parse(ruc);
+            gDatRec.setdRucRec(rucRec.getBase());
+            gDatRec.setdDVRec(rucRec.getDvComoShort());
             
             gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
-            gDatRec.setdNumIDRec(rucPartes[0]);
+            gDatRec.setdNumIDRec(rucRec.getBase());
         } else {
             gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
             gDatRec.setiTiOpe(TiTiOpe.B2C);
@@ -2039,18 +2056,14 @@ public class SifenService {
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
 
+            // Misma resolución que en la factura: catálogo real de SIFEN y cantidad sin truncar.
             Producto producto = item.getProducto();
-            BigDecimal cantidad;
-            
-            if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
-                gCamItem.setcUniMed(TcUniMed.kg);
-                cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP);
-            } else {
-                gCamItem.setcUniMed(TcUniMed.UNI);
-                cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);
-            }
-            gCamItem.setdCantProSer(cantidad);
-            
+
+            gCamItem.setcUniMed(UnidadMedidaSifen.resolver(
+                    producto != null ? producto.getUnidadMedida() : null,
+                    producto != null ? producto.getBalanza() : null));
+            gCamItem.setdCantProSer(CantidadSifen.normalizar(item.getCantidad()));
+
             TgValorItem gValorItem = new TgValorItem();
             
             BigDecimal precioUnitario;
@@ -2343,31 +2356,22 @@ public class SifenService {
             gCamItem.setdCodInt(String.format("%03d", i + 1));
             gCamItem.setdDesProSer(item.getDescripcion());
 
+            // La NRE guarda su propia unidad de medida en el ítem; si no la trae, se cae a la del
+            // producto. Antes esto usaba `TcUniMed.valueOf(unidadMedida.toUpperCase())`, que
+            // rompía para más de la mitad del catálogo: las constantes kg, g, m, ml, ha, racion,
+            // pm, Hs, Km, Mi, Ya, Se y Di son minúsculas o mixtas. Peor todavía, ML (88) es
+            // Mililitros y ml (660) es Metro lineal — el toUpperCase convertía metros lineales en
+            // mililitros en silencio.
             Producto producto = item.getProducto();
-            BigDecimal cantidad;
-            
-            // Determinar unidad de medida y cantidad
-            String unidadMedida = item.getUnidadMedida();
-            if (unidadMedida != null && !unidadMedida.isBlank()) {
-                try {
-                    // Intentar mapear a enum TcUniMed
-                    TcUniMed uniMed = TcUniMed.valueOf(unidadMedida.toUpperCase());
-                    gCamItem.setcUniMed(uniMed);
-                } catch (IllegalArgumentException e) {
-                    // Si no se puede mapear, usar UNI por defecto
-                    log.warn("⚠️ Unidad de medida '{}' no reconocida, usando UNI por defecto", unidadMedida);
-                    gCamItem.setcUniMed(TcUniMed.UNI);
-                }
-                cantidad = item.getCantidad();
-            } else if (producto != null && producto.getBalanza() != null && producto.getBalanza()) {
-                gCamItem.setcUniMed(TcUniMed.kg);
-                cantidad = item.getCantidad().setScale(3, RoundingMode.HALF_UP);
-            } else {
-                gCamItem.setcUniMed(TcUniMed.UNI);
-                cantidad = item.getCantidad().setScale(0, RoundingMode.HALF_UP);
-            }
-            
-            gCamItem.setdCantProSer(cantidad);
+
+            String unidadMedida = item.getUnidadMedida() != null && !item.getUnidadMedida().isBlank()
+                    ? item.getUnidadMedida()
+                    : (producto != null ? producto.getUnidadMedida() : null);
+
+            gCamItem.setcUniMed(UnidadMedidaSifen.resolver(
+                    unidadMedida,
+                    producto != null ? producto.getBalanza() : null));
+            gCamItem.setdCantProSer(CantidadSifen.normalizar(item.getCantidad()));
 
             // CRÍTICO: NO incluir gValorItem (E720) - NRE no tiene precios
             // CRÍTICO: NO incluir gCamIVA (E730) - NRE no tiene IVA
@@ -2636,19 +2640,18 @@ public class SifenService {
             
             // RUC y DV del transportista (desde empresa emisor)
             String rucCompleto = empresa.getRuc();
-            if (rucCompleto != null && rucCompleto.contains("-")) {
-                String[] rucPartes = rucCompleto.split("-");
-                gCamTrans.setdRucTrans(rucPartes[0]);
-                if (rucPartes.length > 1) {
-                    try {
-                        gCamTrans.setdDVTrans(Short.parseShort(rucPartes[1]));
-                    } catch (NumberFormatException e) {
-                        log.warn("⚠️ DV de empresa emisor no es numérico: {}", rucPartes[1]);
-                    }
-                }
-            } else if (rucCompleto != null) {
-                gCamTrans.setdRucTrans(rucCompleto);
-            }
+            // Acá el RUC es opcional y puede venir sin DV, así que tryParse en vez de parse.
+            RucParaguayo.tryParse(rucCompleto).ifPresentOrElse(
+                    r -> {
+                        gCamTrans.setdRucTrans(r.getBase());
+                        gCamTrans.setdDVTrans(r.getDvComoShort());
+                    },
+                    () -> {
+                        if (rucCompleto != null && !rucCompleto.isBlank()) {
+                            log.warn("⚠️ RUC del emisor sin formato de contribuyente, se envía sin DV: {}", rucCompleto);
+                            gCamTrans.setdRucTrans(rucCompleto);
+                        }
+                    });
             
             // E986 - Domicilio fiscal del transportista
             String direccion = empresa.getDomicilioFiscalDireccion() != null 
@@ -2666,17 +2669,15 @@ public class SifenService {
             
             if (notaRemision.getTransportistaRuc() != null && !notaRemision.getTransportistaRuc().isBlank()) {
                 String ruc = notaRemision.getTransportistaRuc();
-                if (ruc.contains("-")) {
-                    String[] partes = ruc.split("-");
-                    gCamTrans.setdRucTrans(partes[0]);
-                    try {
-                        gCamTrans.setdDVTrans(Short.parseShort(partes[1]));
-                    } catch (Exception e) {
-                        log.warn("⚠️ No se pudo parsear DV del transportista: {}", partes[1]);
-                    }
-                } else {
-                    gCamTrans.setdRucTrans(ruc);
-                }
+                RucParaguayo.tryParse(ruc).ifPresentOrElse(
+                        r -> {
+                            gCamTrans.setdRucTrans(r.getBase());
+                            gCamTrans.setdDVTrans(r.getDvComoShort());
+                        },
+                        () -> {
+                            log.warn("⚠️ RUC del transportista sin formato de contribuyente, se envía sin DV: {}", ruc);
+                            gCamTrans.setdRucTrans(ruc);
+                        });
             }
             
             if (notaRemision.getTransportistaDireccion() != null && !notaRemision.getTransportistaDireccion().isBlank()) {
@@ -2772,10 +2773,11 @@ public class SifenService {
         Empresa empresa = notaRemision.getEmpresa();
         
         // RUC del emisor
-        String rucCompleto = empresa.getRuc();
-        String[] rucPartes = rucCompleto.split("-");
-        gEmis.setdRucEm(rucPartes[0]);
-        gEmis.setdDVEmi(rucPartes.length > 1 ? rucPartes[1] : "");
+        // El emisor siempre es contribuyente: si el RUC no trae DV, fallar acá con un mensaje
+        // claro es mucho mejor que emitir dDVEmi="" y que SIFEN rechace el DE sin explicar.
+        RucParaguayo rucEmisor = RucParaguayo.parse(empresa.getRuc());
+        gEmis.setdRucEm(rucEmisor.getBase());
+        gEmis.setdDVEmi(rucEmisor.getDvComoString());
         
         gEmis.setiTipCont(TiTipCont.PERSONA_JURIDICA);
         gEmis.setdNomEmi(empresa.getRazonSocial());
@@ -2844,21 +2846,23 @@ public class SifenService {
         }
         
         // Determinar si es contribuyente
-        boolean esContribuyente = ruc != null && ruc.length() >= 6; // RUC tiene al menos 6 dígitos
+        // Contribuyente se decide por FORMATO, no por largo. Antes era `ruc.length() >= 6`, con lo
+        // cual la cédula de 7 dígitos de un no contribuyente quedaba clasificada como
+        // contribuyente y se emitía un receptor con dRucRec pero sin dDVRec → rechazo de SIFEN.
+        boolean esContribuyente = RucParaguayo.tieneFormatoContribuyente(ruc);
         
         if (esContribuyente) {
             gDatRec.setiNatRec(TiNatRec.CONTRIBUYENTE);
             gDatRec.setiTiOpe(TiTiOpe.B2B);
             gDatRec.setiTiContRec(TiTipCont.PERSONA_JURIDICA);
             
-            String[] rucPartes = ruc.split("-");
-            gDatRec.setdRucRec(rucPartes[0]);
-            if (rucPartes.length > 1) {
-                gDatRec.setdDVRec(Short.parseShort(rucPartes[1]));
-            }
+            // Dentro de esta rama el formato ya está garantizado por tieneFormatoContribuyente
+            RucParaguayo rucRec = RucParaguayo.parse(ruc);
+            gDatRec.setdRucRec(rucRec.getBase());
+            gDatRec.setdDVRec(rucRec.getDvComoShort());
             
             gDatRec.setiTipIDRec(TiTipDocRec.CEDULA_PARAGUAYA);
-            gDatRec.setdNumIDRec(rucPartes[0]);
+            gDatRec.setdNumIDRec(rucRec.getBase());
         } else {
             gDatRec.setiNatRec(TiNatRec.NO_CONTRIBUYENTE);
             gDatRec.setiTiOpe(TiTiOpe.B2C);

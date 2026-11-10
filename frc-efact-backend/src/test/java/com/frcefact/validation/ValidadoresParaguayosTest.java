@@ -62,16 +62,25 @@ class ValidadoresParaguayosTest {
 
     @Test
     void testRucValido() {
-        // Usar un RUC con dígito verificador correcto: 80016875-1
-        TestRucDto dto = new TestRucDto("80016875-1");
+        // 80016875-5 es el DV correcto (módulo 11). La versión original de este test usaba
+        // "80016875-1" creyendo que era el válido — estaban invertidos.
+        TestRucDto dto = new TestRucDto("80016875-5");
         Set<ConstraintViolation<TestRucDto>> violations = validator.validate(dto);
         assertTrue(violations.isEmpty(), "RUC válido no debe tener violaciones");
     }
 
     @Test
+    void testRucValidoConRucRealDeProduccion() {
+        // Emisor con DE aprobados por SIFEN
+        TestRucDto dto = new TestRucDto("80099482-5");
+        Set<ConstraintViolation<TestRucDto>> violations = validator.validate(dto);
+        assertTrue(violations.isEmpty(), "Un RUC real de producción no debe tener violaciones");
+    }
+
+    @Test
     void testRucInvalido() {
-        // Usar el RUC anterior con dígito verificador incorrecto: 80016875-5
-        TestRucDto dto = new TestRucDto("80016875-5");
+        // 80016875-1 tiene el DV equivocado: el correcto es 5.
+        TestRucDto dto = new TestRucDto("80016875-1");
         Set<ConstraintViolation<TestRucDto>> violations = validator.validate(dto);
         assertFalse(violations.isEmpty(), "RUC con dígito verificador incorrecto debe tener violaciones");
     }

@@ -146,7 +146,7 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - **NUNCA** prefijar `@RequestMapping` con `/api/` — el `context-path: /api` ya lo agrega. Ver [frc-efact-backend/CONTROLLER_ROUTING_RULE.md](frc-efact-backend/CONTROLLER_ROUTING_RULE.md). Usar `@RequestMapping("/clientes")`, no `"/api/clientes"`.
   - **🐛 Deuda vigente (verificado 2026-08-05):** `GeografiaController`, `AuditLogController` y `ReporteController` **todavía** usan `@RequestMapping("/api/...")` → resuelven a `/api/api/...`. El frontend los consume con ese doble prefijo; corregir requiere cambiar controller **y** el api-service del front en conjunto.
 - **Idioma de campos**: español para dominio (`razon_social`, `numero_factura`), inglés para genéricos (`id`, `username`, `is_active`, `password_hash`).
-- **Esquemas DB**: nada en `public`. Esquemas realmente creados por migraciones: `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte` (**no** existe `catalogo`). Ver [frc-efact-backend/DATABASE_STANDARDS.md](frc-efact-backend/DATABASE_STANDARDS.md).
+- **Esquemas DB**: nada en `public`. Esquemas realmente creados por migraciones: `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte`, `integracion` (**no** existe `catalogo`). Ver [frc-efact-backend/DATABASE_STANDARDS.md](frc-efact-backend/DATABASE_STANDARDS.md).
 - **Auditoría obligatoria** en toda tabla: `id BIGSERIAL PK`, `creado_en`, `creado_por`, `actualizado_en`, `actualizado_por` + trigger `actualizar_timestamp_modificacion()`.
 - **Migraciones Flyway** versionadas (`V36__...`); **nunca** modificar una migración ya aplicada — crear una nueva.
 - **`ddl-auto: validate`** — Hibernate sólo valida; el esquema lo gestiona Flyway.
@@ -183,7 +183,72 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - **Notas de crédito**: heredar moneda de la factura referenciada, motivos validados según SIFEN, fecha firma correcta, numeración propia — commits `1680341`, `21f4a89`, `7a8e215`
 - **Multi-empresa**: certificados por empresa, ver [.kiro/specs/electronic-invoicing-system/MULTI_EMPRESA_CERTIFICADOS.md](.kiro/specs/electronic-invoicing-system/MULTI_EMPRESA_CERTIFICADOS.md)
 
+### ⚠️ La regla que más caro salió: **los valores fiscales se fijan al emitir, no se derivan al leer**
+
+El proyecto pagó esta misma lección **cuatro veces**, siempre con la misma forma: un dato que se
+recalcula en tiempo de lectura a partir de una fuente que puede cambiar, en vez de guardarse en el
+documento cuando se emite. Como el DE es **inmutable en SIFEN**, cualquier deriva posterior hace
+que lo que muestra el sistema deje de coincidir con lo que la SET aprobó.
+
+| Caso | Consecuencia | Resuelto en |
+|---|---|---|
+| Actividades económicas separadas por `,` cuando las descripciones de la SET traen comas | La SET rechazaba con `1262` | `V36` |
+| `dDVEmi = ""` cuando el RUC no traía guion | DE rechazado sin explicación útil | `RucParaguayo` |
+| IVA del ítem derivado de `producto.iva` | Facturas mostradas como EXENTAS; guardar corrompía los totales | `V37` + `V40` (V37 rellenaba con el IVA *actual* del producto; V40 lo corrige con el XML del DE) |
+| `dCantProSer` truncado con `setScale(0)` | DE emitido por USD 86.250 en vez de 86.279,25; el cliente tuvo que cancelarlo | `CantidadSifen` |
+
+**Antes de tocar cualquier campo del XML, preguntarse: ¿este valor está guardado en el documento,
+o se está reconstruyendo?** Si se reconstruye, es un bug esperando el momento.
+
+Corolario aprendido con el `1262` y repetido con el IVA: **un default silencioso en un campo fiscal
+es peor que un error**. `producto.getIva()` caía a `10`, `KudePdfService` caía a `0` (exento) y
+`dDVEmi` caía a `""`. Los tres producían documentos creíbles y equivocados. Cortar con excepción.
+
+### ⚠️ Unidad de medida: usar siempre `UnidadMedidaSifen`, nunca `balanza`
+
+**El case de los códigos de SIFEN es significativo.** `ML` (88) es *Mililitros* y `ml` (660) es
+*Metro lineal*: unidades distintas que solo difieren en mayúsculas. **Nunca aplicar `.toUpperCase()`
+ni matcheo case-insensitive** a una unidad de medida — convierte metros lineales en mililitros en
+silencio. Además `kg_m2` vale `"kg/m2"` y `racion` vale `"ración"`, o sea que el nombre de la
+constante no siempre es el código.
+
+Toda resolución de `cUniMed` pasa por
+[`UnidadMedidaSifen`](frc-efact-backend/src/main/java/com/frcefact/sifen/util/UnidadMedidaSifen.java),
+y toda normalización de `dCantProSer` por
+[`CantidadSifen`](frc-efact-backend/src/main/java/com/frcefact/sifen/util/CantidadSifen.java).
+**No usar `Producto.balanza` para decidir la unidad ni la precisión decimal**: ese booleano existe
+para integración con balanza física, y que además definiera `cUniMed` y el `setScale` fue el
+accidente histórico que causó el DE mal emitido de la tabla de arriba. Sigue disponible solo como
+fallback dentro del helper, para no cambiarle la unidad a productos viejos sin `unidadMedida`.
+
+Corregido el 2026-08-07 (V38). Antes: el selector ofrecía 14 opciones inventadas de las cuales solo
+4 existían en el catálogo, el formulario forzaba mayúsculas volviendo inalcanzable la mitad de los
+códigos, factura y NC ignoraban `unidadMedida`, y NRE la leía con `valueOf(toUpperCase())`.
+
 ---
+
+## API de integración (eFact como servicio para otros sistemas)
+
+Desde V39, eFact expone `/api/v1/integracion/**` para **otros sistemas**, autenticados con
+**API key** (`X-API-Key`), no con JWT. Guía para integradores y operación:
+[docs/integracion/API_INTEGRACION.md](docs/integracion/API_INTEGRACION.md).
+
+- Modelo: `integracion.cuenta_servicio` (el cliente, **empresa opcional**) → N `integracion.api_key`
+  (solo el SHA-256 del secreto, con scopes) → `integracion.solicitud_api` (una fila por llamada).
+- Hoy solo el **modo consultor** (scope `de:consultar`): consulta cualquier CDC directo en SIFEN y
+  no guarda el DE. Los modos pasarela y gestión completa se agregan como **scopes nuevos** en
+  [`ScopeIntegracion`](frc-efact-backend/src/main/java/com/frcefact/security/apikey/ScopeIntegracion.java), sin tocar la autenticación.
+- `ApiKeyAuthenticationFilter` solo actúa en `/v1/integracion/**` y sus authorities son solo
+  `SCOPE_*`: una key nunca entra a la API del frontend. No romper ninguna de las dos cosas.
+- El contrato está versionado: en `v1` solo se agregan campos. Errores con formato propio
+  (`IntegracionExceptionHandler`), separado del `GlobalExceptionHandler`.
+- Certificado para consultar: el de la empresa de la cuenta, o el de
+  `INTEGRACION_EMPRESA_PLATAFORMA_ID`; sin ninguno → 503.
+- Administración (solo ADMIN): `/admin/integracion/cuentas`, `/cuentas/{id}/keys`, `/keys/{id}/revocar`.
+- Validado contra SIFEN producción (2026-11-10): `siConsDE` entrega el DE completo a un tercero
+  (ni emisor ni receptor). Empresa de plataforma en prod: FRANCO AREVALOS S.A.
+- ⚠️ `buildParaConsulta` pone un CSC de relleno a propósito: jsifenlib valida el CSC en **toda**
+  operación y en PROD rechaza el CSC de desarrollo que deja el constructor sin CSC. No quitarlo.
 
 ## Documentación adicional
 
@@ -246,6 +311,15 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 ---
 
 ## Issues conocidos pendientes de resolver
+
+### 🐛 Listado de DE sin filtro por empresa (detectado 2026-11-09)
+
+`GET /documentos-electronicos` sin `empresaId` devuelve los DE de **todas** las empresas a
+cualquier usuario con rol, y el frontend lo llama así (`getAll` en
+`documento-electronico-api.service.ts`). Los endpoints de un solo DE (`/{id}`, `/cdc/{cdc}`,
+`/{id}/xml`, `/{id}/consultar`) ya verifican acceso por empresa desde la rama
+`feature/api-servicio-consulta-de`; el listado no, porque arreglarlo cambia lo que ve el frontend
+y necesita su propio cambio (filtrar por las empresas del usuario salvo ADMIN).
 
 ### Sistema de roles / permisos (investigado 2026-04-08)
 

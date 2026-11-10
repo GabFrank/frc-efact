@@ -63,14 +63,31 @@ class RucValidatorTest {
         // Configurar mocks
         when(context.buildConstraintViolationWithTemplate(anyString())).thenReturn(builder);
         when(builder.addConstraintViolation()).thenReturn(context);
-        
-        // Formatos inválidos
-        assertFalse(validator.isValid("12345678", context)); // Sin guión
-        assertFalse(validator.isValid("1234567-8", context)); // Solo 7 dígitos
-        assertFalse(validator.isValid("123456789-0", context)); // 9 dígitos
-        assertFalse(validator.isValid("12345678-", context)); // Sin DV
-        assertFalse(validator.isValid("1234567A-8", context)); // Con letra
-        assertFalse(validator.isValid("12345678-AB", context)); // DV con letra
+
+        // Formatos que RucValidator rechaza a nivel de campo
+        assertFalse(validator.isValid("123456789-0", context)); // 9 dígitos: fuera de \d{6,8}
+        assertFalse(validator.isValid("12345678-", context));   // sin DV
+        assertFalse(validator.isValid("1234567A-8", context));  // letra en el número base
+        assertFalse(validator.isValid("12345678-AB", context)); // DV no numérico
+        assertFalse(validator.isValid("80016875-1", context));  // formato OK, DV equivocado (es 5)
+    }
+
+    @Test
+    void testDigitosSinGuionEsValidoAEsteNivel() {
+        // La validación del RUC son DOS capas y este test cubre la de campo:
+        //
+        //   @ValidRuc       (campo)  -> formato y, si hay guion, corrección del DV
+        //   @ValidClienteRuc (DTO)   -> si el cliente es contribuyente, el guion es OBLIGATORIO;
+        //                               si no lo es, el guion está PROHIBIDO
+        //
+        // Una cadena de solo dígitos es válida a nivel de campo a propósito: es el formato de los
+        // no contribuyentes. Quien decide si corresponde o no es ClienteRucValidator, que conoce
+        // el tipoClienteSifen.
+        //
+        // La versión original de este test afirmaba que "12345678" era inválido, probando la capa
+        // equivocada.
+        assertTrue(validator.isValid("12345678", context),
+                "Solo dígitos es el formato de no contribuyente: válido a nivel de campo");
     }
 
     @Test

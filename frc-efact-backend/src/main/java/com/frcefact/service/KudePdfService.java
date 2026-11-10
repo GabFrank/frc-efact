@@ -154,6 +154,189 @@ public class KudePdfService {
         return outputStream.toByteArray();
     }
 
+    // ==========================================================================================
+    // KuDE de un DE consultado en SIFEN (API de integración)
+    // ==========================================================================================
+
+    /** Tipos de DE con plantilla KuDE desde XML: 1 = factura electrónica, 5 = nota de crédito. */
+    public static boolean soportaKudeDesdeSifen(Integer tipoDocumento) {
+        return tipoDocumento != null && (tipoDocumento == 1 || tipoDocumento == 5);
+    }
+
+    /**
+     * Genera el KuDE de un DE a partir de los datos que devolvió SIFEN, sin entidades de eFact.
+     *
+     * <p>Todos los importes salen del XML aprobado y ya están en la moneda de la operación, así
+     * que acá no se convierte nada. Un ítem gravado sin tasa de IVA corta con excepción: no se
+     * asume ninguna tasa (ver la regla de valores fiscales en CLAUDE.md).
+     *
+     * @throws UnsupportedOperationException si el tipo de DE no tiene plantilla
+     */
+    public byte[] generarPdfKudeDesdeSifen(com.frcefact.dto.integracion.DeConsultadoDto de) throws Exception {
+        if (!soportaKudeDesdeSifen(de.tipoDocumento())) {
+            throw new UnsupportedOperationException(
+                    "KuDE no disponible todavía para el tipo de documento " + de.tipoDocumento()
+                            + " (" + de.tipoDocumentoDescripcion() + ")");
+        }
+        boolean esNotaCredito = de.tipoDocumento() == 5;
+        Map<String, Object> parameters = prepararParametrosDesdeSifen(de, esNotaCredito);
+        List<Map<String, Object>> itemsData = prepararItemsDesdeSifen(de, esNotaCredito);
+
+        ClassPathResource resource = new ClassPathResource(esNotaCredito ? NC_REPORT_PATH : REPORT_PATH);
+        JasperReport jasperReport;
+        try (InputStream reportStream = resource.getInputStream()) {
+            jasperReport = JasperCompileManager.compileReport(reportStream);
+        }
+        JasperPrint jasperPrint = JasperFillManager.fillReport(
+                jasperReport, parameters, new JRBeanCollectionDataSource(itemsData));
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        JasperExportManager.exportReportToPdfStream(jasperPrint, outputStream);
+        log.info("PDF KuDE generado desde SIFEN para CDC {}", de.cdc());
+        return outputStream.toByteArray();
+    }
+
+    private Map<String, Object> prepararParametrosDesdeSifen(com.frcefact.dto.integracion.DeConsultadoDto de,
+                                                             boolean esNotaCredito) throws Exception {
+        Map<String, Object> p = new HashMap<>();
+        var emisor = de.emisor();
+        var receptor = de.receptor();
+        var timbrado = de.timbrado();
+        var operacion = de.operacion();
+        var totales = de.totales();
+
+        p.put("logo", null);
+        p.put("razonSocial", emisor != null ? nvl(emisor.razonSocial()) : "");
+        p.put("rucEmisor", emisor != null && emisor.ruc() != null
+                ? emisor.ruc() + (emisor.dv() != null ? "-" + emisor.dv() : "") : "");
+        p.put("direccionEmisor", emisor != null ? nvl(emisor.direccion()) : "");
+        p.put("telefonoEmisor", emisor != null ? nvl(emisor.telefono()) : "");
+        p.put("emailEmisor", emisor != null ? nvl(emisor.email()) : "");
+        p.put("actividadEconomica", emisor != null && emisor.actividadesEconomicas() != null
+                ? String.join("; ", emisor.actividadesEconomicas()) : "");
+
+        p.put("numeroTimbrado", timbrado != null ? nvl(timbrado.numero()) : "");
+        p.put("fechaInicioVigencia", timbrado != null && timbrado.fechaInicioVigencia() != null
+                ? timbrado.fechaInicioVigencia().format(DATE_FORMATTER) : "");
+        String numero = timbrado != null ? nvl(timbrado.numeroCompleto()) : "";
+        p.put(esNotaCredito ? "numeroNotaCredito" : "numeroFactura", numero);
+        p.put("fechaEmision", de.fechaEmision() != null ? de.fechaEmision().format(DATE_TIME_FORMATTER) : "");
+
+        String rucCliente = "";
+        if (receptor != null) {
+            if (receptor.ruc() != null) {
+                rucCliente = receptor.ruc() + (receptor.dv() != null ? "-" + receptor.dv() : "");
+            } else if (receptor.numeroDocumentoIdentidad() != null) {
+                rucCliente = receptor.numeroDocumentoIdentidad();
+            }
+        }
+        p.put("rucCliente", rucCliente);
+        p.put("nombreCliente", receptor != null ? nvl(receptor.nombre()) : "");
+        p.put("fantasiaCliente", receptor != null ? nvl(receptor.nombreFantasia()) : "");
+        p.put("direccionCliente", receptor != null ? nvl(receptor.direccion()) : "");
+        p.put("ciudadCliente", receptor != null ? nvl(receptor.ciudad()) : "");
+        p.put("departamentoCliente", receptor != null ? nvl(receptor.departamento()) : "");
+        p.put("telefonoCliente", receptor != null ? nvl(receptor.telefono()) : "");
+        p.put("emailCliente", receptor != null ? nvl(receptor.email()) : "");
+        p.put("presupuesto", "");
+        p.put("ordenAsociada", "");
+
+        boolean esCredito = operacion != null && Integer.valueOf(2).equals(operacion.condicion());
+        p.put("contado", !esCredito);
+        p.put("credito", esCredito);
+        p.put("cuotas", "");
+        p.put("plazo", esCredito && operacion.plazoCredito() != null ? operacion.plazoCredito() : "");
+
+        String moneda = operacion != null && operacion.moneda() != null ? operacion.moneda() : "PYG";
+        boolean tieneMonedaExtranjera = !"PYG".equalsIgnoreCase(moneda);
+        p.put("moneda", moneda);
+        p.put("tieneMonedaExtranjera", tieneMonedaExtranjera);
+        p.put("tipoCambio", operacion != null && operacion.tipoCambio() != null
+                ? operacion.tipoCambio().setScale(0, java.math.RoundingMode.HALF_UP).toString() : "");
+
+        if (totales == null) {
+            throw new IllegalStateException("El DE " + de.cdc() + " no trae totales (gTotSub)");
+        }
+        p.put("subtotalExentas", num(totales.subtotalExento()));
+        p.put("subtotal5", num(totales.subtotal5()));
+        p.put("subtotal10", num(totales.subtotal10()));
+        p.put("totalOperacion", num(totales.totalOperacion()));
+        p.put("totalIva5", num(totales.iva5()));
+        p.put("totalIva10", num(totales.iva10()));
+        p.put("totalIva", num(totales.totalIva()));
+        p.put("totalFinal", num(totales.totalGeneral()));
+        // dTotalGs solo viene en moneda extranjera; en guaraníes el total general ya es el total en Gs.
+        p.put("totalEnGuarani", num(tieneMonedaExtranjera ? totales.totalGuaranies() : totales.totalGeneral()));
+
+        if (esNotaCredito) {
+            p.put("motivoEmision", de.motivoEmision() != null ? nvl(de.motivoEmision().descripcion()) : "");
+            p.put("descripcionMotivo", "");
+            p.put("cdcFacturaRelacionada", de.documentosAsociados() != null && !de.documentosAsociados().isEmpty()
+                    ? de.documentosAsociados().get(0) : "");
+        }
+
+        p.put("cdc", nvl(de.cdc()));
+        p.put("urlValidacion", nvl(de.urlQr()));
+        p.put("qrImagePath", generarQRCode(de.urlQr()));
+        return p;
+    }
+
+    private List<Map<String, Object>> prepararItemsDesdeSifen(com.frcefact.dto.integracion.DeConsultadoDto de,
+                                                              boolean esNotaCredito) {
+        List<Map<String, Object>> itemsData = new ArrayList<>();
+        if (de.items() == null) {
+            return itemsData;
+        }
+        long id = 1;
+        for (var item : de.items()) {
+            int tasa = tasaIvaDesdeSifen(item, de.cdc());
+            BigDecimal total = item.totalOperacion() != null ? item.totalOperacion() : item.totalBruto();
+            if (total == null) {
+                throw new IllegalStateException("Ítem sin total en el DE " + de.cdc() + ": " + item.descripcion());
+            }
+            Map<String, Object> d = new HashMap<>();
+            d.put("id", id++);
+            d.put("codigo", nvl(item.codigo()));
+            d.put("descripcion", nvl(item.descripcion()));
+            d.put("precioUnitario", num(item.precioUnitario()));
+            if (esNotaCredito) {
+                d.put("cantidad", num(item.cantidad()));
+                d.put("montoExento", tasa == 0 ? total.doubleValue() : 0d);
+                d.put("montoGravado5", tasa == 5 ? total.doubleValue() : 0d);
+                d.put("montoGravado10", tasa == 10 ? total.doubleValue() : 0d);
+            } else {
+                d.put("iva", tasa);
+                d.put("descripcionPresentacion", nvl(item.unidadMedidaDescripcion()));
+                d.put("cantidad", item.cantidad() != null ? item.cantidad().floatValue() : 0f);
+                d.put("total", total.doubleValue());
+            }
+            itemsData.add(d);
+        }
+        return itemsData;
+    }
+
+    /**
+     * Tasa de IVA del ítem según el XML. iAfecIVA: 1 gravado, 2 exonerado, 3 exento, 4 gravado parcial.
+     * Exonerado y exento van a la columna 0%; gravado exige dTasaIVA.
+     */
+    private static int tasaIvaDesdeSifen(com.frcefact.dto.integracion.DeConsultadoDto.Item item, String cdc) {
+        Integer afectacion = item.afectacionIva();
+        if (afectacion != null && (afectacion == 2 || afectacion == 3)) {
+            return 0;
+        }
+        if (item.tasaIva() == null) {
+            throw new IllegalStateException("Ítem gravado sin dTasaIVA en el DE " + cdc + ": " + item.descripcion());
+        }
+        return item.tasaIva().intValue();
+    }
+
+    private static String nvl(String v) {
+        return v != null ? v : "";
+    }
+
+    private static double num(BigDecimal v) {
+        return v != null ? v.doubleValue() : 0d;
+    }
+
     /**
      * Prepara los parámetros del reporte a partir de la factura.
      */
@@ -341,15 +524,18 @@ public class KudePdfService {
             Map<String, Object> itemData = new HashMap<>();
             itemData.put("id", item.getId());
             
+            // La tasa sale del ítem, que la tiene fijada desde la emisión (ver V37). Antes se leía
+            // de `producto.getIva()` con fallback a 0: un producto borrado o no cargado hacía que el
+            // KuDE mostrara el ítem como EXENTO, contradiciendo el XML que SIFEN ya había aprobado.
+            itemData.put("iva", item.getIva());
+
             Producto producto = item.getProducto();
             if (producto != null) {
                 itemData.put("codigo", producto.getCodigo() != null ? producto.getCodigo() : "");
-                itemData.put("iva", producto.getIva() != null ? producto.getIva() : 0);
-                itemData.put("descripcionPresentacion", producto.getUnidadMedida() != null ? 
+                itemData.put("descripcionPresentacion", producto.getUnidadMedida() != null ?
                         producto.getUnidadMedida() : "");
             } else {
                 itemData.put("codigo", "");
-                itemData.put("iva", 0);
                 itemData.put("descripcionPresentacion", "");
             }
             

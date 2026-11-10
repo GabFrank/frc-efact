@@ -1,6 +1,7 @@
 package com.frcefact.validation;
 
 import com.frcefact.util.CalcularVerificadorRuc;
+import com.frcefact.util.RucParaguayo;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
@@ -17,7 +18,7 @@ import java.util.regex.Pattern;
 public class RucValidator implements ConstraintValidator<ValidRuc, String> {
 
     // Patrón para RUC con guion y dígito verificador: 6, 7 u 8 dígitos + guion + 1 dígito
-    private static final Pattern RUC_CON_GUION = Pattern.compile("^\\d{6,8}-\\d$");
+    private static final Pattern RUC_CON_GUION = Pattern.compile(RucParaguayo.PATRON_CONTRIBUYENTE);
     // Patrón para RUC sin guion: solo números (para no contribuyentes)
     private static final Pattern RUC_SIN_GUION = Pattern.compile("^\\d+$");
 
