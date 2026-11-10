@@ -45,4 +45,21 @@ class SifenConfigFactoryConsultaTest {
         assertThat(config.getCSC()).isNotIn("ABCD0000000000000000000000000000", "EFGH0000000000000000000000000000");
         assertThat(config.getIdCSC()).isEqualTo(SifenConfigFactory.CSC_ID_SOLO_CONSULTA);
     }
+
+    @Test
+    void configDeConsultaConCertificadoVencidoFallaAntesDeLlamarASifen() {
+        EmpresaRepository empresaRepository = mock(EmpresaRepository.class);
+        Empresa empresa = new Empresa();
+        empresa.setSifenAmbiente("PROD");
+        empresa.setCertificadoPath("empresa_2.pfx");
+        empresa.setCertificadoPasswordEncrypted("cifrado");
+        empresa.setCertificadoFechaExpiracion(java.time.LocalDate.now().minusDays(1));
+        when(empresaRepository.findById(2L)).thenReturn(Optional.of(empresa));
+        SifenConfigFactory factory = new SifenConfigFactory(empresaRepository, mock(TimbradoRepository.class),
+                mock(EncryptionService.class), mock(CertificadoService.class), mock(SifenProperties.class));
+
+        org.junit.jupiter.api.Assertions.assertThrows(SifenConfigFactory.CertificadoVencidoException.class,
+                () -> factory.buildParaConsulta(2L));
+        assertThat(factory.tieneCertificadoVigente(2L)).isFalse();
+    }
 }

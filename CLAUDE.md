@@ -249,6 +249,12 @@ Desde V39, eFact expone `/api/v1/integracion/**` para **otros sistemas**, autent
   (ni emisor ni receptor). Empresa de plataforma en prod: FRANCO AREVALOS S.A.
 - ⚠️ `buildParaConsulta` pone un CSC de relleno a propósito: jsifenlib valida el CSC en **toda**
   operación y en PROD rechaza el CSC de desarrollo que deja el constructor sin CSC. No quitarlo.
+- ⚠️ **jsifenlib cachea el contexto SSL (mTLS) del primer certificado que usa, hasta reiniciar la
+  JVM** (`SSLContextHelper._sslContext`, estático). Subir un `.pfx` nuevo no tiene efecto en la
+  conexión hasta `restart backend`, y todas las empresas comparten el certificado de la primera
+  llamada a SIFEN tras el arranque. Síntoma: SIFEN responde la página HTML del F5
+  (`/vdesk/hangup.php3`). Detalle y arreglo pendiente en
+  [docs/integracion/API_INTEGRACION.md](docs/integracion/API_INTEGRACION.md).
 
 ## Documentación adicional
 

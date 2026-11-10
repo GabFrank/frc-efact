@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
 
 /**
  * Fábrica de configuraciones dinámicas para jsifenlib.
@@ -122,6 +123,11 @@ public class SifenConfigFactory {
         if (!tieneCertificado(empresa)) {
             throw new BusinessException("La empresa no tiene certificado digital configurado");
         }
+        // Con un certificado vencido SIFEN corta el mTLS y lo que vuelve no es una respuesta SOAP:
+        // mejor no llamar y decir la causa real.
+        if (estaVencido(empresa)) {
+            throw new CertificadoVencidoException(empresa.getId(), empresa.getCertificadoFechaExpiracion());
+        }
         String certificadoPassword = decrypt(empresa.getCertificadoPasswordEncrypted(), "contraseña del certificado");
         Path certificadoPath = certificadoService.obtenerPathAbsoluto(empresa.getCertificadoPath());
         // jsifenlib valida el CSC en toda operación, aunque siConsDE no lo use, y en PROD rechaza
@@ -144,6 +150,32 @@ public class SifenConfigFactory {
     /** Si la empresa tiene certificado y contraseña cargados (no valida que el archivo sea usable). */
     public boolean tieneCertificado(Long empresaId) {
         return empresaRepository.findById(empresaId).map(this::tieneCertificado).orElse(false);
+    }
+
+    /** Si la empresa tiene certificado cargado y no vencido (sin fecha de expiración = se asume vigente). */
+    public boolean tieneCertificadoVigente(Long empresaId) {
+        return empresaRepository.findById(empresaId)
+                .map(e -> tieneCertificado(e) && !estaVencido(e))
+                .orElse(false);
+    }
+
+    private static boolean estaVencido(Empresa empresa) {
+        LocalDate expira = empresa.getCertificadoFechaExpiracion();
+        return expira != null && expira.isBefore(LocalDate.now());
+    }
+
+    /** El certificado de la empresa venció: SIFEN rechazaría la conexión. */
+    public static class CertificadoVencidoException extends BusinessException {
+        private final LocalDate venceEn;
+
+        public CertificadoVencidoException(Long empresaId, LocalDate venceEn) {
+            super("El certificado digital de la empresa " + empresaId + " venció el " + venceEn);
+            this.venceEn = venceEn;
+        }
+
+        public LocalDate getVenceEn() {
+            return venceEn;
+        }
     }
 
     private boolean tieneCertificado(Empresa empresa) {
