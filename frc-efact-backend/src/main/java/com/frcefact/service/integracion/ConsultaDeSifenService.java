@@ -78,6 +78,15 @@ public class ConsultaDeSifenService {
                     "SIFEN no devolvió respuesta");
         }
 
+        // Delante de SIFEN hay un F5 BIG-IP APM: si rechaza la conexión (certificado vencido o no
+        // aceptado) redirige a su página /vdesk/hangup.php3, que es HTML y no SOAP.
+        if (!raw.contains("Envelope")) {
+            log.error("❌ SIFEN no respondió SOAP (¿certificado rechazado por el control de acceso?): cdc={}, "
+                    + "empresaCertificado={}, inicio de la respuesta=[{}]", cdc, empresaCertificado, inicio(raw));
+            throw new IntegracionException(HttpStatus.BAD_GATEWAY, "SIFEN_RESPUESTA_INVALIDA",
+                    "SIFEN rechazó la conexión de FRC (no devolvió una respuesta SOAP). Avisar a FRC.");
+        }
+
         DeSifenXmlParser.RespuestaConsulta parseada;
         try {
             parseada = DeSifenXmlParser.parsearRespuestaConsulta(raw);
