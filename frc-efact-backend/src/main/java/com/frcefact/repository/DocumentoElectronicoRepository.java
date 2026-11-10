@@ -171,4 +171,19 @@ public interface DocumentoElectronicoRepository extends JpaRepository<DocumentoE
     @EntityGraph(attributePaths = {"facturaLegal", "facturaLegal.empresa"})
     @Query("SELECT de FROM DocumentoElectronico de WHERE de.activo = true ORDER BY de.fechaEmision DESC")
     Page<DocumentoElectronico> findAllWithRelations(Pageable pageable);
+
+    /**
+     * Empresa dueña del DE, resuelta por el documento al que pertenece (factura, NC, ND o NR).
+     * El DE no tiene empresa propia. Devuelve vacío si el DE no existe o no tiene documento asociado.
+     */
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT COALESCE(f.empresa.id, nc.empresa.id, nd.empresa.id, nr.empresa.id)
+            FROM DocumentoElectronico d
+            LEFT JOIN d.facturaLegal f
+            LEFT JOIN d.notaCredito nc
+            LEFT JOIN d.notaDebito nd
+            LEFT JOIN d.notaRemision nr
+            WHERE d.id = :deId
+            """)
+    Optional<Long> findEmpresaIdByDocumentoId(@org.springframework.data.repository.query.Param("deId") Long deId);
 }

@@ -146,7 +146,7 @@ El sistema gestiona **Empresas → Timbrados → Puntos de expedición → Factu
 - **NUNCA** prefijar `@RequestMapping` con `/api/` — el `context-path: /api` ya lo agrega. Ver [frc-efact-backend/CONTROLLER_ROUTING_RULE.md](frc-efact-backend/CONTROLLER_ROUTING_RULE.md). Usar `@RequestMapping("/clientes")`, no `"/api/clientes"`.
   - **🐛 Deuda vigente (verificado 2026-08-05):** `GeografiaController`, `AuditLogController` y `ReporteController` **todavía** usan `@RequestMapping("/api/...")` → resuelven a `/api/api/...`. El frontend los consume con ese doble prefijo; corregir requiere cambiar controller **y** el api-service del front en conjunto.
 - **Idioma de campos**: español para dominio (`razon_social`, `numero_factura`), inglés para genéricos (`id`, `username`, `is_active`, `password_hash`).
-- **Esquemas DB**: nada en `public`. Esquemas realmente creados por migraciones: `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte` (**no** existe `catalogo`). Ver [frc-efact-backend/DATABASE_STANDARDS.md](frc-efact-backend/DATABASE_STANDARDS.md).
+- **Esquemas DB**: nada en `public`. Esquemas realmente creados por migraciones: `persona`, `empresa`, `financiero`, `productos`, `clientes`, `auditoria`, `geografia`, `transporte`, `integracion` (**no** existe `catalogo`). Ver [frc-efact-backend/DATABASE_STANDARDS.md](frc-efact-backend/DATABASE_STANDARDS.md).
 - **Auditoría obligatoria** en toda tabla: `id BIGSERIAL PK`, `creado_en`, `creado_por`, `actualizado_en`, `actualizado_por` + trigger `actualizar_timestamp_modificacion()`.
 - **Migraciones Flyway** versionadas (`V36__...`); **nunca** modificar una migración ya aplicada — crear una nueva.
 - **`ddl-auto: validate`** — Hibernate sólo valida; el esquema lo gestiona Flyway.
@@ -227,6 +227,29 @@ códigos, factura y NC ignoraban `unidadMedida`, y NRE la leía con `valueOf(toU
 
 ---
 
+## API de integración (eFact como servicio para otros sistemas)
+
+Desde V39, eFact expone `/api/v1/integracion/**` para **otros sistemas**, autenticados con
+**API key** (`X-API-Key`), no con JWT. Guía para integradores y operación:
+[docs/integracion/API_INTEGRACION.md](docs/integracion/API_INTEGRACION.md).
+
+- Modelo: `integracion.cuenta_servicio` (el cliente, **empresa opcional**) → N `integracion.api_key`
+  (solo el SHA-256 del secreto, con scopes) → `integracion.solicitud_api` (una fila por llamada).
+- Hoy solo el **modo consultor** (scope `de:consultar`): consulta cualquier CDC directo en SIFEN y
+  no guarda el DE. Los modos pasarela y gestión completa se agregan como **scopes nuevos** en
+  [`ScopeIntegracion`](frc-efact-backend/src/main/java/com/frcefact/security/apikey/ScopeIntegracion.java), sin tocar la autenticación.
+- `ApiKeyAuthenticationFilter` solo actúa en `/v1/integracion/**` y sus authorities son solo
+  `SCOPE_*`: una key nunca entra a la API del frontend. No romper ninguna de las dos cosas.
+- El contrato está versionado: en `v1` solo se agregan campos. Errores con formato propio
+  (`IntegracionExceptionHandler`), separado del `GlobalExceptionHandler`.
+- Certificado para consultar: el de la empresa de la cuenta, o el de
+  `INTEGRACION_EMPRESA_PLATAFORMA_ID`; sin ninguno → 503.
+- Administración (solo ADMIN): `/admin/integracion/cuentas`, `/cuentas/{id}/keys`, `/keys/{id}/revocar`.
+- Validado contra SIFEN producción (2026-11-10): `siConsDE` entrega el DE completo a un tercero
+  (ni emisor ni receptor). Empresa de plataforma en prod: FRANCO AREVALOS S.A.
+- ⚠️ `buildParaConsulta` pone un CSC de relleno a propósito: jsifenlib valida el CSC en **toda**
+  operación y en PROD rechaza el CSC de desarrollo que deja el constructor sin CSC. No quitarlo.
+
 ## Documentación adicional
 
 ### Funcional / usuario
@@ -288,6 +311,15 @@ códigos, factura y NC ignoraban `unidadMedida`, y NRE la leía con `valueOf(toU
 ---
 
 ## Issues conocidos pendientes de resolver
+
+### 🐛 Listado de DE sin filtro por empresa (detectado 2026-11-09)
+
+`GET /documentos-electronicos` sin `empresaId` devuelve los DE de **todas** las empresas a
+cualquier usuario con rol, y el frontend lo llama así (`getAll` en
+`documento-electronico-api.service.ts`). Los endpoints de un solo DE (`/{id}`, `/cdc/{cdc}`,
+`/{id}/xml`, `/{id}/consultar`) ya verifican acceso por empresa desde la rama
+`feature/api-servicio-consulta-de`; el listado no, porque arreglarlo cambia lo que ve el frontend
+y necesita su propio cambio (filtrar por las empresas del usuario salvo ADMIN).
 
 ### Sistema de roles / permisos (investigado 2026-04-08)
 

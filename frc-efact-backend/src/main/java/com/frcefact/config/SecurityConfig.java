@@ -4,6 +4,7 @@ import com.frcefact.security.CustomJwtAuthenticationConverter;
 import com.frcefact.security.JwtAuthenticationFilter;
 import com.frcefact.security.OAuth2TokenFilter;
 import com.frcefact.security.RateLimitingFilter;
+import com.frcefact.security.apikey.ApiKeyAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private final RateLimitingFilter rateLimitingFilter;
     private final OAuth2TokenFilter oauth2TokenFilter;
     private final CustomJwtAuthenticationConverter customJwtAuthenticationConverter;
+    private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
 
     /**
      * Orígenes adicionales permitidos por CORS, configurables por entorno
@@ -53,12 +55,14 @@ public class SecurityConfig {
                          JwtAuthenticationFilter jwtAuthenticationFilter,
                          RateLimitingFilter rateLimitingFilter,
                          OAuth2TokenFilter oauth2TokenFilter,
-                         CustomJwtAuthenticationConverter customJwtAuthenticationConverter) {
+                         CustomJwtAuthenticationConverter customJwtAuthenticationConverter,
+                         ApiKeyAuthenticationFilter apiKeyAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
         this.oauth2TokenFilter = oauth2TokenFilter;
         this.customJwtAuthenticationConverter = customJwtAuthenticationConverter;
+        this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
     }
 
     /**
@@ -102,6 +106,11 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/info").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         
+                        // API de integración para sistemas externos: solo API key (X-API-Key).
+                        // El ApiKeyAuthenticationFilter corta con 401 cualquier request sin key válida
+                        // antes de llegar acá; los scopes se exigen con @PreAuthorize en el controller.
+                        .requestMatchers("/v1/integracion/**").authenticated()
+
                         // Endpoints de administración del sistema - solo ADMIN
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/usuarios/admin/**").hasRole("ADMIN")
@@ -140,6 +149,7 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(oauth2TokenFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
