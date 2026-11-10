@@ -194,7 +194,7 @@ que lo que muestra el sistema deje de coincidir con lo que la SET aprobó.
 |---|---|---|
 | Actividades económicas separadas por `,` cuando las descripciones de la SET traen comas | La SET rechazaba con `1262` | `V36` |
 | `dDVEmi = ""` cuando el RUC no traía guion | DE rechazado sin explicación útil | `RucParaguayo` |
-| IVA del ítem derivado de `producto.iva` | Facturas mostradas como EXENTAS; guardar corrompía los totales | `V37` |
+| IVA del ítem derivado de `producto.iva` | Facturas mostradas como EXENTAS; guardar corrompía los totales | `V37` + `V40` (V37 rellenaba con el IVA *actual* del producto; V40 lo corrige con el XML del DE) |
 | `dCantProSer` truncado con `setScale(0)` | DE emitido por USD 86.250 en vez de 86.279,25; el cliente tuvo que cancelarlo | `CantidadSifen` |
 
 **Antes de tocar cualquier campo del XML, preguntarse: ¿este valor está guardado en el documento,
