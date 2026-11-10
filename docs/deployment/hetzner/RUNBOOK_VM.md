@@ -310,6 +310,7 @@ quedan **irrecuperables** — habría que volver a cargarlos a mano desde Marang
 | Flyway valida con error tras el restore | Restore incompleto o versión distinta de migraciones entre rama y DB |
 | Error GCM / "Tag mismatch" al abrir timbrado | `ENCRYPTION_KEY` distinta a la de Render |
 | DE falla al firmar | `.pfx` ausente en `/app/certificates` o nombre ≠ `certificado_path` |
+| SIFEN devuelve HTML (`classId`, `/vdesk/hangup.php3`) tras renovar un `.pfx` | jsifenlib cachea el SSL del primer certificado hasta reiniciar: `docker compose ... restart backend` (ver `docs/integracion/API_INTEGRACION.md`) |
 | certbot no emite certificado | DNS de `efact.` aún no propagado |
 | nginx 502 hacia el stack | contenedor caído, o SELinux `httpd_can_network_connect` off |
 | CORS bloqueado desde el dominio nuevo | `CORS_ALLOWED_ORIGINS` ausente en el backend |

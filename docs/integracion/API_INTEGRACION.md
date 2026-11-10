@@ -119,7 +119,7 @@ Decidir por `codigo`, no por `mensaje` (el texto puede cambiar).
 | 429 | `LIMITE_EXCEDIDO` | Límite por minuto superado | Sí, tras `Retry-After` |
 | 501 | `KUDE_NO_DISPONIBLE` | Tipo de DE sin plantilla KuDE | No |
 | 502 | `SIFEN_NO_DISPONIBLE` / `SIFEN_SIN_RESPUESTA` / `SIFEN_RESPUESTA_INVALIDA` | SIFEN caído o respuesta ilegible | Sí, con espera |
-| 503 | `SERVICIO_NO_CONFIGURADO` | La cuenta no tiene certificado disponible para consultar | No — avisar a FRC |
+| 503 | `SERVICIO_NO_CONFIGURADO` | La cuenta no tiene certificado disponible para consultar, o está vencido | No — avisar a FRC |
 | 500 | `ERROR_INTERNO` | Error inesperado | Sí, con espera |
 
 ---
@@ -147,6 +147,10 @@ curl -X POST "$API/admin/integracion/keys/{keyId}/revocar" -H "Authorization: Be
 
 Entregar la clave al cliente por un canal seguro, nunca por el chat ni por email en claro.
 
+Atajo: [`deploy/crear-cuenta-integracion.sh`](../../deploy/crear-cuenta-integracion.sh) hace los dos
+pasos de forma interactiva desde la Mac (pide el `auth_token` sin mostrarlo, guarda la clave en
+`~/frc-efact-validacion/apikey_cuenta_<id>.txt` con permisos 600 y la prueba con un CDC real).
+
 ### Certificado con el que se consulta SIFEN
 
 SIFEN exige certificado digital (mTLS) para consultar. eFact usa, en este orden:
@@ -154,6 +158,9 @@ SIFEN exige certificado digital (mTLS) para consultar. eFact usa, en este orden:
 1. el certificado de la **empresa de la cuenta**, si tiene empresa y la empresa tiene certificado;
 2. el de la **empresa de plataforma** (`INTEGRACION_EMPRESA_PLATAFORMA_ID`);
 3. si no hay ninguno → `503 SERVICIO_NO_CONFIGURADO`.
+
+Un certificado **vencido** (`certificado_fecha_expiracion` pasada) no se usa: el de la cuenta cae al
+de plataforma, y si el de plataforma está vencido la API responde `503` sin llamar a SIFEN.
 
 El **ambiente** (test/producción) es el `sifen_ambiente` de esa empresa. Un CDC de producción no
 existe en el ambiente de test.
@@ -165,6 +172,33 @@ en `deploy/.env` lleva su `id` de la base de producción.
 consulta no sea ni emisor ni receptor. Con el certificado de FRANCO AREVALOS se obtuvo un NRE de
 ANATOLE DEINZER DUARTE a AGROFERTIL S.A. (`0422 CDC encontrado`, con `xContenDE`). Un CDC
 inexistente devuelve `0420`. Cada consulta tarda ~9-11 s.
+
+### ⚠️ Cambio de certificado: reiniciar el backend
+
+jsifenlib guarda en una variable estática el contexto SSL que arma **la primera vez** que conecta
+con SIFEN (`SSLContextHelper._sslContext`) y lo reusa hasta que la JVM se reinicia, sin mirar la
+config. Consecuencias:
+
+- **Subir un `.pfx` nuevo desde la UI no cambia el certificado del mTLS** hasta reiniciar el
+  backend (la firma del XML sí usa el nuevo, porque carga el keystore aparte).
+- El mTLS de **todas** las empresas sale con el certificado de la que hizo la primera llamada a
+  SIFEN después del arranque. Si ese certificado está vencido, falla todo: emisión y consultas.
+
+Tras renovar cualquier certificado:
+
+```bash
+ssh deploy@178.105.107.171 'cd ~/frc-efact && docker compose -f docker-compose.prod.yml --env-file deploy/.env restart backend'
+```
+
+Arreglo de fondo pendiente: que el fork cachee el contexto SSL por certificado (ruta + contraseña).
+
+### 502 `SIFEN_RESPUESTA_INVALIDA` en todas las consultas
+
+Delante de SIFEN hay un F5 BIG-IP APM. Si rechaza la conexión (certificado vencido o no aceptado)
+responde un 302 a `/vdesk/hangup.php3`, una página HTML (en el log: `Open quote is expected for
+attribute "classId"` o, desde PR #12, `SIFEN no respondió SOAP`). Revisar el vencimiento del
+certificado y, si se renovó, que el backend se haya reiniciado (ver arriba). Caso real 2026-11-10:
+FRANCO AREVALOS vencido desde 2026-08-20; se resolvió subiendo el nuevo `.pfx` y reiniciando.
 
 ### Rastro de uso
 
