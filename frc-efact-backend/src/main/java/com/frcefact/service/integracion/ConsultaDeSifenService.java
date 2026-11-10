@@ -52,6 +52,11 @@ public class ConsultaDeSifenService {
         SifenConfig config;
         try {
             config = sifenConfigFactory.buildParaConsulta(empresaCertificado);
+        } catch (SifenConfigFactory.CertificadoVencidoException e) {
+            log.error("❌ Consulta por API sin certificado vigente: {}. Renovarlo en la empresa {}.",
+                    e.getMessage(), empresaCertificado);
+            throw new IntegracionException(HttpStatus.SERVICE_UNAVAILABLE, "SERVICIO_NO_CONFIGURADO",
+                    "El certificado con el que FRC consulta SIFEN está vencido. Avisar a FRC.");
         } catch (RuntimeException e) {
             log.error("❌ No se pudo armar la config SIFEN de la empresa {}: {}", empresaCertificado, e.getMessage());
             throw new IntegracionException(HttpStatus.SERVICE_UNAVAILABLE, "SERVICIO_NO_CONFIGURADO",
@@ -77,7 +82,10 @@ public class ConsultaDeSifenService {
         try {
             parseada = DeSifenXmlParser.parsearRespuestaConsulta(raw);
         } catch (IllegalArgumentException e) {
-            log.error("❌ Respuesta de SIFEN ilegible: cdc={}, error={}", cdc, e.getMessage());
+            // Si no es XML suele ser una página de error de SIFEN (mTLS rechazado, mantenimiento):
+            // se loguea el comienzo para poder diagnosticarlo. No es contenido de un DE.
+            log.error("❌ Respuesta de SIFEN ilegible: cdc={}, error={}, inicio de la respuesta=[{}]",
+                    cdc, e.getMessage(), inicio(raw));
             throw new IntegracionException(HttpStatus.BAD_GATEWAY, "SIFEN_RESPUESTA_INVALIDA",
                     "La respuesta de SIFEN no se pudo interpretar");
         }
@@ -114,8 +122,15 @@ public class ConsultaDeSifenService {
         }
     }
 
+    /** Primeros 300 caracteres de la respuesta en una sola línea, para el log. */
+    static String inicio(String raw) {
+        String plano = raw.replaceAll("\\s+", " ").trim();
+        return plano.length() <= 300 ? plano : plano.substring(0, 300) + "…";
+    }
+
     private Long resolverEmpresaCertificado(ApiKeyPrincipal principal) {
-        if (principal.empresaId() != null && sifenConfigFactory.tieneCertificado(principal.empresaId())) {
+        // Certificado de la empresa de la cuenta solo si está vigente; si venció se usa el de plataforma.
+        if (principal.empresaId() != null && sifenConfigFactory.tieneCertificadoVigente(principal.empresaId())) {
             return principal.empresaId();
         }
         if (empresaPlataformaId != null) {
